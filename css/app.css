@@ -1401,12 +1401,58 @@ body.is-auth { background: var(--bg); }
 }
 
 @media (max-width: 767px) {
-  /* Kunci pembungkus utama agar aplikasi tidak bisa digeser ke kiri/kanan (Fixed Layout) */
+  /* Kunci pembungkus utama agar aplikasi tidak melebar ke kanan */
   html, body, .app-shell, .app-main, .page-content {
     width: 100% !important;
     max-width: 100% !important;
     overflow-x: hidden !important;
     box-sizing: border-box !important;
+  }
+
+  /* Mencegah card, grid, dan elemen flex mendorong lebar layar */
+  .page-stack,
+  .card,
+  .stat-card,
+  .day-group,
+  .networth-card,
+  .accounts-hero,
+  .tx-row,
+  .schedule-item {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Perbaikan Aksi Cepat / Quick Actions agar tidak overflow */
+  .quick-grid,
+  .quick-actions-grid,
+  .actions-wrapper {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .quick-tile,
+  .quick-actions-grid .btn,
+  .actions-wrapper .btn {
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 8px !important;
+    font-size: 9.5px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Pemotongan teks judul & catatan pada baris transaksi agar tidak memanjangkan kontainer */
+  .tx-title,
+  .tx-meta,
+  .schedule-title {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    min-width: 0 !important;
   }
 
   /* Perbaikan input & select agar ukurannya pas & tidak memaksa melebarkan kontainer */
@@ -1421,7 +1467,7 @@ body.is-auth { background: var(--bg); }
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
-    text-overflow: ellipsis !important; /* Buat teks panjang jadi (...) agar tidak merusak layout */
+    text-overflow: ellipsis !important;
   }
 
   .page-stack { gap: 14px; }
@@ -1440,23 +1486,16 @@ body.is-auth { background: var(--bg); }
   .donut-layout { grid-template-columns: 1fr; gap: 6px; }
   .chart-box-donut { height: 184px; }
   .chart-box-bars { height: 205px; }
-  .quick-grid { grid-template-columns: 1fr 1fr; }
 
-  /* Grid filter transaksi pada tampilan mobile (2 kolom seimbang) */
-    .filter-card { overflow: hidden !important; }
-    .filter-grid {
-      display: grid !important;
-      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-      gap: 8px !important;
-      width: 100% !important;
-    }
-    .filter-search { grid-column: span 2 !important; }
-    .filter-grid .field,
-    .filter-grid select,
-    .filter-grid input {
-      width: 100% !important;
-      min-width: 0 !important;
-    }
+  /* Grid filter transaksi pada tampilan mobile */
+  .filter-card { overflow: hidden !important; }
+  .filter-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  .filter-search { grid-column: span 2 !important; }
 
   .calendar-card { padding: 12px; }
   .calendar-grid { gap: 2px; }
