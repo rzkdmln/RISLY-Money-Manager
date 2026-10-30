@@ -1,21 +1,35 @@
 import { store } from '../store.js';
 import { icon } from '../icons.js';
 import { badge, emptyState, money, pageHeader, ui } from '../ui.js';
-import { escapeAttr, escapeHTML, formatDateLong, monthKey, monthRange, normalizeSearch } from '../utils.js';
+import { escapeAttr, escapeHTML, formatDateLong, normalizeSearch } from '../utils.js';
 import { dayGroupHeader, transactionDayGroups, txRow } from './common.js';
 
 function filterTransactions() {
   let list = store.transactions();
-  if (ui.txMonth !== 'all') {
-    const range = monthRange(ui.txMonth || monthKey());
-    list = list.filter((tx) => tx.date >= range.start && tx.date <= range.end);
+
+  // Filter berdasarkan Tahun
+  if (ui.txYear && ui.txYear !== 'all') {
+    list = list.filter((tx) => {
+      const txYear = tx.date.split('-')[0]; // Format YYYY
+      return txYear === ui.txYear;
+    });
   }
+
+  // Filter berdasarkan Bulan
+  if (ui.txMonth && ui.txMonth !== 'all') {
+    list = list.filter((tx) => {
+      const txMonth = tx.date.split('-')[1]; // Format MM
+      return txMonth === ui.txMonth;
+    });
+  }
+
   if (ui.txType !== 'all') list = list.filter((tx) => tx.type === ui.txType);
   if (ui.txAccount !== 'all') {
     list = list.filter((tx) => tx.accountId === ui.txAccount || tx.toAccountId === ui.txAccount);
   }
   if (ui.txCategory !== 'all') list = list.filter((tx) => tx.categoryId === ui.txCategory);
   if (ui.txUser !== 'all') list = list.filter((tx) => tx.createdBy === ui.txUser);
+
   if (ui.txQuery.trim()) {
     const query = normalizeSearch(ui.txQuery);
     list = list.filter((tx) => {
@@ -36,18 +50,31 @@ function filterTransactions() {
       return haystack.includes(query);
     });
   }
+
   return list;
 }
 
 export function transactionsView() {
-  if (!ui.txMonth) ui.txMonth = monthKey();
+  const currentYear = new Date().getFullYear();
+  const currentMonthStr = String(new Date().getMonth() + 1).padStart(2, '0');
+
+  // Inisialisasi default jika belum ada
+  if (!ui.txYear) ui.txYear = currentYear.toString();
+  if (!ui.txMonth || ui.txMonth.length > 2) ui.txMonth = currentMonthStr;
+
   const all = filterTransactions();
   const summary = store.summaryForTransactions(all);
   const groups = transactionDayGroups(all.slice(0, ui.txLimit));
   const categories = store.categories();
   const accounts = store.data.accounts.filter((account) => !account.deletedAt);
   const users = store.activeUsers();
-  const monthValue = ui.txMonth === 'all' ? '' : ui.txMonth;
+
+  // Buat opsi tahun otomatis dinamis
+  const startYear = 2024;
+  let yearOptions = `<option value="all" ${ui.txYear === 'all' ? 'selected' : ''}>Semua tahun</option>`;
+  for (let y = currentYear; y >= startYear; y--) {
+    yearOptions += `<option value="${y}" ${ui.txYear === y.toString() ? 'selected' : ''}>${y}</option>`;
+  }
 
   const groupHtml = groups.length
     ? groups.map((group) => `<section class="day-group">
@@ -87,13 +114,32 @@ export function transactionsView() {
       <div class="filter-top">
         <div class="flex items-center gap-2">
           <span class="filter-title">${icon('filter', 'w-4 h-4')} Filter</span>
-          ${ui.txMonth === 'all' ? badge('Semua waktu', 'blue', 'badge-soft') : ''}
+          ${ui.txMonth === 'all' && ui.txYear === 'all' ? badge('Semua waktu', 'blue', 'badge-soft') : ''}
         </div>
         <button type="button" class="link-button" data-action="reset-tx-filter">Reset</button>
       </div>
       <div class="filter-grid">
+        <label class="field-label">Tahun
+          <select class="field mt-1.5" id="tx-filter-year" data-filter="tx-year">
+            ${yearOptions}
+          </select>
+        </label>
         <label class="field-label">Bulan
-          <input class="field mt-1.5" type="month" id="tx-filter-month" value="${escapeAttr(monthValue)}" data-filter="tx-month">
+          <select class="field mt-1.5" id="tx-filter-month" data-filter="tx-month">
+            <option value="all" ${ui.txMonth === 'all' ? 'selected' : ''}>Semua bulan</option>
+            <option value="01" ${ui.txMonth === '01' ? 'selected' : ''}>Januari</option>
+            <option value="02" ${ui.txMonth === '02' ? 'selected' : ''}>Februari</option>
+            <option value="03" ${ui.txMonth === '03' ? 'selected' : ''}>Maret</option>
+            <option value="04" ${ui.txMonth === '04' ? 'selected' : ''}>April</option>
+            <option value="05" ${ui.txMonth === '05' ? 'selected' : ''}>Mei</option>
+            <option value="06" ${ui.txMonth === '06' ? 'selected' : ''}>Juni</option>
+            <option value="07" ${ui.txMonth === '07' ? 'selected' : ''}>Juli</option>
+            <option value="08" ${ui.txMonth === '08' ? 'selected' : ''}>Agustus</option>
+            <option value="09" ${ui.txMonth === '09' ? 'selected' : ''}>September</option>
+            <option value="10" ${ui.txMonth === '10' ? 'selected' : ''}>Oktober</option>
+            <option value="11" ${ui.txMonth === '11' ? 'selected' : ''}>November</option>
+            <option value="12" ${ui.txMonth === '12' ? 'selected' : ''}>Desember</option>
+          </select>
         </label>
         <label class="field-label">Jenis
           <select class="field mt-1.5" id="tx-filter-type" data-filter="tx-type">

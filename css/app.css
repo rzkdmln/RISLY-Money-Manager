@@ -1442,15 +1442,21 @@ body.is-auth { background: var(--bg); }
   .chart-box-bars { height: 205px; }
   .quick-grid { grid-template-columns: 1fr 1fr; }
 
-  /* Grid filter transaksi pada tampilan mobile */
-  .filter-card { overflow: hidden !important; }
-  .filter-grid {
-    display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 8px !important;
-    width: 100% !important;
-  }
-  .filter-search { grid-column: span 2 !important; }
+  /* Grid filter transaksi pada tampilan mobile (2 kolom seimbang) */
+    .filter-card { overflow: hidden !important; }
+    .filter-grid {
+      display: grid !important;
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      gap: 8px !important;
+      width: 100% !important;
+    }
+    .filter-search { grid-column: span 2 !important; }
+    .filter-grid .field,
+    .filter-grid select,
+    .filter-grid input {
+      width: 100% !important;
+      min-width: 0 !important;
+    }
 
   .calendar-card { padding: 12px; }
   .calendar-grid { gap: 2px; }

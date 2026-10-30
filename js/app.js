@@ -2455,6 +2455,10 @@ function bindEvents() {
     const filter = target.dataset?.filter;
     if (filter) {
       switch (filter) {
+        case 'tx-year':
+          ui.txYear = target.value || new Date().getFullYear().toString();
+          ui.txLimit = 40;
+          break;
         case 'tx-month':
           ui.txMonth = target.value || 'all';
           ui.txLimit = 40;
