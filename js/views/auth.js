@@ -75,13 +75,6 @@ export function loginView() {
           </div>
           <p id="auth-error" class="auth-error ${locked ? '' : 'hidden'}" data-form-error role="alert">${locked ? `Terlalu banyak percobaan. Coba lagi dalam ${Math.ceil(lockRemaining / 1000)} detik.` : ''}</p>
 
-          <div class="pin-keypad" aria-label="Papan angka PIN">
-            ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((number) => `<button type="button" data-pin-key="${number}">${number}</button>`).join('')}
-            <button type="button" class="pin-key-muted" data-pin-key="clear" aria-label="Hapus semua">C</button>
-            <button type="button" data-pin-key="0">0</button>
-            <button type="button" class="pin-key-muted" data-pin-key="back" aria-label="Hapus satu angka">${icon('delete', 'w-5 h-5')}</button>
-          </div>
-
           <button type="submit" class="btn btn-primary auth-submit" ${locked ? 'disabled' : ''}>
             ${locked ? 'Terkunci sementara' : `Masuk sebagai ${escapeHTML(selected.name)}`}
             ${locked ? icon('lock', 'w-4 h-4') : icon('arrow-right', 'w-4 h-4')}

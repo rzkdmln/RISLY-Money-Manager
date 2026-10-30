@@ -82,19 +82,19 @@ export function notesView() {
   </button>`).join('');
 
   const tagsHtml = tags.length
-    ? `<div class="notes-tag-bar">
-      <button type="button" class="tag-filter ${!ui.notesTag ? 'is-active' : ''}" data-action="notes-tag" data-tag="">Semua tag</button>
-      ${tags.slice(0, 12).map((tag) => `<button type="button" class="tag-filter ${ui.notesTag === tag ? 'is-active' : ''}" data-action="notes-tag" data-tag="${escapeAttr(tag)}">#${escapeHTML(tag)}</button>`).join('')}
+    ? `<div class="notes-tag-bar min-w-0 w-full overflow-x-auto">
+      <button type="button" class="tag-filter shrink-0 ${!ui.notesTag ? 'is-active' : ''}" data-action="notes-tag" data-tag="">Semua tag</button>
+      ${tags.slice(0, 12).map((tag) => `<button type="button" class="tag-filter shrink-0 ${ui.notesTag === tag ? 'is-active' : ''}" data-action="notes-tag" data-tag="${escapeAttr(tag)}">#${escapeHTML(tag)}</button>`).join('')}
     </div>`
     : '';
 
   const banner = ui.notesTab === 'trashed'
-    ? `<div class="notes-banner notes-banner-danger">
-        <div>${icon('trash', 'w-5 h-5')}<span><strong>Sampah</strong> — catatan di sini dapat dipulihkan. Hapus permanen akan menghilangkannya dari semua perangkat.</span></div>
-        ${counts.trashed ? `<button type="button" class="btn btn-danger-soft btn-sm" data-action="empty-trash">Kosongkan sampah</button>` : ''}
+    ? `<div class="notes-banner notes-banner-danger min-w-0 w-full">
+        <div class="min-w-0 flex-1">${icon('trash', 'w-5 h-5 shrink-0')}<span><strong>Sampah</strong> — catatan di sini dapat dipulihkan. Hapus permanen akan menghilangkannya dari semua perangkat.</span></div>
+        ${counts.trashed ? `<button type="button" class="btn btn-danger-soft btn-sm shrink-0" data-action="empty-trash">Kosongkan sampah</button>` : ''}
       </div>`
     : ui.notesTab === 'archived'
-      ? `<div class="notes-banner">${icon('archive', 'w-5 h-5')}<span>Catatan yang diarsipkan tidak muncul di daftar utama. Pulihkan kapan saja tanpa kehilangan isi.</span></div>`
+      ? `<div class="notes-banner min-w-0 w-full">${icon('archive', 'w-5 h-5 shrink-0')}<span>Catatan yang diarsipkan tidak muncul di daftar utama. Pulihkan kapan saja tanpa kehilangan isi.</span></div>`
       : '';
 
   const emptyCopy = {
@@ -111,7 +111,7 @@ export function notesView() {
     : `<button type="button" class="btn btn-secondary" data-action="add-note">${icon('sticky-note', 'w-4 h-4')} Catatan</button>
        <button type="button" class="btn btn-primary" data-action="add-todo">${icon('plus', 'w-4 h-4')} Tugas</button>`;
 
-  return `<div class="page-stack">
+  return `<div class="page-stack min-w-0 w-full overflow-hidden">
     ${pageHeader({
       eyebrow: 'Papan keluarga',
       title: 'Catatan & Tugas',
@@ -119,25 +119,25 @@ export function notesView() {
       actions,
     })}
 
-    <div class="notes-overview">
-      <div class="notes-overview-copy">
-        <span class="notes-overview-icon">${icon('sparkles', 'w-5 h-5')}</span>
-        <div>
-          <p class="font-semibold text-slate-900 dark:text-white">${dueCount > 0 ? `${dueCount} tugas perlu perhatian` : 'Papan kalian tertata rapi'}</p>
-          <p class="text-xs text-slate-500 dark:text-slate-400">${counts.all} catatan aktif · ${counts.todo} tugas · ${counts.favorite} favorit</p>
+    <div class="notes-overview min-w-0 w-full">
+      <div class="notes-overview-copy min-w-0 flex-1">
+        <span class="notes-overview-icon shrink-0">${icon('sparkles', 'w-5 h-5')}</span>
+        <div class="min-w-0 flex-1">
+          <p class="font-semibold text-slate-900 dark:text-white truncate">${dueCount > 0 ? `${dueCount} tugas perlu perhatian` : 'Papan kalian tertata rapi'}</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400 truncate">${counts.all} catatan aktif · ${counts.todo} tugas · ${counts.favorite} favorit</p>
         </div>
       </div>
       ${dueCount > 0 ? badge(`${dueCount} jatuh tempo`, 'red', 'badge-soft') : badge('Semua terkendali', 'green', 'badge-soft')}
     </div>
 
-    <div class="notes-toolbar card">
-      <div class="notes-tabs" role="tablist" aria-label="Jenis catatan">${tabHtml}</div>
-      <div class="notes-controls">
-        <label class="search-field notes-search-field">
+    <div class="notes-toolbar card min-w-0 w-full overflow-hidden">
+      <div class="notes-tabs min-w-0 w-full overflow-x-auto" role="tablist" aria-label="Jenis catatan">${tabHtml}</div>
+      <div class="notes-controls min-w-0 w-full flex flex-wrap gap-2">
+        <label class="search-field notes-search-field min-w-0 flex-1">
           ${icon('search', 'w-4 h-4')}
-          <input class="field" id="notes-search" type="search" placeholder="Cari catatan, tugas, tag…" value="${escapeAttr(ui.notesQuery)}">
+          <input class="field min-w-0 w-full" id="notes-search" type="search" placeholder="Cari catatan, tugas, tag…" value="${escapeAttr(ui.notesQuery)}">
         </label>
-        <select class="field field-compact" id="notes-sort" data-filter="notes-sort" aria-label="Urutkan catatan">
+        <select class="field field-compact shrink-0" id="notes-sort" data-filter="notes-sort" aria-label="Urutkan catatan">
           <option value="updated" ${ui.notesSort === 'updated' ? 'selected' : ''}>Terakhir diubah</option>
           <option value="created" ${ui.notesSort === 'created' ? 'selected' : ''}>Terbaru</option>
           <option value="due" ${ui.notesSort === 'due' ? 'selected' : ''}>Tenggat</option>
@@ -145,7 +145,7 @@ export function notesView() {
           <option value="title" ${ui.notesSort === 'title' ? 'selected' : ''}>Judul A–Z</option>
           <option value="manual" ${ui.notesSort === 'manual' ? 'selected' : ''}>Urutan manual</option>
         </select>
-        <div class="view-toggle" role="group" aria-label="Tampilan">
+        <div class="view-toggle shrink-0" role="group" aria-label="Tampilan">
           <button type="button" class="${ui.notesView === 'grid' ? 'is-active' : ''}" data-action="notes-view" data-view="grid" aria-label="Tampilan kartu">${icon('layout-grid', 'w-4 h-4')}</button>
           <button type="button" class="${ui.notesView === 'list' ? 'is-active' : ''}" data-action="notes-view" data-view="list" aria-label="Tampilan daftar">${icon('layout-list', 'w-4 h-4')}</button>
         </div>
@@ -156,7 +156,7 @@ export function notesView() {
     ${banner}
 
     ${notes.length
-      ? `<div class="notes-grid ${ui.notesView === 'list' ? 'notes-list-view' : ''}">
+      ? `<div class="notes-grid ${ui.notesView === 'list' ? 'notes-list-view' : ''} grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0 w-full">
           ${notes.map((note) => noteCard(note, { view: ui.notesView })).join('')}
         </div>`
       : emptyState(...emptyCopy, ui.notesTab === 'trashed' || filtered ? '' : `<div class="flex gap-2 justify-center"><button type="button" class="btn btn-secondary btn-sm" data-action="add-note">Catatan</button><button type="button" class="btn btn-primary btn-sm" data-action="add-todo">Tugas</button></div>`)}
@@ -166,23 +166,23 @@ export function notesView() {
 export function tasksSheet() {
   const tasks = store.tasksDue(14);
   return `<div class="sheet-handle"></div>
-    <div class="p-5 sm:p-6">
-      <div class="flex items-start justify-between gap-3">
-        <div>
+    <div class="p-5 sm:p-6 min-w-0 w-full overflow-hidden">
+      <div class="flex items-start justify-between gap-3 min-w-0">
+        <div class="min-w-0 flex-1">
           <p class="page-eyebrow">Pengingat</p>
-          <h2 class="text-xl font-bold text-slate-900 dark:text-white mt-1">Tugas terdekat</h2>
-          <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">${todayISO()} · ${tasks.length} tugas dalam 14 hari</p>
+          <h2 class="text-xl font-bold text-slate-900 dark:text-white mt-1 truncate">Tugas terdekat</h2>
+          <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 truncate">${todayISO()} · ${tasks.length} tugas dalam 14 hari</p>
         </div>
-        <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
+        <button type="button" class="icon-btn shrink-0" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
       </div>
-      <div class="mt-4 space-y-2">
-        ${tasks.length ? tasks.map((task) => `<button type="button" class="task-sheet-row" data-action="edit-note" data-id="${escapeAttr(task.id)}">
-          <span class="mini-check ${task.done ? 'is-done' : ''}">${task.done ? icon('check', 'w-3 h-3') : ''}</span>
+      <div class="mt-4 space-y-2 min-w-0 w-full">
+        ${tasks.length ? tasks.map((task) => `<button type="button" class="task-sheet-row min-w-0 w-full flex items-center gap-2 p-2.5 rounded-lg text-left" data-action="edit-note" data-id="${escapeAttr(task.id)}">
+          <span class="mini-check shrink-0 ${task.done ? 'is-done' : ''}">${task.done ? icon('check', 'w-3 h-3') : ''}</span>
           <span class="min-w-0 flex-1 text-left">
-            <span class="block text-sm font-semibold text-slate-800 dark:text-slate-100">${escapeHTML(task.title)}</span>
-            <span class="block text-[11px] ${task.dueDate < todayISO() ? 'text-red-500' : 'text-slate-500 dark:text-slate-400'}">${escapeHTML(task.dueDate || 'Tanpa tenggat')}</span>
+            <span class="block text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">${escapeHTML(task.title)}</span>
+            <span class="block text-[11px] truncate ${task.dueDate < todayISO() ? 'text-red-500' : 'text-slate-500 dark:text-slate-400'}">${escapeHTML(task.dueDate || 'Tanpa tenggat')}</span>
           </span>
-          ${badge(task.priority === 'urgent' ? 'Mendesak' : task.priority === 'high' ? 'Tinggi' : 'Tugas', task.priority === 'urgent' ? 'red' : task.priority === 'high' ? 'amber' : 'blue', 'badge-soft')}
+          <span class="shrink-0">${badge(task.priority === 'urgent' ? 'Mendesak' : task.priority === 'high' ? 'Tinggi' : 'Tugas', task.priority === 'urgent' ? 'red' : task.priority === 'high' ? 'amber' : 'blue', 'badge-soft')}</span>
         </button>`).join('') : emptyState('check-square', 'Tidak ada tugas mendesak', 'Semua tugas terdekat sudah beres atau belum dijadwalkan.')}
       </div>
       <button type="button" class="btn btn-primary w-full mt-4" data-action="add-todo">${icon('plus', 'w-4 h-4')} Tambah tugas</button>
