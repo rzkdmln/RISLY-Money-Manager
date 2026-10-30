@@ -45,7 +45,7 @@ export function loginView() {
     <div class="auth-orb auth-orb-three"></div>
     <main class="auth-shell">
       <div class="auth-brand">
-        <span class="brand-mark brand-mark-lg">R</span>
+        <img src="icons/icon-192.png" alt="RISLY Logo" class="w-12 h-12 rounded-2xl shadow-sm object-cover">
         <div>
           <p class="brand-name">${APP.name}</p>
           <p class="brand-caption">${APP.fullName}</p>
@@ -130,7 +130,7 @@ export function setupView(users = storeUsers()) {
     <div class="auth-orb auth-orb-three"></div>
     <main class="auth-shell auth-shell-setup">
       <div class="auth-brand">
-        <span class="brand-mark brand-mark-lg">R</span>
+        <img src="icons/icon-192.png" alt="RISLY Logo" class="w-12 h-12 rounded-2xl shadow-sm object-cover">
         <div>
           <p class="brand-name">${APP.name}</p>
           <p class="brand-caption">${APP.fullName}</p>

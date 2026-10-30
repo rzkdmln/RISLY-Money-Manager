@@ -18,7 +18,7 @@ export function shellView(user, dueCount = 0) {
   return `<div class="app-shell">
     <aside class="sidebar">
       <div class="sidebar-brand">
-        <span class="brand-mark">R</span>
+        <img src="icons/icon-192.png" alt="RISLY Logo" class="w-9 h-9 rounded-xl shadow-sm object-cover">
         <div class="min-w-0">
           <p class="brand-name">${APP.name}</p>
           <p class="brand-caption">Money Manager</p>
@@ -50,7 +50,7 @@ export function shellView(user, dueCount = 0) {
       <header class="topbar">
         <div class="topbar-left">
           <a href="#/dashboard" class="mobile-brand" aria-label="${APP.name}">
-            <span class="brand-mark brand-mark-sm">R</span>
+            <img src="icons/icon-192.png" alt="RISLY Logo" class="w-7 h-7 rounded-lg shadow-sm object-cover">
             <span class="brand-name">${APP.name}</span>
           </a>
           <div class="topbar-date hidden lg:block">
