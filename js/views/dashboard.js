@@ -108,7 +108,7 @@ export function dashboardView(user) {
     ${pageHeader({
       eyebrow: `Ringkasan ${escapeHTML(formatMonth(month))}`,
       title: `${escapeHTML(greeting())}, ${escapeHTML(user?.name || '')} <span class="wave">👋</span>`,
-      subtitle: 'Semua yang penting untuk keuangan keluarga, dalam satu tempat.',
+      subtitle: 'Pencatatan keuangan keluarga dalam satu tempat.',
       actions: `<button type="button" class="btn btn-primary hidden sm:inline-flex" data-action="add-tx" data-type="expense">${icon('plus', 'w-4 h-4')} Transaksi</button>`,
     })}
 
