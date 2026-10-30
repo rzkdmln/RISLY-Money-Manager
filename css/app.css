@@ -1504,6 +1504,21 @@ body.is-auth { background: var(--bg); }
   .page-actions, .link-button, .btn { display: none !important; }
 }
 
-#nl-badge, .nl-badge {
-    display: none !important;
+/* Cegah Auto-Zoom pada Form Input */
+input, select, textarea {
+  font-size: 16px !important; /* Mencegah Safari auto-zoom saat fokus */
+}
+
+/* Matikan Behavior Gesture bawaan iOS (Safari Rubber-Banding) */
+html, body {
+  touch-action: pan-x pan-y; /* Hanya mengizinkan scroll horizontal & vertikal biasa */
+  overscroll-behavior-y: none; /* Mencegah efek bounce/rubber-band saat scroll habis */
+  -webkit-user-select: none; /* Mencegah teks terblok tidak sengaja saat di-tap lama */
+  user-select: none;
+}
+
+/* Izinkan seleksi teks khusus di elemen input agar pengguna tetap bisa copy-paste nominal */
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
 }
