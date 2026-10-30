@@ -70,7 +70,7 @@ export function transactionsView() {
   const users = store.activeUsers();
 
   // Buat opsi tahun otomatis dinamis
-  const startYear = 2024;
+  const startYear = 2026;
   let yearOptions = `<option value="all" ${ui.txYear === 'all' ? 'selected' : ''}>Semua tahun</option>`;
   for (let y = currentYear; y >= startYear; y--) {
     yearOptions += `<option value="${y}" ${ui.txYear === y.toString() ? 'selected' : ''}>${y}</option>`;
