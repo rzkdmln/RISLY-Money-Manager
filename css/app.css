@@ -1503,3 +1503,7 @@ body.is-auth { background: var(--bg); }
   .card, .stat-card, .accounts-hero, .networth-card { box-shadow: none !important; break-inside: avoid; }
   .page-actions, .link-button, .btn { display: none !important; }
 }
+
+#nl-badge, .nl-badge {
+    display: none !important;
+}
