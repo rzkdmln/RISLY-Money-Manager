@@ -6,6 +6,8 @@ import {
   WEEK_OPTIONS,
 } from '../config.js';
 import { Cloud } from '../cloud.js';
+import { GoogleDrive, googleAccountBadge } from '../gdrive.js';
+import { cloudProviderFields } from '../forms/cloud.js';
 import { store } from '../store.js';
 import { icon } from '../icons.js';
 import {
@@ -26,63 +28,14 @@ import {
 } from '../utils.js';
 
 function cloudFields(config) {
-  const provider = config.provider || 'local';
-  const jsonbin = config.jsonbin || {};
-  const supabase = config.supabase || {};
-  const firebase = config.firebase || {};
-  return `<div class="cloud-provider-select">
-    <label class="field-label">Penyedia sinkronisasi
-      <select class="field mt-1.5" id="cloud-provider" name="provider" data-action="cloud-provider-change">
-        ${Object.entries(CLOUD_PROVIDERS).map(([id, item]) => `<option value="${id}" ${provider === id ? 'selected' : ''}>${escapeHTML(item.label)}</option>`).join('')}
-      </select>
-    </label>
-    <p class="text-[11px] leading-5 text-slate-500 dark:text-slate-400" id="cloud-provider-help">${escapeHTML(CLOUD_PROVIDERS[provider]?.description || '')}</p>
-  </div>
-
-  <div class="cloud-fields" data-provider-section="jsonbin" ${provider === 'jsonbin' ? '' : 'hidden'}>
-    <label class="field-label">Bin ID
-      <input class="field mt-1.5" name="jsonbinBinId" value="${escapeAttr(jsonbin.binId || '')}" placeholder="65f…">
-    </label>
-    <label class="field-label">Master Key
-      <input class="field mt-1.5" name="jsonbinMasterKey" type="password" value="${escapeAttr(jsonbin.masterKey || '')}" placeholder="$2a$10$…" autocomplete="off">
-    </label>
-    <div class="flex flex-wrap gap-2">
-      <button type="button" class="btn btn-secondary btn-sm" data-action="create-jsonbin">${icon('database', 'w-3.5 h-3.5')} Buat bin baru</button>
-      <span class="text-[11px] text-slate-400 self-center">Master key hanya disimpan di perangkat ini.</span>
-    </div>
-  </div>
-
-  <div class="cloud-fields" data-provider-section="supabase" ${provider === 'supabase' ? '' : 'hidden'}>
-    <label class="field-label">Project URL
-      <input class="field mt-1.5" name="supabaseUrl" value="${escapeAttr(supabase.url || '')}" placeholder="https://xxxx.supabase.co">
-    </label>
-    <label class="field-label">Anon key
-      <input class="field mt-1.5" name="supabaseAnonKey" type="password" value="${escapeAttr(supabase.anonKey || '')}" placeholder="eyJhbGciOi…" autocomplete="off">
-    </label>
-    <div class="grid grid-cols-2 gap-3">
-      <label class="field-label">Tabel
-        <input class="field mt-1.5" name="supabaseTable" value="${escapeAttr(supabase.table || 'households')}" placeholder="households">
-      </label>
-      <label class="field-label">Row ID
-        <input class="field mt-1.5" name="supabaseRowId" value="${escapeAttr(supabase.rowId || APP.householdId)}" placeholder="${escapeAttr(APP.householdId)}">
-      </label>
-    </div>
-  </div>
-
-  <div class="cloud-fields" data-provider-section="firebase" ${provider === 'firebase' ? '' : 'hidden'}>
-    <label class="field-label">Konfigurasi Firebase (JSON)
-      <textarea class="field textarea mt-1.5 font-mono text-[11px]" name="firebaseConfigJson" rows="6" placeholder='{"apiKey":"…","authDomain":"…","databaseURL":"https://….firebaseio.com","projectId":"…","appId":"…"}'>${escapeHTML(typeof firebase.configJson === 'string' ? firebase.configJson : JSON.stringify(firebase.configJson || {}, null, 2))}</textarea>
-    </label>
-    <label class="field-label">Path database
-      <input class="field mt-1.5" name="firebasePath" value="${escapeAttr(firebase.path || `households/${APP.householdId}`)}" placeholder="households/risly-family">
-    </label>
-    <p class="text-[11px] leading-5 text-slate-500 dark:text-slate-400">Firebase RTDB memakai listener real-time. Lindungi database dengan rules yang membatasi akses.</p>
-  </div>
-
-  <div class="cloud-security-note">
-    ${icon('shield', 'w-4 h-4')}
-    <p>PIN aplikasi bukan enkripsi. Kunci API dan data cloud dapat dibaca dari perangkat yang terbuka. Gunakan kunci rahasia, kode perangkat, dan aturan backend yang ketat.</p>
-  </div>`;
+  return cloudProviderFields(config, {
+    includeLocal: true,
+    withCreateBin: true,
+    withSecurityNote: true,
+    selectId: 'cloud-provider',
+    helpId: 'cloud-provider-help',
+    textareaRows: 6,
+  });
 }
 
 function notificationStatus() {
@@ -102,6 +55,7 @@ export function settingsView(user) {
   const noteCount = store.notes().length;
   const swActive = Boolean(navigator.serviceWorker?.controller);
   const lockValue = Number(store.data.settings.autoLockMinutes);
+  const driveConnected = GoogleDrive.isConnected();
 
   return `<div class="page-stack">
     ${pageHeader({
@@ -207,6 +161,7 @@ export function settingsView(user) {
           <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">${escapeHTML(status.providerLabel)}</p>
           <p class="text-xs ${status.state === 'error' ? 'text-red-500' : 'text-slate-500 dark:text-slate-400'} mt-0.5">${escapeHTML(status.error || status.message || CLOUD_PROVIDERS[status.provider]?.description || 'Data lokal')}</p>
           <p class="text-[11px] text-slate-400 mt-1">${status.lastSyncAt ? `Terakhir sinkron ${formatDateTime(status.lastSyncAt)}` : 'Belum pernah tersinkron'}</p>
+          ${status.provider === 'gdrive' ? `<div class="mt-2" data-gdrive-account>${googleAccountBadge(GoogleDrive.getAccount())}</div>` : ''}
         </div>
         <div class="flex gap-2">
           ${status.provider !== 'local' ? `<button type="button" class="btn btn-secondary btn-sm" data-action="sync-now">${icon('refresh', 'w-3.5 h-3.5')} Sinkron</button>` : ''}
@@ -219,7 +174,7 @@ export function settingsView(user) {
           <button type="submit" class="btn btn-primary">${icon(status.connected ? 'refresh' : 'cloud', 'w-4 h-4')} ${status.connected ? 'Simpan & sambungkan ulang' : 'Simpan & hubungkan'}</button>
           <button type="button" class="btn btn-secondary" data-action="cloud-test">Uji koneksi</button>
         </div>
-        <p class="text-[11px] text-slate-400 mt-3">JSONBin/Supabase memakai polling ±20 detik. Firebase memakai listener real-time. Data tetap bisa dipakai offline dari cache lokal.</p>
+        <p class="text-[11px] text-slate-400 mt-3">Google Drive, JSONBin, dan Supabase memakai polling ±20 detik. Firebase memakai listener real-time. Data tetap bisa dipakai offline dari cache lokal.</p>
       </form>
     </section>
 
@@ -237,10 +192,12 @@ export function settingsView(user) {
         <div class="settings-actions">
           <button type="button" class="btn btn-secondary btn-sm" data-action="export-backup">${icon('download', 'w-3.5 h-3.5')} Unduh backup JSON</button>
           <button type="button" class="btn btn-secondary btn-sm" data-action="import-backup">${icon('upload', 'w-3.5 h-3.5')} Pulihkan backup</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-action="drive-backup" data-drive-requires-google ${driveConnected ? '' : 'disabled'}>${icon('cloud', 'w-3.5 h-3.5')} Backup ke Drive</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-action="drive-restore" data-drive-requires-google ${driveConnected ? '' : 'disabled'}>${icon('cloud-off', 'w-3.5 h-3.5')} Pulihkan dari Drive</button>
           <button type="button" class="btn btn-secondary btn-sm" data-action="load-sample">${icon('sparkles', 'w-3.5 h-3.5')} Muat data contoh</button>
           <button type="button" class="btn btn-danger-soft btn-sm" data-action="reset-app">${icon('trash', 'w-3.5 h-3.5')} Reset aplikasi</button>
         </div>
-        <p class="text-[11px] leading-5 text-slate-400 mt-3">Backup JSON memuat transaksi, akun, anggaran, catatan, dan hash PIN. Simpan di tempat aman.</p>
+        <p class="text-[11px] leading-5 text-slate-400 mt-3">Backup JSON memuat transaksi, akun, anggaran, catatan, dan hash PIN. Backup Drive memakai akun Google dan menyimpan maksimal ${APP.driveBackupLimit} berkas terbaru.</p>
       </section>
 
       <section class="card">

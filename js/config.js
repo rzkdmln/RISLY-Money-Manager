@@ -23,6 +23,11 @@ export const APP = Object.freeze({
   currency: 'IDR',
   defaultAutoLockMinutes: 15,
   syncPollMs: 20_000,
+  driveSyncFile: 'risly-sync.json',
+  driveBackupPrefix: 'risly-backup-',
+  driveBackupLimit: 10,
+  // Public OAuth client ID (safe to ship in a browser app). Never add a client secret here.
+  googleClientId: '56904374704-nlpn19hmj5rmq7878sgkmrchq5t8nrh6.apps.googleusercontent.com',
 });
 
 export const ROUTES = Object.freeze({
@@ -134,6 +139,11 @@ export const CLOUD_PROVIDERS = Object.freeze({
     label: 'Perangkat ini saja',
     description: 'Data hanya tersimpan di browser. Sinkronisasi tidak aktif.',
     icon: 'device',
+  },
+  gdrive: {
+    label: 'Google Drive',
+    description: 'Sinkron & backup ke Drive pribadi dengan akun Google. Tanpa server tambahan.',
+    icon: 'cloud',
   },
   jsonbin: {
     label: 'JSONBin',

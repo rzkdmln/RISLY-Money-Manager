@@ -14,6 +14,7 @@ import {
 } from './config.js';
 import { store } from './store.js';
 import { Cloud } from './cloud.js';
+import { GoogleDrive, googleAccountBadge } from './gdrive.js';
 import {
   changePin,
   clearSession,
@@ -52,8 +53,10 @@ import {
   escapeHTML,
   expressionResult,
   fileSafe,
+  formatBytes,
   formatCurrency,
   formatDate,
+  formatDateTime,
   formatMonth,
   getInitials,
   isIos,
@@ -101,6 +104,7 @@ import {
   transactionForm,
 } from './forms/transaction.js';
 import { noteEditorForm, todoItemRow } from './forms/note.js';
+import { cloudProviderFields } from './forms/cloud.js';
 
 /* -------------------------------------------------------------------------- */
 /*  Runtime state                                                            */
@@ -497,50 +501,12 @@ function openInstallHelp() {
 }
 
 function authCloudFields(config = {}) {
-  const provider = config.provider || 'jsonbin';
-  const jsonbin = config.jsonbin || {};
-  const supabase = config.supabase || {};
-  const firebase = config.firebase || {};
-  return `<div class="cloud-provider-select">
-    <label class="field-label">Penyedia
-      <select class="field mt-1.5" name="provider" data-action="cloud-provider-change">
-        ${Object.entries(CLOUD_PROVIDERS).filter(([id]) => id !== 'local').map(([id, item]) => `<option value="${id}" ${provider === id ? 'selected' : ''}>${escapeHTML(item.label)}</option>`).join('')}
-      </select>
-    </label>
-    <p class="text-[11px] leading-5 text-slate-500 dark:text-slate-400" data-cloud-help>${escapeHTML(CLOUD_PROVIDERS[provider]?.description || '')}</p>
-  </div>
-  <div class="cloud-fields" data-provider-section="jsonbin" ${provider === 'jsonbin' ? '' : 'hidden'}>
-    <label class="field-label">Bin ID
-      <input class="field mt-1.5" name="jsonbinBinId" value="${escapeAttr(jsonbin.binId || '')}" placeholder="65f…">
-    </label>
-    <label class="field-label">Master Key
-      <input class="field mt-1.5" name="jsonbinMasterKey" type="password" value="${escapeAttr(jsonbin.masterKey || '')}" placeholder="$2a$10$…" autocomplete="off">
-    </label>
-  </div>
-  <div class="cloud-fields" data-provider-section="supabase" ${provider === 'supabase' ? '' : 'hidden'}>
-    <label class="field-label">Project URL
-      <input class="field mt-1.5" name="supabaseUrl" value="${escapeAttr(supabase.url || '')}" placeholder="https://xxxx.supabase.co">
-    </label>
-    <label class="field-label">Anon key
-      <input class="field mt-1.5" name="supabaseAnonKey" type="password" value="${escapeAttr(supabase.anonKey || '')}" placeholder="eyJhbGciOi…" autocomplete="off">
-    </label>
-    <div class="grid grid-cols-2 gap-3">
-      <label class="field-label">Tabel
-        <input class="field mt-1.5" name="supabaseTable" value="${escapeAttr(supabase.table || 'households')}">
-      </label>
-      <label class="field-label">Row ID
-        <input class="field mt-1.5" name="supabaseRowId" value="${escapeAttr(supabase.rowId || APP.householdId)}">
-      </label>
-    </div>
-  </div>
-  <div class="cloud-fields" data-provider-section="firebase" ${provider === 'firebase' ? '' : 'hidden'}>
-    <label class="field-label">Konfigurasi Firebase (JSON)
-      <textarea class="field textarea mt-1.5 font-mono text-[11px]" name="firebaseConfigJson" rows="5" placeholder='{"databaseURL":"https://….firebaseio.com","projectId":"…"}'>${escapeHTML(typeof firebase.configJson === 'string' ? firebase.configJson : JSON.stringify(firebase.configJson || {}, null, 2))}</textarea>
-    </label>
-    <label class="field-label">Path database
-      <input class="field mt-1.5" name="firebasePath" value="${escapeAttr(firebase.path || `households/${APP.householdId}`)}">
-    </label>
-  </div>`;
+  return cloudProviderFields(config, {
+    includeLocal: false,
+    withCreateBin: false,
+    withSecurityNote: false,
+    textareaRows: 5,
+  });
 }
 
 function openAuthCloudModal() {
@@ -556,7 +522,7 @@ function openAuthCloudModal() {
         <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
       </header>
       <div class="modal-body">
-        <p class="text-sm leading-6 text-slate-500 dark:text-slate-400">Pilih backend yang sudah berisi data keluarga. Setelah terhubung, PIN dan data akan ditarik dari cloud, lalu Anda bisa masuk seperti biasa.</p>
+        <p class="text-sm leading-6 text-slate-500 dark:text-slate-400">Pilih penyedia yang sudah berisi data keluarga. Untuk Google Drive, masuk dengan akun Google lebih dulu. Setelah terhubung, PIN dan data akan ditarik dari cloud, lalu Anda bisa masuk seperti biasa.</p>
         ${authCloudFields(Cloud.getConfig())}
         <p class="form-error hidden" data-form-error role="alert"></p>
       </div>
@@ -737,6 +703,20 @@ function parseCloudConfig(form) {
   const provider = String(fd.get('provider') || 'local');
   if (provider === 'local') return { provider: 'local' };
 
+  if (provider === 'gdrive') {
+    const clientId = String(fd.get('gdriveClientId') || '').trim() || APP.googleClientId;
+    if (!clientId) throw new Error('Client ID Google wajib diisi.');
+    if (!/\.apps\.googleusercontent\.com$/.test(clientId)) {
+      throw new Error('Client ID Google tidak valid (harus berakhiran .apps.googleusercontent.com).');
+    }
+    return {
+      provider,
+      gdrive: {
+        clientId,
+        fileName: APP.driveSyncFile,
+      },
+    };
+  }
   if (provider === 'jsonbin') {
     return {
       provider,
@@ -1027,6 +1007,7 @@ async function resetApplication() {
   });
   if (!ok) return;
   try { await Cloud.disconnect(); } catch { /* noop */ }
+  try { await GoogleDrive.signOut(); } catch { /* noop */ }
   clearSession();
   store.resetLocalData();
   ui.currentUser = null;
@@ -1095,6 +1076,136 @@ async function createJsonBinFromForm(form) {
     toast(error.message || 'Gagal membuat bin.', 'error');
   } finally {
     if (button) button.disabled = false;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Google Drive backup / restore                                            */
+/* -------------------------------------------------------------------------- */
+
+function driveFileStamp(date = new Date()) {
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+}
+
+function refreshDriveUi() {
+  const account = GoogleDrive.getAccount();
+  const connected = Boolean(account?.email);
+  document.querySelectorAll('[data-gdrive-account]').forEach((node) => {
+    node.innerHTML = googleAccountBadge(account);
+  });
+  document.querySelectorAll('[data-gdrive-when-connected]').forEach((node) => {
+    node.hidden = !connected;
+  });
+  document.querySelectorAll('[data-drive-requires-google]').forEach((node) => {
+    node.disabled = !connected;
+    node.classList.toggle('is-disabled', !connected);
+  });
+}
+
+async function driveBackupNow() {
+  if (!GoogleDrive.isConnected()) {
+    toast('Masuk dengan Google dulu untuk memakai backup Drive.', 'info');
+    return;
+  }
+  const payload = {
+    app: 'risly-money-manager',
+    kind: 'risly-backup',
+    version: APP.version,
+    schemaVersion: APP.schemaVersion,
+    exportedAt: nowISO(),
+    data: store.exportSnapshot(),
+  };
+  try {
+    const token = await GoogleDrive.token();
+    const name = `${APP.driveBackupPrefix}${driveFileStamp()}.json`;
+    await GoogleDrive.createFile(token, { name, content: JSON.stringify(payload) });
+    const files = await GoogleDrive.listFiles(token);
+    const backups = files.filter((file) => String(file.name || '').startsWith(APP.driveBackupPrefix));
+    const stale = backups.slice(APP.driveBackupLimit);
+    if (stale.length) {
+      await Promise.allSettled(stale.map((file) => GoogleDrive.deleteFile(token, file.id)));
+    }
+    toast(`Backup tersimpan di Google Drive: ${name}`, 'success');
+  } catch (error) {
+    console.error(error);
+    toast(error.message || 'Backup ke Drive gagal.', 'error');
+  }
+}
+
+async function openDriveRestoreModal() {
+  if (!GoogleDrive.isConnected()) {
+    toast('Masuk dengan Google dulu untuk memakai backup Drive.', 'info');
+    return;
+  }
+  let files = [];
+  try {
+    const token = await GoogleDrive.token();
+    files = (await GoogleDrive.listFiles(token))
+      .filter((file) => String(file.name || '').startsWith(APP.driveBackupPrefix))
+      .sort((a, b) => new Date(b.createdTime || 0) - new Date(a.createdTime || 0));
+  } catch (error) {
+    toast(error.message || 'Gagal membaca daftar backup di Drive.', 'error');
+    return;
+  }
+  const list = files.length
+    ? files.map((file) => `<button type="button" class="drive-backup-row" data-action="drive-restore-file" data-id="${escapeAttr(file.id)}">
+        <span class="drive-backup-icon">${icon('file-text', 'w-4 h-4')}</span>
+        <span class="min-w-0 flex-1"><strong>${escapeHTML(file.name)}</strong><small>${escapeHTML(formatDateTime(file.createdTime))} · ${escapeHTML(formatBytes(Number(file.size) || 0))}</small></span>
+        ${icon('chevron-right', 'w-4 h-4 text-slate-400')}
+      </button>`).join('')
+    : `<div class="py-6 text-center text-sm text-slate-500 dark:text-slate-400">Belum ada backup di Google Drive.</div>`;
+  openModal({
+    size: 'md',
+    html: `<div class="p-5 sm:p-6">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p class="page-eyebrow">Google Drive</p>
+          <h2 class="text-xl font-bold text-slate-900 dark:text-white mt-1">Pulihkan dari Drive</h2>
+          <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Pilih berkas backup. Data lokal saat ini akan diganti.</p>
+        </div>
+        <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
+      </div>
+      <div class="drive-backup-list mt-4">${list}</div>
+      <button type="button" class="btn btn-secondary w-full mt-4" data-action="close-modal">Tutup</button>
+    </div>`,
+  });
+}
+
+async function driveRestoreFile(fileId) {
+  if (!fileId) return;
+  const ok = await confirmDialog({
+    title: 'Pulihkan backup dari Drive?',
+    message: 'Seluruh data lokal saat ini akan diganti oleh isi backup. Tindakan ini tidak dapat dibatalkan.',
+    confirmLabel: 'Pulihkan',
+    danger: false,
+    iconName: 'upload',
+  });
+  if (!ok) return;
+  try {
+    const token = await GoogleDrive.token();
+    const text = await GoogleDrive.downloadFile(token, fileId);
+    const parsed = JSON.parse(text);
+    const data = parsed?.data && parsed.app === 'risly-money-manager' ? parsed.data : parsed;
+    if (!data || !Array.isArray(data.transactions) || !Array.isArray(data.users)) {
+      throw new Error('Struktur backup tidak dikenali.');
+    }
+    store.importData(data);
+    const user = store.currentUser || store.activeUsers()[0];
+    closeModal({ silent: true });
+    if (!user?.pinHash) {
+      clearSession();
+      store.setCurrentUser(null);
+      ui.appMounted = false;
+      renderAuth();
+    } else {
+      ui.appMounted = false;
+      renderApplication();
+    }
+    toast('Backup dari Drive berhasil dipulihkan.', 'success');
+  } catch (error) {
+    console.error(error);
+    toast(error.message || 'Pemulihan dari Drive gagal.', 'error');
   }
 }
 
@@ -1751,6 +1862,92 @@ async function handleAction(action, element) {
       renderApplication();
       break;
     }
+    case 'gdrive-signin': {
+      const form = element.closest('form');
+      const input = form?.querySelector('[name="gdriveClientId"]');
+      const clientId = String(input?.value || GoogleDrive.getClientId() || '').trim();
+      if (!clientId) {
+        toast('Isi Google OAuth Client ID dulu.', 'info');
+        input?.focus();
+        break;
+      }
+      const label = element.innerHTML;
+      element.disabled = true;
+      element.textContent = 'Menghubungkan…';
+      try {
+        const account = await GoogleDrive.signIn(clientId);
+        refreshDriveUi();
+        toast(`Tersambung sebagai ${account.email}.`, 'success');
+        if (Cloud.getConfig().provider === 'gdrive') {
+          Cloud.setGDriveClientId(clientId);
+          Cloud.connect(Cloud.getConfig()).catch(() => {});
+        }
+      } catch (error) {
+        console.error(error);
+        toast(error.message || 'Gagal masuk dengan Google.', 'error');
+      } finally {
+        element.disabled = false;
+        element.innerHTML = label;
+      }
+      break;
+    }
+    case 'gdrive-login': {
+      const label = element.innerHTML;
+      element.disabled = true;
+      element.textContent = 'Menghubungkan…';
+      try {
+        const account = await GoogleDrive.signIn();
+        const current = Cloud.getConfig();
+        const clientId = GoogleDrive.getClientId();
+        const config = current.provider === 'gdrive'
+          ? { ...current, gdrive: { ...(current.gdrive || {}), clientId } }
+          : { provider: 'gdrive', gdrive: { clientId, fileName: APP.driveSyncFile } };
+        const result = await Cloud.connect(config);
+        if (!result.ok) throw result.error || new Error('Gagal menyinkronkan data dari Drive.');
+        const users = store.activeUsers().filter((user) => user.pinHash);
+        if (users.length) {
+          toast(`Tersambung sebagai ${account.email}. Data keluarga dimuat.`, 'success');
+        } else {
+          toast(`Tersambung sebagai ${account.email}, tetapi belum ada data keluarga di Drive ini.`, 'info');
+        }
+        renderAuth();
+      } catch (error) {
+        console.error(error);
+        toast(error.message || 'Gagal masuk dengan Google.', 'error');
+      } finally {
+        element.disabled = false;
+        element.innerHTML = label;
+      }
+      break;
+    }
+    case 'gdrive-signout': {
+      const ok = await confirmDialog({
+        title: 'Keluar dari Google?',
+        message: 'Sinkronisasi dan backup Drive berhenti di perangkat ini. Data lokal tetap aman.',
+        confirmLabel: 'Keluar',
+      });
+      if (!ok) return;
+      if (Cloud.getConfig().provider === 'gdrive') {
+        try { await Cloud.disconnect(); } catch { /* noop */ }
+      }
+      await GoogleDrive.signOut();
+      refreshDriveUi();
+      toast('Akun Google diputuskan.', 'success');
+      if (store.currentUser) {
+        ui.appMounted = false;
+        renderApplication();
+      }
+      break;
+    }
+    case 'drive-backup':
+      await driveBackupNow();
+      break;
+    case 'drive-restore':
+      await openDriveRestoreModal();
+      break;
+    case 'drive-restore-file':
+      await driveRestoreFile(id);
+      break;
     case 'cloud-test': {
       const form = element.closest('form[data-form="cloud"]');
       if (form) await testCloudFromForm(form);

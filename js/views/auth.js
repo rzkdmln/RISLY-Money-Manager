@@ -1,6 +1,7 @@
 import { APP } from '../config.js';
 import { getLockRemaining, usersNeedingSetup } from '../auth.js';
 import { Cloud } from '../cloud.js';
+import { GoogleDrive, googleGlyph } from '../gdrive.js';
 import { icon } from '../icons.js';
 import { store } from '../store.js';
 import { avatar, ui } from '../ui.js';
@@ -21,6 +22,19 @@ function cloudLine() {
   return `<button type="button" class="auth-cloud-link ${tone}" data-action="sync-now">
     ${icon('cloud', 'w-3.5 h-3.5')} ${escapeHTML(status.providerLabel)} · ${escapeHTML(status.state === 'synced' ? 'tersinkron' : status.state === 'error' ? 'gagal' : status.state)}
   </button>`;
+}
+
+function googleSignInBlock() {
+  const account = GoogleDrive.getAccount();
+  return `<div class="auth-google-wrap">
+    <button type="button" class="auth-google" data-action="gdrive-login">
+      ${googleGlyph('w-4.5 h-4.5')}
+      <span>${account ? 'Sinkronkan dari Drive' : 'Masuk dengan Google'}</span>
+    </button>
+    <p class="auth-google-hint">${account
+      ? `Tersambung sebagai ${escapeHTML(account.email)}. Ketuk untuk mengambil data terbaru dari Drive.`
+      : 'Ambil data keluarga yang sudah tersimpan di Google Drive perangkat ini.'}</p>
+  </div>`;
 }
 
 export function loginView() {
@@ -58,6 +72,9 @@ export function loginView() {
           <h1>${expired ? 'Aplikasi dikunci' : 'Masuk ke ruang keuangan kalian'}</h1>
           <p>${expired ? 'Masukkan PIN untuk melanjutkan.' : 'Pilih anggota keluarga, lalu masukkan PIN pribadi.'}</p>
         </div>
+
+        ${googleSignInBlock()}
+        <div class="auth-divider"><span>atau gunakan PIN</span></div>
 
         <div class="auth-users" role="tablist" aria-label="Pilih pengguna">
           ${available.map((user) => `<button type="button" role="tab" aria-selected="${user.id === selected.id}" class="auth-user ${user.id === selected.id ? 'is-selected' : ''}" data-action="select-user" data-user="${escapeAttr(user.id)}">
@@ -135,6 +152,9 @@ export function setupView(users = storeUsers()) {
           <h1>Siapkan ruang keuangan kalian</h1>
           <p>Buat PIN untuk setiap anggota. PIN dipakai untuk membuka aplikasi di perangkat ini maupun perangkat yang tersinkron.</p>
         </div>
+
+        ${googleSignInBlock()}
+        <div class="auth-divider"><span>atau buat PIN baru</span></div>
 
         <form id="setup-form" data-form="setup" class="space-y-4" novalidate>
           <label class="field-label">Nama keluarga

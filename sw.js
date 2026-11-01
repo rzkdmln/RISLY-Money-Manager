@@ -9,7 +9,7 @@
  *  - Cloud/API traffic is never cached.
  */
 
-const VERSION = 'risly-1.0.2';
+const VERSION = 'risly-1.0.4';
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 
@@ -24,11 +24,13 @@ const APP_SHELL = [
   './js/cloud.js',
   './js/config.js',
   './js/data.js',
+  './js/gdrive.js',
   './js/icons.js',
   './js/store.js',
   './js/ui.js',
   './js/utils.js',
   './js/forms/account.js',
+  './js/forms/cloud.js',
   './js/forms/note.js',
   './js/forms/transaction.js',
   './js/views/accounts.js',
@@ -67,6 +69,8 @@ const API_HOSTS = [
   'firebaseio.com',
   'firebasedatabase.app',
   'googleapis.com',
+  'accounts.google.com',
+  'oauth2.googleapis.com',
 ];
 
 const isApiRequest = (url) => API_HOSTS.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`));
@@ -119,6 +123,8 @@ async function networkFirstNavigation(request) {
   }
 }
 
+const offlineResponse = () => new Response('', { status: 504, statusText: 'Offline' });
+
 async function staleWhileRevalidate(request) {
   const cache = await caches.open(RUNTIME_CACHE);
   const cached = await cache.match(request);
@@ -128,18 +134,22 @@ async function staleWhileRevalidate(request) {
     }
     return response;
   }).catch(() => null);
-  return cached || (await network) || Response.error();
+  return cached || (await network) || offlineResponse();
 }
 
 async function cacheFirst(request) {
   const cached = await caches.match(request);
   if (cached) return cached;
-  const cache = await caches.open(RUNTIME_CACHE);
-  const response = await fetch(request);
-  if (response && (response.ok || response.type === 'opaque')) {
-    cache.put(request, response.clone()).catch(() => {});
+  try {
+    const cache = await caches.open(RUNTIME_CACHE);
+    const response = await fetch(request);
+    if (response && (response.ok || response.type === 'opaque')) {
+      cache.put(request, response.clone()).catch(() => {});
+    }
+    return response;
+  } catch {
+    return offlineResponse();
   }
-  return response;
 }
 
 self.addEventListener('fetch', (event) => {

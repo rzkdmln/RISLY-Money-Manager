@@ -17,6 +17,7 @@
 - **Laporan & Visualisasi Grafis:** Laporan arus kas harian/bulanan dengan visualisasi diagram interaktif.
 - **PWA & Offline-First Mode:** Dapatkan pengalaman seperti aplikasi native di Android & iOS (dapat di-install ke Home Screen) dengan kapabilitas luring penuh.
 - **Awan / Cloud Sync:** Sinkronisasi data real-time berbasis enkripsi antar perangkat keluarga.
+- **Google Drive:** Masuk dengan akun Google untuk sinkronisasi otomatis serta backup/pemulihan berkala langsung ke Drive pribadi.
 
 ---
 
@@ -69,12 +70,14 @@ RISLY-Money-Manager/
 │   ├── cloud.js              # Mesin sinkronisasi data cloud
 │   ├── config.js             # Konfigurasi konstanta global aplikasi
 │   ├── data.js               # Pengelolaan skema data dasar & migrasi
+│   ├── gdrive.js             # Integrasi Google Sign-In & Google Drive (OAuth + REST)
 │   ├── icons.js              # Komponen pustaka ikon SVG dinamis
 │   ├── store.js              # State management & pemrosesan query data
 │   ├── ui.js                 # Helper UI (Modal, Toast, Money Formatter)
 │   ├── utils.js              # Helper fungsi matematika, tanggal, & string
 │   ├── forms/                # Form renderers & input handlers
 │   │   ├── account.js        # Form tambah/edit akun
+│   │   ├── cloud.js          # Field penyedia sinkronisasi (termasuk Google Drive)
 │   │   ├── note.js           # Form catatan keuangan
 │   │   └── transaction.js    # Form input transaksi
 │   └── views/                # Halaman-halaman UI (Templates)
@@ -113,7 +116,9 @@ Karena aplikasi dibangun menggunakan **Pure Web Standards (Vanilla JavaScript ES
 
 2. **Jalankan HTTP Server Lokal:**
    Karena menggunakan *ES Modules* (`import`/`export`), file tidak bisa dibuka langsung melalui protokol `file://`. Gunakan HTTP server lokal sederhana:
-   
+
+   - **Windows (paling mudah):** klik dua kali **`start.cmd`** — server langsung jalan dan browser terbuka.
+   - **macOS / Linux:** jalankan `./start.sh`.
    - **Menggunakan Live Server (VS Code Extension):** Klik kanan pada `index.html` -> *Open with Live Server*.
    - **Menggunakan Python:**
      ```bash
@@ -125,6 +130,52 @@ Karena aplikasi dibangun menggunakan **Pure Web Standards (Vanilla JavaScript ES
      ```
 
 3. Akses aplikasi melalui browser di `http://localhost:8080`.
+
+> **Catatan:** `http.server` di atas **bukan backend** — ia hanya menyajikan file statis karena browser memblokir ES Modules dari `file://`. Setelah terbuka sekali, aplikasi bisa dipakai offline lewat service worker. Jika muncul tulisan **"RISLY sedang offline"**, artinya server statisnya sedang tidak berjalan: jalankan `start.cmd` lagi lalu refresh.
+
+---
+
+## ☁️ Sinkronisasi & Backup Google Drive
+
+RISLY bisa memakai **Google Drive pribadi** sebagai backend sinkronisasi dan penyimpanan backup, tanpa server tambahan.
+
+### Yang perlu disiapkan (sekali saja)
+
+1. Buka [Google Cloud Console](https://console.cloud.google.com/) → buat project baru.
+2. **APIs & Services → Library** → aktifkan **Google Drive API**.
+3. **APIs & Services → OAuth consent screen** → pilih *External*, isi nama aplikasi, lalu tambahkan diri Anda sebagai *test user*.
+4. **APIs & Services → Credentials → Create credentials → OAuth client ID**:
+   - Application type: **Web application**
+   - *Authorized JavaScript origins*: `http://localhost:8080` (lokal) dan domain produksi Anda (mis. `https://risly.netlify.app`)
+5. Salin **Client ID** (`…apps.googleusercontent.com`).
+
+### Mengaktifkan di aplikasi
+
+1. Buka **Pengaturan → Cloud backend**.
+2. Pilih penyedia **Google Drive**, tempel **Client ID**.
+3. Klik **Masuk dengan Google** lalu setujui izin akses.
+4. Klik **Simpan & hubungkan**.
+
+Data disimpan sebagai `risly-sync.json` di folder tersembunyi aplikasi (`appDataFolder`), sehingga **tidak terlihat di My Drive** dan tidak bisa diakses aplikasi lain. Sinkronisasi berjalan otomatis setiap ±20 detik dan saat ada perubahan.
+
+### Backup & pemulihan
+
+- **Backup ke Drive** — membuat berkas `risly-backup-YYYY-MM-DD-HHmmss.json`. Maksimal 10 backup terbaru disimpan, yang lebih lama dihapus otomatis.
+- **Pulihkan dari Drive** — menampilkan daftar backup untuk dipilih dan dipulihkan.
+
+### Batasan yang perlu diketahui
+
+- Token akses Google berlaku ±1 jam. Aplikasi mencoba memperbarui token secara senyap; jika Google meminta konfirmasi ulang, klik **Masuk dengan Google** sekali lagi.
+- Google Drive tidak real-time; sinkronisasi memakai polling seperti JSONBin/Supabase. Untuk real-time gunakan Firebase.
+- PIN aplikasi tetap menjadi kunci lokal untuk membuka aplikasi. Google Sign-In hanya dipakai untuk akses Drive, bukan pengganti PIN.
+
+### Troubleshooting
+
+**Error 403: access_denied** — aplikasi OAuth masih berstatus *Testing* dan akun Google yang dipakai belum terdaftar sebagai penguji. Buka **OAuth consent screen → Test users → Add users**, masukkan alamat Gmail yang dipakai, lalu coba lagi. Alternatifnya klik **Publish app** (scope `drive.appdata`, `openid`, `email`, `profile` tergolong non-sensitif sehingga umumnya tidak butuh verifikasi).
+
+**Google Drive API belum diaktifkan** — pesan seperti *"Google Drive API has not been used in project … before or it is disabled"* berarti API-nya belum dinyalakan. Buka **APIs & Services → Library → Google Drive API → Enable** (atau [tautan langsung](https://console.developers.google.com/apis/api/drive.googleapis.com/overview)), tunggu ±2 menit, lalu coba lagi.
+
+**Client ID vs Client Secret** — Client ID memang publik dan aman disimpan di kode (`APP.googleClientId`). **Client Secret tidak boleh dipakai** di aplikasi browser mana pun karena bisa dibaca siapa saja; alur Google Identity Services tidak membutuhkannya. Jika secret sudah pernah tersebar, reset lewat **Credentials → OAuth client → Reset secret**.
 
 ---
 
