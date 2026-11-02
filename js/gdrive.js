@@ -90,15 +90,24 @@ function driveErrorMessage(status, detail) {
 }
 
 function authErrorMessage(response) {
-  const errorValue = response?.error || '';
+  // Jika response/error berupa Error object atau string langsung
+  if (response instanceof Error) return response.message;
+  if (typeof response === 'string') return response.trim();
+
+  // Ekstrak properti error jika berbentuk object
+  const errorValue = response?.error || response?.message || response?.error_description || '';
   const code = typeof errorValue === 'string' ? errorValue.trim() : String(errorValue || '').trim();
+
   if (code === 'access_denied') {
     return 'Google menolak akses (403). Tambahkan akun ini sebagai Test user di OAuth consent screen, atau klik Publish app di Google Cloud Console.';
   }
   if (code === 'popup_closed' || code === 'popup_closed_by_user') return 'Jendela Google ditutup sebelum selesai.';
   if (code === 'interaction_required') return 'Google meminta konfirmasi ulang. Klik "Masuk dengan Google" lagi.';
   if (code === 'invalid_client') return 'Client ID Google tidak dikenali. Periksa kembali nilainya.';
-  return response?.error_description || response?.message || 'Masuk dengan Google gagal.';
+
+  return typeof response?.error_description === 'string'
+    ? response.error_description
+    : (code || 'Masuk dengan Google gagal.');
 }
 
 // js/gdrive.js
@@ -157,49 +166,50 @@ class GoogleDriveClient {
   }
 
   async requestToken(prompt = 'select_account') {
-    // 3. Jamin validClientId pasti String sebelum dikirim ke SDK Google
-    const validClientId = typeof this.clientId === 'string' ? this.clientId.trim() : String(this.clientId || '').trim();
-    if (!validClientId) {
-      throw new DriveAuthError('Client ID Google belum diisi atau tidak valid.');
-    }
-
-    const google = await loadGis();
-    return new Promise((resolve, reject) => {
-      let settled = false;
-      const finish = (fn, value) => {
-        if (settled) return;
-        settled = true;
-        fn(value);
-      };
-
-      const client = google.accounts.oauth2.initTokenClient({
-        client_id: validClientId, // Guaranteed String
-        scope: DRIVE_SCOPE,
-        callback: (response) => {
-          if (response?.error) {
-            finish(reject, new DriveAuthError(authErrorMessage(response)));
-            return;
-          }
-          this.accessToken = response.access_token;
-          this.expiresAt = Date.now() + (Number(response.expires_in) || 3600) * 1000;
-
-          localStorage.setItem('risly_access_token', response.access_token);
-          localStorage.setItem('risly_token_expires_at', String(this.expiresAt));
-
-          finish(resolve, response);
-        },
-        error_callback: (error) => {
-          finish(reject, new DriveAuthError(authErrorMessage(error)));
-        },
-      });
-
-      try {
-        client.requestAccessToken({ prompt: prompt || 'select_account' });
-      } catch (error) {
-        finish(reject, new DriveAuthError(error?.message || 'Google Sign-In gagal dibuka.'));
+      const validClientId = typeof this.clientId === 'string' ? this.clientId.trim() : String(this.clientId || '').trim();
+      if (!validClientId) {
+        throw new DriveAuthError('Client ID Google belum diisi atau tidak valid.');
       }
-    });
-  }
+
+      const google = await loadGis();
+      return new Promise((resolve, reject) => {
+        let settled = false;
+        const finish = (fn, value) => {
+          if (settled) return;
+          settled = true;
+          fn(value);
+        };
+
+        const client = google.accounts.oauth2.initTokenClient({
+          client_id: validClientId,
+          scope: DRIVE_SCOPE,
+          callback: (response) => {
+            if (response?.error) {
+              finish(reject, new DriveAuthError(authErrorMessage(response)));
+              return;
+            }
+            this.accessToken = response.access_token;
+            this.expiresAt = Date.now() + (Number(response.expires_in) || 3600) * 1000;
+
+            localStorage.setItem('risly_access_token', response.access_token);
+            localStorage.setItem('risly_token_expires_at', String(this.expiresAt));
+
+            finish(resolve, response);
+          },
+          error_callback: (error) => {
+            // Tangkap error object agar tidak crash pada .trim()
+            const msg = error?.message || (typeof error === 'string' ? error : 'Gagal membuka Google Sign-In.');
+            finish(reject, new DriveAuthError(msg));
+          },
+        });
+
+        try {
+          client.requestAccessToken({ prompt: prompt || 'select_account' });
+        } catch (error) {
+          finish(reject, new DriveAuthError(error?.message || 'Google Sign-In gagal dibuka.'));
+        }
+      });
+    }
 
   /**
    * Signs in with Google and returns account information.
