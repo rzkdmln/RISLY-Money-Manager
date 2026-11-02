@@ -14,6 +14,12 @@ import {
 export function reportsView() {
   if (!ui.reportMonth) ui.reportMonth = monthKey();
   const month = ui.reportMonth;
+  if (!ui.reportRangeStart) ui.reportRangeStart = `${month}-01`;
+  if (!ui.reportRangeEnd) {
+    const [y, m] = month.split('-');
+    const last = new Date(Number(y), Number(m), 0).getDate();
+    ui.reportRangeEnd = `${month}-${String(last).padStart(2, '0')}`;
+  }
   const summary = store.monthSummary(month);
   const categories = store.expenseByCategory(month);
   const categoriesTotal = categories.reduce((total, item) => total + item.total, 0);
@@ -183,6 +189,16 @@ export function reportsView() {
         <p class="text-xs font-semibold uppercase tracking-[.18em] text-blue-600 dark:text-blue-400">Ekspor & cetak</p>
         <h2 class="text-lg font-bold text-slate-900 dark:text-white mt-1">Bawa laporan ke mana saja</h2>
         <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Excel memuat seluruh riwayat. PDF diformat landscape dengan ringkasan dan tabel transaksi, siap dicetak.</p>
+      </div>
+      <div class="flex flex-wrap items-end gap-2 mb-3">
+        <label class="field-label">Dari
+          <input type="date" class="field field-compact" data-filter="report-range-start" value="${escapeAttr(ui.reportRangeStart)}">
+        </label>
+        <label class="field-label">Sampai
+          <input type="date" class="field field-compact" data-filter="report-range-end" value="${escapeAttr(ui.reportRangeEnd)}">
+        </label>
+        <button type="button" class="btn btn-secondary btn-sm" data-action="export-xlsx-range">${icon('download', 'w-3.5 h-3.5')} Excel rentang</button>
+        <button type="button" class="btn btn-primary btn-sm" data-action="export-pdf-range">${icon('file-text', 'w-3.5 h-3.5')} PDF rentang</button>
       </div>
       <div class="flex flex-wrap gap-2">
         <button type="button" class="btn btn-secondary" data-action="export-xlsx-all">${icon('download', 'w-4 h-4')} Semua riwayat (.xlsx)</button>

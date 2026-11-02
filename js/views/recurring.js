@@ -67,37 +67,5 @@ export function recurringView() {
       ${rules.length ? `<div class="recurring-list">${rules.map((rule) => recurringRow(rule)).join('')}</div>` : emptyState('repeat', 'Belum ada jadwal', 'Buat jadwal untuk tagihan listrik, langganan, gaji, atau transfer tabungan rutin.', `<button type="button" class="btn btn-primary btn-sm" data-action="add-rec">${icon('plus', 'w-3.5 h-3.5')} Buat jadwal</button>`)}
     </section>
 
-    <div class="grid md:grid-cols-2 gap-4">
-      <section class="card">
-        <div class="card-heading">
-          <div>
-            <p class="card-kicker">Cara kerja</p>
-            <h2 class="section-title">Posting otomatis</h2>
-          </div>
-          ${icon('zap', 'w-5 h-5 text-amber-500')}
-        </div>
-        <ol class="recurring-steps">
-          <li><span>1</span><div><strong>Tentukan jadwal</strong><p>Tanggal berikutnya, frekuensi, akun, dan kategori.</p></div></li>
-          <li><span>2</span><div><strong>Buka aplikasi</strong><p>Saat aplikasi dibuka, semua tanggal yang terlewat diproses.</p></div></li>
-          <li><span>3</span><div><strong>Saldo & laporan</strong><p>Transaksi otomatis ikut mengubah saldo dan laporan.</p></div></li>
-        </ol>
-        <p class="text-[11px] leading-5 text-slate-400 mt-3">PWA tidak dapat membuat transaksi saat aplikasi sepenuhnya tertutup tanpa push/background worker. Jadwal akan diproses segera setelah aplikasi dibuka.</p>
-      </section>
-      <section class="card">
-        <div class="card-heading">
-          <div>
-            <p class="card-kicker">Tips</p>
-            <h2 class="section-title">Jadwal yang rapi</h2>
-          </div>
-          ${icon('sparkles', 'w-5 h-5 text-violet-500')}
-        </div>
-        <ul class="space-y-3 text-sm text-slate-600 dark:text-slate-300">
-          <li class="flex gap-2.5">${icon('check-circle', 'w-4 h-4 text-emerald-500 shrink-0')} Gunakan tanggal setelah transaksi terakhir agar tidak tercatat ganda.</li>
-          <li class="flex gap-2.5">${icon('check-circle', 'w-4 h-4 text-emerald-500 shrink-0')} Untuk gaji, pilih tanggal gajian dan kategori pemasukan yang sesuai.</li>
-          <li class="flex gap-2.5">${icon('check-circle', 'w-4 h-4 text-emerald-500 shrink-0')} Transfer tabungan tidak mengurangi arus kas bulanan, hanya memindahkan saldo.</li>
-          <li class="flex gap-2.5">${icon('check-circle', 'w-4 h-4 text-emerald-500 shrink-0')} Gunakan mode manual untuk tagihan yang nominalnya berubah setiap bulan.</li>
-        </ul>
-      </section>
-    </div>
   </div>`;
 }

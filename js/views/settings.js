@@ -49,6 +49,7 @@ function googleDriveCard(user, driveConnected) {
           <small>Kode undangan: ${escapeHTML(inviteCode)}</small>
         </span>
         <button type="button" class="btn btn-ghost btn-sm" data-action="copy-invite" data-id="${escapeAttr(inviteCode)}">${icon('copy', 'w-3.5 h-3.5')} Salin</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-action="rotate-invite">${icon('refresh', 'w-3.5 h-3.5')} Baru</button>
       </div>
       <div class="settings-row">
         <span class="settings-row-icon">${icon('user', 'w-4 h-4')}</span>
@@ -170,6 +171,24 @@ export function settingsView(user) {
 
     ${googleDriveCard(user, driveConnected)}
 
+    <section class="card" id="members">
+      <div class="card-heading">
+        <div><p class="card-kicker">Keluarga</p><h2 class="section-title">Anggota ruang</h2></div>
+        ${icon('users', 'w-5 h-5 text-blue-500')}
+      </div>
+      <div class="settings-list">
+        ${store.activeUsers().map((member) => `<div class="settings-row">
+          <span class="settings-row-icon">${icon('user', 'w-4 h-4')}</span>
+          <span class="flex-1">
+            <strong>${escapeHTML(member.name)}</strong>
+            <small>${escapeHTML(member.googleEmail || 'Belum terhubung Google')}${member.id === user?.id ? ' · Anda' : ''}</small>
+          </span>
+          ${member.id !== user?.id ? `<button type="button" class="btn btn-danger-soft btn-sm" data-action="remove-member" data-id="${escapeAttr(member.id)}">${icon('x', 'w-3.5 h-3.5')} Keluarkan</button>` : ''}
+        </div>`).join('')}
+      </div>
+      <p class="text-[11px] text-slate-400 mt-3">Anggota baru bergabung lewat kode undangan di halaman masuk. Hapus anggota akan menandainya sebagai keluar; data yang sudah dibuat tetap tersimpan.</p>
+    </section>`
+
     <div class="settings-grid">
       <section class="card">
         <div class="card-heading">
@@ -184,7 +203,6 @@ export function settingsView(user) {
         <div class="settings-actions">
           <button type="button" class="btn btn-secondary btn-sm" data-action="export-backup">${icon('download', 'w-3.5 h-3.5')} Unduh backup</button>
           <button type="button" class="btn btn-secondary btn-sm" data-action="import-backup">${icon('upload', 'w-3.5 h-3.5')} Pulihkan backup</button>
-          <button type="button" class="btn btn-secondary btn-sm" data-action="load-sample">${icon('sparkles', 'w-3.5 h-3.5')} Data contoh</button>
           <button type="button" class="btn btn-danger-soft btn-sm" data-action="reset-app">${icon('trash', 'w-3.5 h-3.5')} Reset ruang</button>
         </div>
       </section>

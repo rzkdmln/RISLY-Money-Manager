@@ -1297,6 +1297,24 @@ class Store {
     });
   }
 
+  removeMember(id) {
+    return this.commit('user:remove', (data, now) => {
+      const user = data.users.find((item) => item.id === id);
+      if (!user) throw new Error('Pengguna tidak ditemukan.');
+      if (data.users.filter((item) => !item.deletedAt).length <= 1) {
+        throw new Error('Minimal satu anggota harus tetap ada.');
+      }
+      user.deletedAt = now;
+      user.updatedAt = now;
+      const email = String(user.googleEmail || '').trim().toLowerCase();
+      if (email && this.registry?.accounts?.[email]?.workspaceId === this.workspaceId) {
+        delete this.registry.accounts[email];
+        writeWorkspaceRegistry(this.registry);
+      }
+      return user;
+    });
+  }
+
   userDisplayName(id) {
     return this.getUser(id)?.name || this.data?.users?.[0]?.name || 'Pengguna';
   }

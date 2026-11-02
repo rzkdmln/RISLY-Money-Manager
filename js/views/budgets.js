@@ -7,6 +7,7 @@ import {
   formatMonth,
   formatPercent,
   monthKey,
+  safeNumber,
   shiftMonthKey,
 } from '../utils.js';
 
@@ -71,6 +72,12 @@ export function budgetsView() {
             <div class="budget-metric"><span>Sisa</span><strong class="${status.remaining < 0 ? 'amount-expense' : ''}">${money(Math.abs(status.remaining))}</strong></div>
             <div class="budget-metric"><span>Harian aman</span><strong>${money(sisaHarian(status.remaining))}</strong></div>
           </div>
+          ${(() => {
+            const allocated = categories.reduce((sum, item) => sum + safeNumber(item.limit), 0);
+            const unallocated = status.total - allocated;
+            if (status.total <= 0) return '';
+            return `<p class="text-[11px] text-slate-400 mt-2">Tidak teralokasi ke kategori: ${money(Math.max(0, unallocated))}${unallocated < 0 ? ' (melebihi total)' : ''}.</p>`;
+          })()}`
           ${status.remaining < 0 ? `<p class="budget-alert mt-3">${icon('alert-triangle', 'w-3.5 h-3.5')} Anggaran terlampaui ${money(Math.abs(status.remaining))}.</p>` : status.percent >= status.warning ? `<p class="budget-alert budget-alert-warning mt-3">${icon('info', 'w-3.5 h-3.5')} ${status.percent >= status.danger ? 'Sangat dekat' : 'Mendekati'} batas anggaran. Sisa harian aman ${money(sisaHarian(status.remaining))}.</p>` : `<p class="budget-alert budget-alert-safe mt-3">${icon('check-circle', 'w-3.5 h-3.5')} Arus kas masih sehat. Pertahankan ritme belanja.</p>`}
         </div>` : `<p class="text-sm leading-6 text-slate-500 dark:text-slate-400">Isi total anggaran untuk melihat progres, sisa dana, dan rekomendasi batas belanja harian.</p>`}
       </div>
@@ -129,20 +136,6 @@ export function budgetsView() {
           <span class="bg-red-500">Bahaya ≥ ${status.danger}%</span>
         </div>
       </form>
-      <section class="card">
-        <div class="card-heading">
-          <div>
-            <p class="card-kicker">Catatan</p>
-            <h2 class="section-title">Anggaran bukan saldo</h2>
-          </div>
-          ${icon('info', 'w-5 h-5 text-blue-500')}
-        </div>
-        <p class="text-sm leading-6 text-slate-500 dark:text-slate-400">Anggaran hanyalah batas rencana pengeluaran. Nominal ini tidak mengubah saldo akun dan tidak masuk sebagai transaksi. Semua realisasi tetap dicatat lewat transaksi pengeluaran.</p>
-        <div class="mt-4 flex flex-wrap gap-2">
-          ${badge(`${categories.filter((item) => item.limit > 0).length} kategori dibatasi`, 'blue', 'badge-soft')}
-          ${badge(hasBudget ? 'Anggaran aktif' : 'Belum aktif', hasBudget ? 'green' : 'slate', 'badge-soft')}
-        </div>
-      </section>
     </div>
   </div>`;
 }
