@@ -83,13 +83,27 @@ export function needsSetup(users) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Session — deliberately sessionStorage so closing the PWA locks the app.  */
+/*  Session — cookies for PWA Safari iPhone persistence                  */
 /* -------------------------------------------------------------------------- */
+
+function setCookie(name, value, days = 30) {
+  const expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toUTCString();
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; SameSite=None; Secure; expires=${expires}`;
+}
+
+function getCookie(name) {
+  const pair = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith(name + '='));
+  if (!pair) return null;
+  return decodeURIComponent(pair.slice(name.length + 1));
+}
+
+function deleteCookie(name) {
+  document.cookie = `${name}=; path=/; SameSite=None; Secure; expires=Thu, 01 Jan 1970 00:00:00 UTC`;
+}
 
 export function getSession() {
   try {
-    // Ubah dari sessionStorage ke localStorage
-    const raw = localStorage.getItem(APP.sessionKey);
+    const raw = getCookie(APP.sessionKey);
     if (!raw) return null;
     const session = JSON.parse(raw);
     if (!session?.userId || !session?.lastActivity) return null;
@@ -106,8 +120,7 @@ export function createSession(userId, workspaceId = null) {
     issuedAt: Date.now(),
     lastActivity: Date.now(),
   };
-  // Ubah dari sessionStorage ke localStorage
-  localStorage.setItem(APP.sessionKey, JSON.stringify(session));
+  setCookie(APP.sessionKey, JSON.stringify(session), 30);
   return session;
 }
 
@@ -115,14 +128,12 @@ export function updateSessionActivity() {
   const session = getSession();
   if (!session) return null;
   session.lastActivity = Date.now();
-  // Ubah dari sessionStorage ke localStorage
-  localStorage.setItem(APP.sessionKey, JSON.stringify(session));
+  setCookie(APP.sessionKey, JSON.stringify(session), 30);
   return session;
 }
 
 export function clearSession() {
-  // Ubah dari sessionStorage ke localStorage
-  localStorage.removeItem(APP.sessionKey);
+  deleteCookie(APP.sessionKey);
 }
 
 export function isSessionExpired(session, autoLockMinutes) {
