@@ -227,7 +227,7 @@ export function settingsView(user) {
         <p class="font-bold text-slate-900 dark:text-white">${APP.name} <span class="font-normal text-slate-400">v${APP.version}</span></p>
         <p class="text-xs text-slate-500 dark:text-slate-400">${APP.tagline}</p>
       </div>
-      <span class="text-[10px] text-slate-400 text-right">PWA · Offline-first</span>
+      <span class="text-[10px] text-slate-400 text-right">PWA · Offline-first<br><a href="./privacy.html" style="color:inherit;text-decoration:underline;">Kebijakan Privasi</a></span>
     </section>
   </div>`;
 }

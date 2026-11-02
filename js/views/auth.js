@@ -79,7 +79,7 @@ function welcomeView() {
 
       <footer class="auth-footer">
         <span>${APP.name} v${APP.version}</span>
-        <span class="auth-private">${icon('shield', 'w-3 h-3')} Data tersimpan di perangkat ini</span>
+        <span class="auth-private"><a href="./privacy.html" style="color:inherit;text-decoration:underline;">Kebijakan Privasi</a></span>
       </footer>
     </main>
   </div>`;
@@ -125,7 +125,7 @@ function lockView(user) {
 
       <footer class="auth-footer">
         <span>${APP.name} v${APP.version}</span>
-        <span class="auth-private">${icon('lock', 'w-3 h-3')} PIN tersimpan sebagai hash</span>
+        <span class="auth-private"><a href="./privacy.html" style="color:inherit;text-decoration:underline;">Kebijakan Privasi</a></span>
       </footer>
     </main>
   </div>`;
