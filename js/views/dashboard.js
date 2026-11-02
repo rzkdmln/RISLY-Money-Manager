@@ -225,7 +225,7 @@ export function dashboardView(user) {
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 min-w-0 w-full">
       <section class="card xl:col-span-2 min-w-0 w-full overflow-hidden">
         ${sectionHeading('Transaksi terbaru', `<button type="button" class="link-button shrink-0" data-action="nav" data-route="transactions">Lihat semua ${icon('arrow-right', 'w-3 h-3')}</button>`)}
-        ${recent.length ? `<div class="tx-list min-w-0 w-full">${recent.map((tx) => txRow(tx, { compact: false })).join('')}</div>` : emptyState('receipt', 'Belum ada transaksi', 'Mulai catat pengeluaran atau pemasukan pertama kalian.', `<button type="button" class="btn btn-primary btn-sm" data-action="add-tx" data-type="expense">${icon('plus', 'w-3.5 h-3.5')} Catat transaksi</button>`)}
+        ${recent.length ? `<div class="tx-list min-w-0 w-full">${recent.map((tx) => txRow(tx, { compact: false })).join('')}</div>` : emptyState('receipt', 'Belum ada transaksi', 'Catat pengeluaran atau pemasukan pertama.', `<button type="button" class="btn btn-primary btn-sm" data-action="add-tx" data-type="expense">${icon('plus', 'w-3.5 h-3.5')} Catat transaksi</button>`)}
         ${dueRecurring > 0 || dueTasks > 0 ? `<div class="attention-strip min-w-0">
           ${dueRecurring > 0 ? `<button type="button" data-action="nav" data-route="recurring">${icon('repeat', 'w-3.5 h-3.5')} ${dueRecurring} transaksi berulang jatuh tempo</button>` : ''}
           ${dueTasks > 0 ? `<button type="button" data-action="open-tasks">${icon('check-square', 'w-3.5 h-3.5')} ${dueTasks} tugas perlu perhatian</button>` : ''}

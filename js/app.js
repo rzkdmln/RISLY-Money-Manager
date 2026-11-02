@@ -989,15 +989,13 @@ async function loadSampleData() {
 
 async function resetApplication() {
   const ok = await confirmDialog({
-    title: 'Reset seluruh aplikasi?',
-    message: 'Semua data lokal, PIN, pengaturan, dan koneksi cloud akan dihapus dari perangkat ini. Data yang sudah terlanjur tersinkron di cloud tidak ikut dihapus.',
+    title: 'Reset ruang ini?',
+    message: 'Semua data, PIN, dan pengaturan ruang aktif akan dihapus dari perangkat ini. Ruang lain tidak terpengaruh.',
     confirmLabel: 'Reset sekarang',
     danger: true,
     iconName: 'alert-triangle',
   });
   if (!ok) return;
-  try { await Cloud.disconnect(); } catch { /* noop */ }
-  try { await GoogleDrive.signOut(); } catch { /* noop */ }
   clearSession();
   store.resetLocalData();
   ui.currentUser = null;
@@ -1006,7 +1004,7 @@ async function resetApplication() {
   ui.appMounted = false;
   closeModal({ silent: true });
   renderAuth();
-  toast('Aplikasi sudah direset. Buat PIN baru untuk memulai.', 'info');
+  toast('Ruang direset.', 'info');
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1250,26 +1248,22 @@ async function driveRestoreFile(fileId) {
       throw new Error('Struktur backup tidak dikenali.');
     }
     store.importData(data);
-    const accountEmail = String(GoogleDrive.getAccount()?.email || '').toLowerCase();
-    const linked = accountEmail
-      ? store.activeUsers().find((user) => String(user.googleEmail || '').toLowerCase() === accountEmail)
-      : null;
+    const account = GoogleDrive.getAccount();
+    const accountEmail = String(account?.email || '').toLowerCase();
+    let user = null;
+    if (accountEmail) {
+      user = store.ensureMember(account);
+      store.registerAccount(account, store.workspaceId);
+    } else {
+      user = store.currentUser || store.activeUsers()[0] || null;
+    }
     closeModal({ silent: true });
-    if (linked?.pinHash) {
-      enterApplication(linked, { fresh: true });
-      toast(`Backup dipulihkan. Masuk sebagai ${linked.name}.`, 'success');
+    if (!user) {
+      renderAuth();
+      toast('Backup dari Drive berhasil dipulihkan.', 'success');
       return;
     }
-    const user = store.currentUser || store.activeUsers()[0];
-    if (!user?.pinHash) {
-      clearSession();
-      store.setCurrentUser(null);
-      ui.appMounted = false;
-      renderAuth();
-    } else {
-      ui.appMounted = false;
-      renderApplication();
-    }
+    enterApplication(user, { fresh: true });
     toast('Backup dari Drive berhasil dipulihkan.', 'success');
   } catch (error) {
     console.error(error);
@@ -1355,6 +1349,31 @@ async function handleAction(action, element) {
     case 'lock-app':
       lockApplication();
       break;
+    case 'remove-pin': {
+      const user = store.currentUser;
+      if (!user?.pinHash) break;
+      const ok = await confirmDialog({
+        title: 'Hapus PIN?',
+        message: 'Login Google tetap bisa masuk. Tanpa PIN, aplikasi tidak terkunci secara offline.',
+        confirmLabel: 'Hapus',
+      });
+      if (!ok) return;
+      store.updateUser(user.id, { pinHash: '', pinSalt: '', pinIterations: 0 });
+      ui.appMounted = false;
+      renderApplication();
+      toast('PIN dihapus.', 'success');
+      break;
+    }
+    case 'copy-invite': {
+      const code = element.dataset.id || store.getWorkspaceCode();
+      try {
+        await navigator.clipboard.writeText(code);
+        toast('Kode undangan disalin.', 'success');
+      } catch {
+        toast(`Kode: ${code}`, 'info');
+      }
+      break;
+    }
     case 'logout': {
       const ok = await confirmDialog({
         title: 'Keluar dari sesi?',
@@ -2433,14 +2452,15 @@ function submitBudgetThresholds(form) {
 function submitHousehold(form) {
   const householdName = stringValue(form, 'householdName');
   if (!householdName) {
-    showFormError(form, 'Nama keluarga wajib diisi.');
+    showFormError(form, 'Nama ruang wajib diisi.');
     return;
   }
   store.updateSettings({
     householdName,
+    workspaceName: householdName,
     defaultMonthlyBudget: Number(formValue(form, 'defaultMonthlyBudget')) || 0,
   });
-  toast('Identitas rumah tangga disimpan.', 'success');
+  toast('Identitas ruang disimpan.', 'success');
   renderApplication();
 }
 
@@ -2450,6 +2470,9 @@ async function submitForm(form) {
   switch (type) {
     case 'login':
       await submitLogin(form);
+      break;
+    case 'join-workspace':
+      await submitJoinWorkspace(form);
       break;
     case 'transaction':
       submitTransaction(form);
@@ -2858,25 +2881,30 @@ function boot() {
   if (!location.hash) history.replaceState(null, '', '#/dashboard');
 
   const session = getSession();
-  if (session) {
-    const user = store.getUser(session.userId);
+  if (session?.workspaceId) {
+    const opened = store.openWorkspace(session.workspaceId, { account: store.accountForWorkspace(session.workspaceId) });
+    const user = opened ? store.getUser(session.userId) : null;
     const expired = isSessionExpired(session, store.data.settings.autoLockMinutes);
-    if (!expired && user?.pinHash) {
+    if (!expired && user) {
       store.setCurrentUser(user.id);
       ui.currentUser = user;
       ui.selectedUser = user.id;
       updateSessionActivity();
+    } else if (user) {
+      clearSession();
+      store.setCurrentUser(user.id);
+      ui.currentUser = user;
+      ui.locked = Boolean(user.pinHash);
     } else {
       clearSession();
-      ui.locked = Boolean(expired);
+      ui.locked = false;
     }
   }
 
   if (!store.currentUser) {
-    const available = store.activeUsers().filter((user) => user.pinHash);
-    ui.selectedUser = prefs.lastUser && available.some((user) => user.id === prefs.lastUser)
-      ? prefs.lastUser
-      : available[0]?.id || null;
+    if (ui.locked && store.currentUserId) {
+      // keep current user for the lock screen
+    }
     renderAuth();
   } else {
     renderApplication();
@@ -2888,10 +2916,12 @@ function boot() {
   registerServiceWorker();
   setupInstallPrompt();
 
-  Cloud.bootstrap().then(() => {
-    if (store.currentUser) renderApplication();
-    else renderAuth();
-  }).catch((error) => console.warn('Cloud bootstrap skipped:', error));
+  if (store.hasWorkspace) {
+    Cloud.bootstrap().then(() => {
+      if (store.currentUser && !ui.locked) renderApplication();
+      else renderAuth();
+    }).catch((error) => console.warn('Cloud bootstrap skipped:', error));
+  }
 
   window.__RISLY__ = { store, Cloud, navigate, version: APP.version };
 }

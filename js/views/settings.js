@@ -1,13 +1,10 @@
 import {
   APP,
-  CLOUD_PROVIDERS,
   LOCK_OPTIONS,
   THEME_OPTIONS,
   WEEK_OPTIONS,
 } from '../config.js';
-import { Cloud } from '../cloud.js';
 import { GoogleDrive, googleAccountBadge, googleGlyph } from '../gdrive.js';
-import { cloudProviderFields } from '../forms/cloud.js';
 import { store } from '../store.js';
 import { icon } from '../icons.js';
 import {
@@ -15,7 +12,6 @@ import {
   badge,
   pageHeader,
   prefs,
-  spinner,
   syncPill,
 } from '../ui.js';
 import {
@@ -27,17 +23,6 @@ import {
   isStandalone,
 } from '../utils.js';
 
-function cloudFields(config) {
-  return cloudProviderFields(config, {
-    includeLocal: true,
-    withCreateBin: true,
-    withSecurityNote: true,
-    selectId: 'cloud-provider',
-    helpId: 'cloud-provider-help',
-    textareaRows: 6,
-  });
-}
-
 function notificationStatus() {
   if (!('Notification' in window)) return { label: 'Tidak didukung', tone: 'slate', canAsk: false };
   if (Notification.permission === 'granted') return { label: 'Aktif', tone: 'green', canAsk: false };
@@ -47,14 +32,10 @@ function notificationStatus() {
 
 function googleDriveCard(user, driveConnected) {
   const account = GoogleDrive.getAccount();
-  const linkedEmail = String(user?.googleEmail || '').toLowerCase();
-  const accountEmail = String(account?.email || '').toLowerCase();
-  const linked = Boolean(linkedEmail);
-  const different = linked && accountEmail && linkedEmail !== accountEmail;
-  const canLink = driveConnected && accountEmail && (!linked || different);
+  const inviteCode = store.getWorkspaceCode();
   return `<section class="card" id="google-drive">
     <div class="card-heading">
-      <div><p class="card-kicker">Google</p><h2 class="section-title">Login, backup & pulihkan</h2></div>
+      <div><p class="card-kicker">Google</p><h2 class="section-title">Akun & backup</h2></div>
       ${icon('cloud', 'w-5 h-5 text-blue-500')}
     </div>
 
@@ -62,32 +43,29 @@ function googleDriveCard(user, driveConnected) {
 
     <div class="settings-list mt-4">
       <div class="settings-row">
-        <span class="settings-row-icon">${icon('user', 'w-4 h-4')}</span>
-        <span class="flex-1"><strong>Profil ${escapeHTML(user?.name || 'Anggota')}</strong><small>${linked ? `Tertaut ke ${escapeHTML(user.googleEmail)}` : 'Belum ada akun Google tertaut'}</small></span>
-        ${badge(linked ? 'Tertaut' : 'Belum', linked ? 'green' : 'slate', 'badge-soft')}
+        <span class="settings-row-icon">${icon('users', 'w-4 h-4')}</span>
+        <span class="flex-1">
+          <strong>Ruang ${escapeHTML(store.data.settings.workspaceName || store.data.settings.householdName)}</strong>
+          <small>Kode undangan: ${escapeHTML(inviteCode)}</small>
+        </span>
+        <button type="button" class="btn btn-ghost btn-sm" data-action="copy-invite" data-id="${escapeAttr(inviteCode)}">${icon('copy', 'w-3.5 h-3.5')} Salin</button>
       </div>
-      ${different ? `<div class="settings-row"><span class="settings-row-icon text-amber-500">${icon('alert-triangle', 'w-4 h-4')}</span><span class="flex-1"><strong>Akun Google berbeda</strong><small>Perangkat masuk sebagai ${escapeHTML(account.email)}. Tautkan ulang jika ingin login dengan akun ini.</small></span></div>` : ''}
-      ${canLink ? `<button type="button" class="settings-row" data-action="gdrive-link-user"><span class="settings-row-icon">${icon('user', 'w-4 h-4')}</span><span class="flex-1"><strong>Tautkan akun Google ini</strong><small>${escapeHTML(account.email)} → ${escapeHTML(user?.name || 'profil ini')}</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>` : ''}
-      ${linked ? `<button type="button" class="settings-row" data-action="gdrive-unlink-user"><span class="settings-row-icon text-red-500">${icon('x', 'w-4 h-4')}</span><span class="flex-1"><strong class="text-red-500">Lepas tautan Google</strong><small>Login Google untuk profil ini dinonaktifkan</small></span></button>` : ''}
+      <div class="settings-row">
+        <span class="settings-row-icon">${icon('user', 'w-4 h-4')}</span>
+        <span class="flex-1"><strong>${escapeHTML(user?.name || 'Anggota')}</strong><small>${escapeHTML(user?.googleEmail || 'Belum terhubung Google')}</small></span>
+      </div>
     </div>
 
     ${driveConnected ? `<div class="settings-actions mt-4">
       <button type="button" class="btn btn-secondary btn-sm" data-action="drive-backup" data-drive-requires-google>${icon('cloud', 'w-3.5 h-3.5')} Backup sekarang</button>
       <button type="button" class="btn btn-secondary btn-sm" data-action="drive-restore" data-drive-requires-google>${icon('upload', 'w-3.5 h-3.5')} Pulihkan</button>
-      <button type="button" class="btn btn-ghost btn-sm" data-action="gdrive-signout">${icon('log-out', 'w-3.5 h-3.5')} Keluar Google</button>
-    </div>
-    <p class="text-[11px] leading-5 text-slate-400 mt-3">Backup manual ke folder tersembunyi aplikasi. Maksimal ${APP.driveBackupLimit} berkas terbaru disimpan. Tidak ada sinkron otomatis — data lokal tetap jadi sumber utama. Login Google membuka aplikasi tanpa PIN, jadi amankan akun Google di perangkat ini.</p>`
-    : `<label class="field-label mt-4">Google OAuth Client ID
-      <input class="field mt-1.5 font-mono text-[11px]" name="gdriveClientId" value="${escapeAttr(GoogleDrive.getClientId() || APP.googleClientId)}" placeholder="…apps.googleusercontent.com" autocomplete="off" spellcheck="false">
-    </label>
-    <button type="button" class="btn btn-secondary w-full mt-3" data-action="gdrive-signin">${googleGlyph('w-4 h-4')} Masuk dengan Google</button>
-    <p class="text-[11px] leading-5 text-slate-400 mt-3">Client ID bawaan sudah terisi. Masuk sekali untuk mengaktifkan login Google dan backup Drive di perangkat ini.</p>`}
+      <button type="button" class="btn btn-ghost btn-sm" data-action="gdrive-signout">${icon('log-out', 'w-3.5 h-3.5')} Ganti akun</button>
+    </div>`
+      : `<button type="button" class="btn btn-secondary w-full mt-4" data-action="gdrive-signin">${googleGlyph('w-4 h-4')} Masuk dengan Google</button>`}
   </section>`;
 }
 
 export function settingsView(user) {
-  const config = Cloud.getConfig();
-  const status = Cloud.getStatus();
   const notification = notificationStatus();
   const installed = isStandalone();
   const dataSize = new Blob([JSON.stringify(store.data)]).size;
@@ -99,9 +77,9 @@ export function settingsView(user) {
 
   return `<div class="page-stack">
     ${pageHeader({
-      eyebrow: 'Preferensi keluarga',
+      eyebrow: 'Pengaturan',
       title: 'Pengaturan',
-      subtitle: 'Keamanan, tampilan, sinkronisasi, dan data aplikasi.',
+      subtitle: 'Akun, keamanan, tampilan, dan data.',
     })}
 
     <div class="settings-profile">
@@ -109,7 +87,7 @@ export function settingsView(user) {
       <div class="min-w-0 flex-1">
         <p class="page-eyebrow">Masuk sebagai</p>
         <h2 class="text-xl font-bold text-slate-900 dark:text-white">${escapeHTML(user?.name || 'Pengguna')}</h2>
-        <p class="text-xs text-slate-500 dark:text-slate-400">${escapeHTML(store.data.settings.householdName)} · ${txCount} transaksi · ${noteCount} catatan</p>
+        <p class="text-xs text-slate-500 dark:text-slate-400">${escapeHTML(store.data.settings.workspaceName || store.data.settings.householdName)} · ${txCount} transaksi · ${noteCount} catatan</p>
       </div>
       <div class="flex gap-2">
         <button type="button" class="btn btn-secondary btn-sm" data-action="edit-profile">${icon('user', 'w-3.5 h-3.5')} Profil</button>
@@ -124,7 +102,10 @@ export function settingsView(user) {
           ${icon('shield', 'w-5 h-5 text-emerald-500')}
         </div>
         <div class="settings-list">
-          <button type="button" class="settings-row" data-action="change-pin"><span class="settings-row-icon">${icon('lock', 'w-4 h-4')}</span><span class="flex-1"><strong>Ubah PIN</strong><small>PIN pribadi ${escapeHTML(user?.name || '')} (4–8 angka)</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>
+          ${user?.pinHash
+            ? `<button type="button" class="settings-row" data-action="change-pin"><span class="settings-row-icon">${icon('lock', 'w-4 h-4')}</span><span class="flex-1"><strong>Ubah PIN</strong><small>4–8 angka</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>
+          <button type="button" class="settings-row" data-action="remove-pin"><span class="settings-row-icon text-red-500">${icon('x', 'w-4 h-4')}</span><span class="flex-1"><strong class="text-red-500">Hapus PIN</strong><small>Login Google tetap bisa masuk</small></span></button>`
+            : `<button type="button" class="settings-row" data-action="change-pin"><span class="settings-row-icon">${icon('lock', 'w-4 h-4')}</span><span class="flex-1"><strong>Buat PIN</strong><small>Opsional — untuk kunci aplikasi</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>`}
           <div class="settings-row">
             <span class="settings-row-icon">${icon('clock', 'w-4 h-4')}</span>
             <span class="flex-1"><strong>Kunci otomatis</strong><small>Setelah tidak ada aktivitas</small></span>
@@ -132,8 +113,8 @@ export function settingsView(user) {
               ${LOCK_OPTIONS.map((option) => `<option value="${option.value}" ${lockValue === option.value ? 'selected' : ''}>${escapeHTML(option.label)}</option>`).join('')}
             </select>
           </div>
-          <button type="button" class="settings-row" data-action="notifications"><span class="settings-row-icon">${icon('bell', 'w-4 h-4')}</span><span class="flex-1"><strong>Notifikasi pengingat</strong><small>Untuk tugas dan catatan dengan pengingat</small></span>${badge(notification.label, notification.tone, 'badge-soft')}</button>
-          <button type="button" class="settings-row" data-action="logout"><span class="settings-row-icon text-red-500">${icon('log-out', 'w-4 h-4')}</span><span class="flex-1"><strong class="text-red-500">Keluar dari sesi</strong><small>Kembali ke layar PIN</small></span></button>
+          <button type="button" class="settings-row" data-action="notifications"><span class="settings-row-icon">${icon('bell', 'w-4 h-4')}</span><span class="flex-1"><strong>Notifikasi</strong><small>Pengingat tugas dan catatan</small></span>${badge(notification.label, notification.tone, 'badge-soft')}</button>
+          <button type="button" class="settings-row" data-action="logout"><span class="settings-row-icon text-red-500">${icon('log-out', 'w-4 h-4')}</span><span class="flex-1"><strong class="text-red-500">Keluar</strong><small>Kembali ke layar masuk</small></span></button>
         </div>
       </section>
 
@@ -149,10 +130,10 @@ export function settingsView(user) {
           </button>`).join('')}
         </div>
         <div class="settings-list mt-4">
-          <button type="button" class="settings-row" data-action="toggle-privacy"><span class="settings-row-icon">${icon(prefs.hideAmounts ? 'eye-off' : 'eye', 'w-4 h-4')}</span><span class="flex-1"><strong>Sembunyikan nominal</strong><small>Samarkan angka saat layar dilihat orang lain</small></span><span class="switch ${prefs.hideAmounts ? 'is-on' : ''}"></span></button>
+          <button type="button" class="settings-row" data-action="toggle-privacy"><span class="settings-row-icon">${icon(prefs.hideAmounts ? 'eye-off' : 'eye', 'w-4 h-4')}</span><span class="flex-1"><strong>Sembunyikan nominal</strong><small>Samarkan angka saat dilihat orang</small></span><span class="switch ${prefs.hideAmounts ? 'is-on' : ''}"></span></button>
           <div class="settings-row">
             <span class="settings-row-icon">${icon('calendar', 'w-4 h-4')}</span>
-            <span class="flex-1"><strong>Awal pekan</strong><small>Digunakan pada tampilan kalender</small></span>
+            <span class="flex-1"><strong>Awal pekan</strong><small>Untuk tampilan kalender</small></span>
             <select class="field field-compact w-28" data-setting="weekStartsOn">
               ${WEEK_OPTIONS.map((option) => `<option value="${option.value}" ${Number(store.data.settings.weekStartsOn) === option.value ? 'selected' : ''}>${escapeHTML(option.label)}</option>`).join('')}
             </select>
@@ -162,16 +143,15 @@ export function settingsView(user) {
 
       <form class="card" data-form="settings-household">
         <div class="card-heading">
-          <div><p class="card-kicker">Rumah tangga</p><h2 class="section-title">Identitas & anggaran</h2></div>
+          <div><p class="card-kicker">Ruang</p><h2 class="section-title">Identitas & anggaran</h2></div>
           ${icon('users', 'w-5 h-5 text-blue-500')}
         </div>
-        <label class="field-label">Nama keluarga
+        <label class="field-label">Nama ruang
           <input class="field mt-1.5" name="householdName" maxlength="60" value="${escapeAttr(store.data.settings.householdName)}" required>
         </label>
         <label class="field-label mt-3">Anggaran default bulanan
           <div class="input-with-prefix mt-1.5"><span>Rp</span><input class="field" type="number" name="defaultMonthlyBudget" min="0" step="1000" inputmode="numeric" value="${Math.round(store.data.settings.defaultMonthlyBudget)}"></div>
         </label>
-        <p class="text-[11px] text-slate-400 mt-2">Dipakai saat bulan belum memiliki anggaran khusus.</p>
         <button type="submit" class="btn btn-primary w-full mt-4">${icon('save', 'w-4 h-4')} Simpan</button>
       </form>
 
@@ -181,43 +161,14 @@ export function settingsView(user) {
           ${icon('tag', 'w-5 h-5 text-pink-500')}
         </div>
         <div class="settings-list">
-          <a href="#/categories" class="settings-row" data-action="nav" data-route="categories"><span class="settings-row-icon">${icon('tag', 'w-4 h-4')}</span><span class="flex-1"><strong>Kelola kategori</strong><small>${store.categories().length} kategori aktif</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</a>
+          <a href="#/categories" class="settings-row" data-action="nav" data-route="categories"><span class="settings-row-icon">${icon('tag', 'w-4 h-4')}</span><span class="flex-1"><strong>Kategori</strong><small>${store.categories().length} kategori aktif</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</a>
           <a href="#/recurring" class="settings-row" data-action="nav" data-route="recurring"><span class="settings-row-icon">${icon('repeat', 'w-4 h-4')}</span><span class="flex-1"><strong>Transaksi berulang</strong><small>${store.recurringRules().length} jadwal</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</a>
-          <a href="#/budgets" class="settings-row" data-action="nav" data-route="budgets"><span class="settings-row-icon">${icon('chart-pie', 'w-4 h-4')}</span><span class="flex-1"><strong>Anggaran bulanan</strong><small>Batas dan ambang peringatan</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</a>
+          <a href="#/budgets" class="settings-row" data-action="nav" data-route="budgets"><span class="settings-row-icon">${icon('chart-pie', 'w-4 h-4')}</span><span class="flex-1"><strong>Anggaran</strong><small>Batas dan ambang peringatan</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</a>
         </div>
       </section>
     </div>
 
     ${googleDriveCard(user, driveConnected)}
-
-    <section class="card" id="cloud-settings">
-      <div class="card-heading">
-        <div>
-          <p class="card-kicker">Opsional</p>
-          <h2 class="section-title">Sinkron cloud lain</h2>
-        </div>
-        <div class="flex items-center gap-2">${syncPill(status)}${badge(status.connected ? 'Terhubung' : 'Belum terhubung', status.connected ? 'green' : 'slate', 'badge-soft')}</div>
-      </div>
-      <div class="cloud-status-panel">
-        <div class="min-w-0">
-          <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">${escapeHTML(status.providerLabel)}</p>
-          <p class="text-xs ${status.state === 'error' ? 'text-red-500' : 'text-slate-500 dark:text-slate-400'} mt-0.5">${escapeHTML(status.error || status.message || CLOUD_PROVIDERS[status.provider]?.description || 'Data lokal')}</p>
-          <p class="text-[11px] text-slate-400 mt-1">${status.lastSyncAt ? `Terakhir sinkron ${formatDateTime(status.lastSyncAt)}` : 'Belum pernah tersinkron'}</p>
-        </div>
-        <div class="flex gap-2">
-          ${status.provider !== 'local' ? `<button type="button" class="btn btn-secondary btn-sm" data-action="sync-now">${icon('refresh', 'w-3.5 h-3.5')} Sinkron</button>` : ''}
-          ${status.provider !== 'local' ? `<button type="button" class="btn btn-danger-soft btn-sm" data-action="cloud-disconnect">Putuskan</button>` : ''}
-        </div>
-      </div>
-      <form data-form="cloud" class="mt-5">
-        ${cloudFields(config)}
-        <div class="flex flex-wrap gap-2 mt-5">
-          <button type="submit" class="btn btn-primary">${icon(status.connected ? 'refresh' : 'cloud', 'w-4 h-4')} ${status.connected ? 'Simpan & sambungkan ulang' : 'Simpan & hubungkan'}</button>
-          <button type="button" class="btn btn-secondary" data-action="cloud-test">Uji koneksi</button>
-        </div>
-        <p class="text-[11px] text-slate-400 mt-3">Hanya untuk JSONBin, Supabase, atau Firebase. Google Drive sengaja tidak dipakai untuk sinkron otomatis — gunakan kartu Google di atas untuk backup manual.</p>
-      </form>
-    </section>
 
     <div class="settings-grid">
       <section class="card">
@@ -231,12 +182,11 @@ export function settingsView(user) {
           <div><span>Catatan</span><strong>${noteCount}</strong></div>
         </div>
         <div class="settings-actions">
-          <button type="button" class="btn btn-secondary btn-sm" data-action="export-backup">${icon('download', 'w-3.5 h-3.5')} Unduh backup JSON</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-action="export-backup">${icon('download', 'w-3.5 h-3.5')} Unduh backup</button>
           <button type="button" class="btn btn-secondary btn-sm" data-action="import-backup">${icon('upload', 'w-3.5 h-3.5')} Pulihkan backup</button>
-          <button type="button" class="btn btn-secondary btn-sm" data-action="load-sample">${icon('sparkles', 'w-3.5 h-3.5')} Muat data contoh</button>
-          <button type="button" class="btn btn-danger-soft btn-sm" data-action="reset-app">${icon('trash', 'w-3.5 h-3.5')} Reset aplikasi</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-action="load-sample">${icon('sparkles', 'w-3.5 h-3.5')} Data contoh</button>
+          <button type="button" class="btn btn-danger-soft btn-sm" data-action="reset-app">${icon('trash', 'w-3.5 h-3.5')} Reset ruang</button>
         </div>
-        <p class="text-[11px] leading-5 text-slate-400 mt-3">Backup JSON memuat transaksi, akun, anggaran, catatan, hash PIN, dan tautan akun Google. Untuk backup ke Drive, gunakan kartu Google di atas.</p>
       </section>
 
       <section class="card">
@@ -249,7 +199,7 @@ export function settingsView(user) {
           <div class="settings-row"><span class="settings-row-icon">${icon('device', 'w-4 h-4')}</span><span class="flex-1"><strong>Mode aplikasi</strong><small>${installed ? 'Berjalan sebagai PWA standalone' : isIos() ? 'Tambahkan ke Layar Utama lewat Safari' : 'Dapat dipasang dari menu browser'}</small></span>${badge(installed ? 'Terpasang' : 'Browser', installed ? 'green' : 'slate', 'badge-soft')}</div>
           <button type="button" class="settings-row" data-action="install-help"><span class="settings-row-icon">${icon('info', 'w-4 h-4')}</span><span class="flex-1"><strong>Cara memasang di iPhone</strong><small>Safari → Bagikan → Tambahkan ke Layar Utama</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>
         </div>
-        <button type="button" class="btn btn-secondary w-full mt-4" data-action="check-update">${icon('refresh', 'w-4 h-4')} Periksa pembaruan aplikasi</button>
+        <button type="button" class="btn btn-secondary w-full mt-4" data-action="check-update">${icon('refresh', 'w-4 h-4')} Periksa pembaruan</button>
       </section>
     </div>
 
@@ -257,9 +207,9 @@ export function settingsView(user) {
       <span class="brand-mark">R</span>
       <div class="min-w-0">
         <p class="font-bold text-slate-900 dark:text-white">${APP.name} <span class="font-normal text-slate-400">v${APP.version}</span></p>
-        <p class="text-xs text-slate-500 dark:text-slate-400">${APP.tagline} Dibuat ringan dengan HTML, Tailwind CSS, dan Vanilla JavaScript.</p>
+        <p class="text-xs text-slate-500 dark:text-slate-400">${APP.tagline}</p>
       </div>
-      <span class="text-[10px] text-slate-400 text-right">PWA · Offline-first<br>Data milik keluarga</span>
+      <span class="text-[10px] text-slate-400 text-right">PWA · Offline-first</span>
     </section>
   </div>`;
 }

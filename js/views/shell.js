@@ -26,19 +26,19 @@ export function shellView(user, dueCount = 0) {
       </div>
 
       <nav class="sidebar-nav" aria-label="Navigasi utama">
-        <p class="nav-section-label">Ruang keluarga</p>
+        <p class="nav-section-label">Keuangan</p>
         ${DESKTOP_NAV.slice(0, 4).map((route) => navItem(route, active)).join('')}
         <p class="nav-section-label mt-5">Kelola</p>
         ${DESKTOP_NAV.slice(4).map((route) => navItem(route, active)).join('')}
       </nav>
 
       <div class="sidebar-bottom">
-        <div class="sidebar-sync js-sync-slot">${syncPill(status)}</div>
+        <div class="sidebar-sync js-sync-slot">${status.provider !== 'local' ? syncPill(status) : ''}</div>
         <button type="button" class="sidebar-user" data-action="open-profile">
           ${avatar(user, 'md')}
           <span class="min-w-0 text-left">
             <span class="block text-sm font-semibold text-slate-900 dark:text-white truncate">${escapeHTML(user?.name || 'Pengguna')}</span>
-            <span class="block text-[11px] text-slate-500 dark:text-slate-400">Ketuk untuk profil & kunci</span>
+            <span class="block text-[11px] text-slate-500 dark:text-slate-400 truncate">${escapeHTML(user?.googleEmail || '')}</span>
           </span>
           ${icon('more-horizontal', 'w-4 h-4 text-slate-400 ml-auto')}
         </button>
@@ -59,7 +59,7 @@ export function shellView(user, dueCount = 0) {
           </div>
         </div>
         <div class="topbar-right">
-          <div class="js-sync-slot desktop-sync-slot">${syncPill(status)}</div>
+          <div class="js-sync-slot desktop-sync-slot">${status.provider !== 'local' ? syncPill(status) : ''}</div>
           <button type="button" class="icon-btn topbar-bell" data-action="open-tasks" aria-label="Tugas dan pengingat">
             ${icon('bell', 'w-[18px] h-[18px]')}
             ${dueCount > 0 ? `<span class="notification-dot">${dueCount > 9 ? '9+' : dueCount}</span>` : ''}
@@ -102,7 +102,7 @@ export function updateChrome(route) {
 
 export function updateSyncSlots(status) {
   document.querySelectorAll('.js-sync-slot').forEach((slot) => {
-    slot.innerHTML = syncPill(status);
+    slot.innerHTML = status?.provider !== 'local' ? syncPill(status) : '';
   });
 }
 
@@ -124,13 +124,13 @@ export function profileSheet(user) {
         <button type="button" class="profile-menu-item" data-action="notifications">${icon('bell', 'w-4.5 h-4.5')} Izin notifikasi</button>
         <button type="button" class="profile-menu-item" data-action="toggle-privacy">${icon('eye-off', 'w-4.5 h-4.5')} ${prefs.hideAmounts ? 'Tampilkan nominal' : 'Sembunyikan nominal'}</button>
       </div>
-      <div class="mt-4 rounded-2xl bg-slate-50 dark:bg-white/[.04] px-4 py-3 flex items-center justify-between gap-3">
+      ${status.provider !== 'local' ? `<div class="mt-4 rounded-2xl bg-slate-50 dark:bg-white/[.04] px-4 py-3 flex items-center justify-between gap-3">
         <div class="min-w-0">
           <p class="text-xs font-semibold text-slate-700 dark:text-slate-200">${escapeHTML(status.providerLabel)}</p>
           <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate">${escapeHTML(status.error || status.message || 'Data lokal di perangkat ini')}</p>
         </div>
         ${syncPill(status)}
-      </div>
+      </div>` : ''}
       <div class="grid grid-cols-2 gap-2.5 mt-4">
         <button type="button" class="btn btn-secondary" data-action="lock-app">${icon('lock', 'w-4 h-4')} Kunci</button>
         <button type="button" class="btn btn-danger-soft" data-action="logout">${icon('log-out', 'w-4 h-4')} Keluar</button>

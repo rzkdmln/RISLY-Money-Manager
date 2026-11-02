@@ -2,7 +2,7 @@
   "id": "/",
   "name": "RISLY Money Manager",
   "short_name": "RISLY",
-  "description": "Keuangan keluarga Rizki & Shelly: transaksi, anggaran, kalender, catatan, dan laporan dalam satu aplikasi offline-first.",
+  "description": "Catat transaksi, anggaran, kalender, catatan, dan laporan keuangan dalam satu aplikasi offline-first.",
   "lang": "id",
   "dir": "ltr",
   "start_url": "./index.html",

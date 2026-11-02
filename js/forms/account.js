@@ -146,9 +146,9 @@ export function changePinForm(user) {
       <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
     </header>
     <div class="modal-body">
-      <label class="field-label">PIN saat ini
+      ${user?.pinHash ? `<label class="field-label">PIN saat ini
         <input class="field mt-1.5" type="password" name="currentPin" inputmode="numeric" maxlength="8" autocomplete="current-password" required>
-      </label>
+      </label>` : ''}
       <div class="form-grid">
         <label class="field-label">PIN baru
           <input class="field mt-1.5" type="password" name="newPin" inputmode="numeric" minlength="4" maxlength="8" pattern="[0-9]{4,8}" autocomplete="new-password" required>
@@ -189,7 +189,7 @@ export function profileForm(user) {
         <input type="hidden" name="color" value="${escapeAttr(user.color || colors[0])}">
         ${colors.map((color) => `<button type="button" class="color-dot ${color === user.color ? 'is-active' : ''}" style="--pick-color:${color}" data-action="pick-color" data-color="${color}" aria-label="Warna ${color}"></button>`).join('')}
       </div>
-      <p class="text-[11px] text-slate-400 mt-4">Nama ini menandai pembuat transaksi dan catatan. ID pengguna tetap Rizki/Shelly agar sinkronisasi tidak berubah.</p>
+      <p class="text-[11px] text-slate-400 mt-4">Nama ini menandai pembuat transaksi dan catatan.</p>
       <p class="form-error hidden" data-form-error role="alert"></p>
     </div>
     <footer class="modal-footer">

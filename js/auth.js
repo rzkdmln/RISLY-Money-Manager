@@ -180,7 +180,9 @@ export function resetFailedAttempts(userId) {
 }
 
 export async function changePin(user, currentPin, newPin) {
-  const valid = await verifyPin(user, currentPin);
-  if (!valid) throw new Error('PIN saat ini tidak cocok.');
+  if (user?.pinHash) {
+    const valid = await verifyPin(user, currentPin);
+    if (!valid) throw new Error('PIN saat ini tidak cocok.');
+  }
   return createPinCredentials(newPin);
 }

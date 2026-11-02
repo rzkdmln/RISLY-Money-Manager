@@ -65,7 +65,7 @@ export function accountsView() {
       <div class="accounts-hero-ring accounts-hero-ring-two"></div>
     </section>
 
-    ${accounts.length ? `<div class="accounts-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0 w-full">${accounts.map((account) => accountCard(account)).join('')}</div>` : emptyState('wallet', 'Belum ada akun', 'Tambahkan dompet tunai, rekening bank, atau dompet digital untuk mulai mencatat.', `<button type="button" class="btn btn-primary btn-sm" data-action="add-account">${icon('plus', 'w-3.5 h-3.5')} Tambah akun</button>`)}
+    ${accounts.length ? `<div class="accounts-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0 w-full">${accounts.map((account) => accountCard(account)).join('')}</div>` : emptyState('wallet', 'Belum ada akun', 'Tambahkan dompet, rekening, atau dompet digital.', `<button type="button" class="btn btn-primary btn-sm" data-action="add-account">${icon('plus', 'w-3.5 h-3.5')} Tambah akun</button>`)}
 
     <div class="grid lg:grid-cols-3 gap-4 min-w-0 w-full">
       <section class="card lg:col-span-2 min-w-0 w-full overflow-hidden">
