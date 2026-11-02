@@ -107,47 +107,87 @@ export function dashboardView(user) {
     })}
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 min-w-0 w-full">
-      <section class="networth-card lg:col-span-2 min-w-0 w-full overflow-hidden">
-        <div class="networth-glow"></div>
-        <div class="relative z-10 min-w-0">
-          <div class="flex flex-col sm:flex-row items-start justify-between gap-4 min-w-0">
-            <div class="min-w-0">
-              <div class="flex items-center gap-2">
-                <p class="networth-label">Kekayaan saya</p>
-                <button type="button" class="networth-eye shrink-0" data-action="toggle-privacy" aria-label="${prefs.hideAmounts ? 'Tampilkan nominal' : 'Sembunyikan nominal'}">${icon(prefs.hideAmounts ? 'eye-off' : 'eye', 'w-4 h-4')}</button>
-              </div>
-              <p class="networth-value truncate">${money(myNetWorth)}</p>
+    <section class="networth-card lg:col-span-2 min-w-0 w-full overflow-hidden relative rounded-2xl bg-slate-900 text-white p-5 sm:p-6 shadow-xl border border-slate-800">
+      <div class="networth-glow absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-emerald-500/5 pointer-events-none"></div>
+
+      <div class="relative z-10 min-w-0 flex flex-col gap-6">
+
+        <!-- HEADER & NOMINAL UTAMA -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 min-w-0">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <p class="text-xs font-medium uppercase tracking-wider text-slate-400">Kekayaan Saya</p>
+              <button type="button" class="networth-eye text-slate-400 hover:text-white transition-colors shrink-0" data-action="toggle-privacy" aria-label="Sembunyikan nominal">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path>
+                  <circle cx="12" cy="12" r="2.5"></circle>
+                </svg>
+              </button>
             </div>
-            <div class="min-w-0">
-              <p class="networth-label">Kekayaan keluarga</p>
-              <p class="networth-value truncate">${money(netWorth)}</p>
-            </div>
+            <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-white truncate mt-1">Rp 1.989.000</h2>
           </div>
 
-          <div class="networth-flow min-w-0">
-            <div class="min-w-0">
-              <span class="networth-flow-label">Masuk bulan ini</span>
-              <span class="networth-flow-value income truncate">+${money(summary.income)}</span>
-            </div>
-            <span class="networth-divider shrink-0"></span>
-            <div class="min-w-0">
-              <span class="networth-flow-label">Keluar bulan ini</span>
-              <span class="networth-flow-value expense truncate">-${money(summary.expense)}</span>
-            </div>
-            <span class="networth-divider hidden sm:block shrink-0"></span>
-            <div class="hidden sm:block min-w-0">
-              <span class="networth-flow-label">Arus kas</span>
-              <span class="networth-flow-value truncate ${summary.net >= 0 ? 'income' : 'expense'}">${summary.net >= 0 ? '+' : ''}${money(summary.net)}</span>
-            </div>
-          </div>
-
-
-          <div class="networth-actions min-w-0">
-            <button type="button" data-action="add-tx" data-type="transfer">${icon('arrow-left-right', 'w-3.5 h-3.5')} Transfer</button>
-            <button type="button" data-action="add-tx" data-type="income">${icon('plus', 'w-3.5 h-3.5')} Catat pemasukan</button>
+          <!-- KEKAYAAN KELUARGA (BADGE / HIGHLIGHT SEKUNDER) -->
+          <div class="self-start sm:self-center bg-slate-800/80 backdrop-blur border border-slate-700/60 rounded-xl px-3.5 py-2 min-w-0">
+            <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Kekayaan Keluarga</p>
+            <p class="text-sm font-semibold text-slate-200 truncate mt-0.5">Rp 2.811.305</p>
           </div>
         </div>
-      </section>
+
+        <!-- STATISTIK ARUS KAS BULAN INI -->
+        <div class="grid grid-cols-3 gap-2 sm:gap-4 bg-slate-950/50 rounded-xl p-3 sm:p-4 border border-slate-800/80">
+
+          <!-- Pemasukan -->
+          <div class="min-w-0 flex flex-col">
+            <span class="text-[11px] font-medium text-slate-400 truncate">Masuk (Bln Ini)</span>
+            <span class="text-xs sm:text-sm font-semibold text-emerald-400 truncate mt-1">+Rp 4.698.200</span>
+          </div>
+
+          <!-- Pengeluaran -->
+          <div class="min-w-0 flex flex-col border-l border-slate-800 pl-2.5 sm:pl-4">
+            <span class="text-[11px] font-medium text-slate-400 truncate">Keluar (Bln Ini)</span>
+            <span class="text-xs sm:text-sm font-semibold text-rose-400 truncate mt-1">-Rp 2.460.768</span>
+          </div>
+
+          <!-- Arus Kas -->
+          <div class="min-w-0 flex flex-col border-l border-slate-800 pl-2.5 sm:pl-4">
+            <span class="text-[11px] font-medium text-slate-400 truncate">Arus Kas</span>
+            <span class="text-xs sm:text-sm font-semibold text-indigo-400 truncate mt-1">+Rp 2.237.432</span>
+          </div>
+
+        </div>
+
+        <!-- TOMBOL AKSI CEPAT -->
+        <div class="grid grid-cols-3 gap-2 pt-1 min-w-0">
+
+          <!-- Aksi Utama: Catat Pengeluaran -->
+          <button type="button" data-action="add-tx" data-type="expense" class="flex items-center justify-center gap-1.5 bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-white font-medium text-xs sm:text-sm py-2.5 px-3 rounded-xl transition-colors shadow-lg shadow-rose-900/20 truncate">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14"></path>
+            </svg>
+            <span class="truncate">Pengeluaran</span>
+          </button>
+
+          <!-- Aksi Sekunder: Catat Pemasukan -->
+          <button type="button" data-action="add-tx" data-type="income" class="flex items-center justify-center gap-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-medium text-xs sm:text-sm py-2.5 px-3 rounded-xl transition-colors truncate">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14"></path>
+            </svg>
+            <span class="truncate">Pemasukan</span>
+          </button>
+
+          <!-- Aksi Tersier: Transfer -->
+          <button type="button" data-action="add-tx" data-type="transfer" class="flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium text-xs sm:text-sm py-2.5 px-3 rounded-xl transition-colors truncate">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M7 7h13M17 4l3 3-3 3M17 17H4M7 14l-3 3 3 3"></path>
+            </svg>
+            <span class="truncate">Transfer</span>
+          </button>
+
+        </div>
+
+      </div>
+    </section>
 
       <section class="card budget-card min-w-0 w-full overflow-hidden">
         <div class="flex items-start justify-between gap-3 min-w-0">
