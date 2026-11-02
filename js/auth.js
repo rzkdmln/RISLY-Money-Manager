@@ -88,7 +88,8 @@ export function needsSetup(users) {
 
 export function getSession() {
   try {
-    const raw = sessionStorage.getItem(APP.sessionKey);
+    // Ubah dari sessionStorage ke localStorage
+    const raw = localStorage.getItem(APP.sessionKey);
     if (!raw) return null;
     const session = JSON.parse(raw);
     if (!session?.userId || !session?.lastActivity) return null;
@@ -105,7 +106,8 @@ export function createSession(userId, workspaceId = null) {
     issuedAt: Date.now(),
     lastActivity: Date.now(),
   };
-  sessionStorage.setItem(APP.sessionKey, JSON.stringify(session));
+  // Ubah dari sessionStorage ke localStorage
+  localStorage.setItem(APP.sessionKey, JSON.stringify(session));
   return session;
 }
 
@@ -113,12 +115,14 @@ export function updateSessionActivity() {
   const session = getSession();
   if (!session) return null;
   session.lastActivity = Date.now();
-  sessionStorage.setItem(APP.sessionKey, JSON.stringify(session));
+  // Ubah dari sessionStorage ke localStorage
+  localStorage.setItem(APP.sessionKey, JSON.stringify(session));
   return session;
 }
 
 export function clearSession() {
-  sessionStorage.removeItem(APP.sessionKey);
+  // Ubah dari sessionStorage ke localStorage
+  localStorage.removeItem(APP.sessionKey);
 }
 
 export function isSessionExpired(session, autoLockMinutes) {

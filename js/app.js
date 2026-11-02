@@ -3147,13 +3147,6 @@ function boot() {
   // Hide splash after a short delay to ensure paint
   setTimeout(hideSplash, 600);
 
-  if (store.hasWorkspace) {
-    Cloud.bootstrap().then(() => {
-      if (store.currentUser && !ui.locked) renderApplication();
-      else renderAuth();
-    }).catch((error) => console.warn('Cloud bootstrap skipped:', error));
-  }
-
   window.__RISLY__ = { store, Cloud, navigate, version: APP.version };
 }
 

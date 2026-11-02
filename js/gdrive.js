@@ -150,7 +150,7 @@ class GoogleDriveClient {
     }
   }
 
-  async requestToken(prompt) {
+  async requestToken(prompt = 'select_account') { // 1. Set default prompt ke 'select_account'
     if (!this.clientId) throw new DriveAuthError('Client ID Google belum diisi.');
     const google = await loadGis();
     return new Promise((resolve, reject) => {
@@ -170,6 +170,11 @@ class GoogleDriveClient {
           }
           this.accessToken = response.access_token;
           this.expiresAt = Date.now() + (Number(response.expires_in) || 3600) * 1000;
+
+          // SIMPAN TOKEN KE LOCALSTORAGE AGAR SIKLUS PWA BISA MEMBACA KEMBALI
+          localStorage.setItem('risly_access_token', response.access_token);
+          localStorage.setItem('risly_token_expires_at', String(this.expiresAt));
+
           finish(resolve, response);
         },
         error_callback: (error) => {
@@ -177,67 +182,37 @@ class GoogleDriveClient {
         },
       });
       try {
-        client.requestAccessToken({ prompt });
+        // 2. Pastikan prompt dipanggil secara eksplisit untuk membuka Popup
+        client.requestAccessToken({ prompt: prompt || 'select_account' });
       } catch (error) {
         finish(reject, new DriveAuthError(error?.message || 'Google Sign-In gagal dibuka.'));
       }
     });
   }
 
-  async fetchProfile() {
-    const response = await fetch(USERINFO_URL, {
-      headers: { Authorization: `Bearer ${this.accessToken}` },
-      cache: 'no-store',
-    });
-    if (!response.ok) throw new DriveAuthError('Gagal membaca profil Google.');
-    const body = await response.json();
-    return {
-      email: String(body.email || ''),
-      name: String(body.name || body.email || 'Akun Google'),
-      picture: String(body.picture || ''),
-    };
-  }
-
   /**
-   * Interactive sign-in. Must be called from a user gesture.
-   * @param {object} [options]
-   * @param {string} [options.clientId] optional Client ID to adopt before signing in.
-   * @param {string} [options.prompt] GIS prompt mode: '' | 'none' | 'consent' | 'select_account'.
+   * Returns a usable access token
    */
-  async signIn({ clientId, prompt = 'select_account' } = {}) {
-    if (clientId !== undefined) this.setClientId(clientId);
-    if (!this.clientId) throw new DriveAuthError('Client ID Google belum diisi.');
-    await this.requestToken(prompt);
-    const profile = await this.fetchProfile();
-    if (!profile.email) throw new DriveAuthError('Akun Google tidak mengembalikan alamat email.');
-    this.account = {
-      clientId: this.clientId,
-      email: profile.email,
-      name: profile.name,
-      picture: profile.picture,
-      connectedAt: new Date().toISOString(),
-    };
-    localStorage.setItem(ACCOUNT_KEY, JSON.stringify(this.account));
-    this.emit();
-    return this.getAccount();
-  }
 
-  /**
-   * Returns a usable access token, refreshing silently when possible.
-   */
   async token() {
     if (!this.account?.email) {
       throw new DriveAuthError('Masuk dengan Google dulu untuk mengakses Drive.');
     }
-    if (this.accessToken && this.expiresAt - 60_000 > Date.now()) return this.accessToken;
-    try {
-      await this.requestToken('');
-    } catch (error) {
-      this.accessToken = '';
-      this.expiresAt = 0;
-      throw new DriveAuthError('Sesi Google berakhir. Buka Pengaturan lalu pilih "Masuk dengan Google" lagi.');
+
+    // Ambil token tersimpan dari LocalStorage jika memori JS ter-reset saat PWA minimised
+    if (!this.accessToken) {
+      this.accessToken = localStorage.getItem('risly_access_token') || '';
+      this.expiresAt = Number(localStorage.getItem('risly_token_expires_at')) || 0;
     }
-    return this.accessToken;
+
+    if (this.accessToken && this.expiresAt - 60_000 > Date.now()) return this.accessToken;
+
+    // Jika token kadaluwarsa di iOS PWA, kosongkan token dan minta pengguna menekan tombol login Google lagi
+    this.accessToken = '';
+    this.expiresAt = 0;
+    localStorage.removeItem('risly_access_token');
+    localStorage.removeItem('risly_token_expires_at');
+    throw new DriveAuthError('Sesi Google berakhir. Klik "Masuk dengan Google" untuk melanjutkan.');
   }
 
   async signOut() {
