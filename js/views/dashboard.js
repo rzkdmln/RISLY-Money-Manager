@@ -146,7 +146,7 @@ export function dashboardView(user) {
 
         <!-- Arus Kas -->
         <div class="pt-5 border-t border-slate-100 dark:border-slate-800/60">
-          <div class="grid grid-cols-3 gap-2 sm:gap-4 min-w-0">
+          <div class="grid grid-cols-2 gap-2 sm:gap-4 min-w-0">
             <div class="min-w-0">
               <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 truncate">Masuk</span>
               <span class="block text-sm sm:text-base font-bold text-emerald-600 dark:text-emerald-400 truncate">+${money(income)}</span>
@@ -154,10 +154,6 @@ export function dashboardView(user) {
             <div class="min-w-0 border-l border-slate-100 dark:border-slate-800/60 pl-2 sm:pl-4">
               <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 truncate">Keluar</span>
               <span class="block text-sm sm:text-base font-bold text-rose-600 dark:text-rose-400 truncate">-${money(expense)}</span>
-            </div>
-            <div class="min-w-0 border-l border-slate-100 dark:border-slate-800/60 pl-2 sm:pl-4">
-              <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 truncate">Arus Kas</span>
-              <span class="block text-sm sm:text-base font-bold ${cashflowColor} truncate">${cashflowPrefix}${money(cashflow)}</span>
             </div>
           </div>
         </div>
