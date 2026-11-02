@@ -210,6 +210,11 @@ function restoreFocus(snapshot) {
   }
 }
 
+function setSplashStatus(text) {
+  const node = document.getElementById('splash-status');
+  if (node) node.textContent = text;
+}
+
 function hideSplash() {
   const splash = document.getElementById('app-splash');
   if (!splash) return;
@@ -3041,13 +3046,16 @@ function boot() {
     return;
   }
 
+  setSplashStatus('Memuat data...');
   store.init();
+  setSplashStatus('Menyiapkan cloud...');
   Cloud.init(store);
   bindStore();
   bindEvents();
 
   if (!location.hash) history.replaceState(null, '', '#/dashboard');
 
+  setSplashStatus('Memeriksa sesi...');
   const session = getSession();
   if (session?.workspaceId) {
     const opened = store.openWorkspace(session.workspaceId, { account: store.accountForWorkspace(session.workspaceId) });
@@ -3069,10 +3077,10 @@ function boot() {
     }
   }
 
+  setSplashStatus('Memeriksa pembaruan...');
+  registerServiceWorker();
+
   if (!store.currentUser) {
-    if (ui.locked && store.currentUserId) {
-      // keep current user for the lock screen
-    }
     renderAuth();
   } else {
     renderApplication();
@@ -3080,9 +3088,17 @@ function boot() {
     setTimeout(checkReminders, 1_500);
   }
 
-  hideSplash();
-  registerServiceWorker();
   setupInstallPrompt();
+
+  if (store.hasWorkspace) {
+    Cloud.bootstrap().then(() => {
+      if (store.currentUser && !ui.locked) renderApplication();
+      else renderAuth();
+    }).catch((error) => console.warn('Cloud bootstrap skipped:', error));
+  }
+
+  // Hide splash after a short delay to ensure paint
+  setTimeout(hideSplash, 600);
 
   if (store.hasWorkspace) {
     Cloud.bootstrap().then(() => {

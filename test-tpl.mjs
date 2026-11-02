@@ -1,0 +1,1 @@
+const x = `hello ${true ? `world` : `earth`}`;

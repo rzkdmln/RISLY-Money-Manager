@@ -187,7 +187,7 @@ export function settingsView(user) {
         </div>`).join('')}
       </div>
       <p class="text-[11px] text-slate-400 mt-3">Anggota baru bergabung lewat kode undangan di halaman masuk. Hapus anggota akan menandainya sebagai keluar; data yang sudah dibuat tetap tersimpan.</p>
-    </section>`
+    </section>
 
     <div class="settings-grid">
       <section class="card">
