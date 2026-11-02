@@ -1,7 +1,7 @@
 import { ACCOUNT_TYPES } from '../config.js';
 import { store } from '../store.js';
 import { icon } from '../icons.js';
-import { badge, emptyState, money, pageHeader } from '../ui.js';
+import { badge, emptyState, money, pageHeader, prefs } from '../ui.js';
 import { escapeAttr, escapeHTML, formatPercent } from '../utils.js';
 import { accountIcon } from './common.js';
 
