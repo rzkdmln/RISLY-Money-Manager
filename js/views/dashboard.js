@@ -29,6 +29,13 @@ export function dashboardView(user) {
   const budget = store.budgetStatus(month);
   const netWorth = store.totalBalance();
   const myNetWorth = store.personalBalance();
+
+  const income = summary?.income || 0;
+  const expense = summary?.expense || 0;
+  const cashflow = income - expense;
+  const cashflowPrefix = cashflow > 0 ? '+' : '';
+  const cashflowColor = cashflow >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400';
+
   const recent = store.transactions().slice(0, 6);
   const spending = store.expenseByCategory(month);
   const spendingTotal = spending.reduce((total, item) => total + item.total, 0);
@@ -40,11 +47,11 @@ export function dashboardView(user) {
 
   const topCategories = spending.slice(0, 5).map((item) => {
     const percent = spendingTotal > 0 ? (item.total / spendingTotal) * 100 : 0;
-    return `<button type="button" class="legend-row min-w-0 w-full" data-action="nav" data-route="reports">
+    return `<button type="button" class="legend-row min-w-0 w-full hover:bg-slate-50 dark:hover:bg-slate-800/50 p-1.5 rounded-lg transition-colors" data-action="nav" data-route="reports">
       <span class="legend-dot" style="--legend-color:${escapeAttr(item.color)}"></span>
       <span class="legend-name truncate">${escapeHTML(item.name)}</span>
-      <span class="legend-value shrink-0">${money(item.total, { compact: item.total >= 10_000_000 })}</span>
-      <span class="legend-percent shrink-0">${formatPercent(percent)}</span>
+      <span class="legend-value shrink-0 font-medium">${money(item.total, { compact: item.total >= 10_000_000 })}</span>
+      <span class="legend-percent shrink-0 text-slate-400">${formatPercent(percent)}</span>
     </button>`;
   }).join('');
 
@@ -54,207 +61,217 @@ export function dashboardView(user) {
     .slice(0, 3)
     .map((item) => {
       const tone = toneForPercent(item.percent, budget.warning, budget.danger);
-      return `<div class="budget-mini-row min-w-0 w-full">
-        <div class="flex items-center justify-between gap-2 text-[11px] min-w-0">
-          <span class="truncate text-slate-600 dark:text-slate-300">${escapeHTML(item.category.name)}</span>
-          <span class="font-semibold text-slate-700 dark:text-slate-200 shrink-0">${formatPercent(item.percent)}</span>
+      return `<div class="budget-mini-row min-w-0 w-full mb-3 last:mb-0">
+        <div class="flex items-center justify-between gap-2 text-[11px] min-w-0 mb-1">
+          <span class="truncate font-medium text-slate-600 dark:text-slate-400">${escapeHTML(item.category.name)}</span>
+          <span class="font-bold text-slate-700 dark:text-slate-200 shrink-0">${formatPercent(item.percent)}</span>
         </div>
         ${progressBar(item.percent, tone, 'progress-thin')}
       </div>`;
     }).join('');
 
   const quickActions = [
-    { type: 'expense', label: 'Pengeluaran', icon: 'arrow-up-right', tone: 'expense' },
-    { type: 'income', label: 'Pemasukan', icon: 'arrow-down-left', tone: 'income' },
-    { type: 'transfer', label: 'Transfer', icon: 'arrow-left-right', tone: 'transfer' },
-    { type: 'note', label: 'Catatan', icon: 'sticky-note', tone: 'note' },
-  ].map((item) => `<button type="button" class="quick-tile quick-${item.tone} min-w-0 w-full justify-start truncate" data-action="${item.type === 'note' ? 'add-note' : 'add-tx'}" ${item.type !== 'note' ? `data-type="${item.type}"` : ''}>
-    <span class="quick-icon shrink-0">${icon(item.icon, 'w-5 h-5')}</span>
-    <span class="truncate">${item.label}</span>
-  </button>`).join('');
+    { type: 'expense', label: 'Pengeluaran', icon: 'arrow-up-right', tone: 'rose' },
+    { type: 'income', label: 'Pemasukan', icon: 'arrow-down-left', tone: 'emerald' },
+    { type: 'transfer', label: 'Transfer', icon: 'arrow-left-right', tone: 'blue' },
+    { type: 'note', label: 'Catatan', icon: 'sticky-note', tone: 'amber' },
+  ].map((item) => `
+    <button type="button" class="flex flex-col items-center justify-center p-3 gap-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700/50 transition-all active:scale-95 w-full" data-action="${item.type === 'note' ? 'add-note' : 'add-tx'}" ${item.type !== 'note' ? `data-type="${item.type}"` : ''}>
+      <div class="p-2.5 rounded-xl bg-${item.tone}-100 text-${item.tone}-600 dark:bg-${item.tone}-900/30 dark:text-${item.tone}-400">
+        ${icon(item.icon, 'w-5 h-5')}
+      </div>
+      <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate">${item.label}</span>
+    </button>
+  `).join('');
 
   const upcomingHtml = upcoming.length
     ? upcoming.map((rule) => {
       const category = store.categoryById(rule.categoryId);
-      return `<button type="button" class="mini-list-row min-w-0 w-full" data-action="edit-rec" data-id="${escapeAttr(rule.id)}">
-        <span class="mini-list-icon shrink-0" style="--mini-color:${escapeAttr(category?.color || '#3B82F6')}">${icon(rule.type === 'transfer' ? 'repeat' : category?.icon || 'receipt', 'w-3.5 h-3.5')}</span>
-        <span class="min-w-0 flex-1">
-          <span class="block text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">${escapeHTML(rule.title)}</span>
-          <span class="block text-[10px] text-slate-500 dark:text-slate-400 truncate">${escapeHTML(relativeDay(rule.nextDate))} · ${escapeHTML(formatDate(rule.nextDate))}</span>
+      return `<button type="button" class="mini-list-row min-w-0 w-full p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl transition-colors flex items-center gap-3" data-action="edit-rec" data-id="${escapeAttr(rule.id)}">
+        <span class="mini-list-icon shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white" style="background-color:${escapeAttr(category?.color || '#3B82F6')}">${icon(rule.type === 'transfer' ? 'repeat' : category?.icon || 'receipt', 'w-3.5 h-3.5')}</span>
+        <span class="min-w-0 flex-1 text-left">
+          <span class="block text-xs font-bold text-slate-800 dark:text-slate-100 truncate">${escapeHTML(rule.title)}</span>
+          <span class="block text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">${escapeHTML(relativeDay(rule.nextDate))} · ${escapeHTML(formatDate(rule.nextDate))}</span>
         </span>
-        <span class="text-xs font-semibold text-slate-700 dark:text-slate-200 shrink-0">${money(rule.amount, { compact: rule.amount >= 1_000_000 })}</span>
+        <span class="text-xs font-bold text-slate-700 dark:text-slate-200 shrink-0">${money(rule.amount, { compact: rule.amount >= 1_000_000 })}</span>
       </button>`;
     }).join('')
-    : `<p class="mini-empty">Belum ada tagihan berulang. <button type="button" class="link-button" data-action="add-rec">Buat jadwal</button></p>`;
+    : `<p class="mini-empty text-center p-4">Belum ada tagihan berulang. <button type="button" class="link-button font-semibold" data-action="add-rec">Buat jadwal</button></p>`;
 
   const tasksHtml = tasks.length
-    ? tasks.map((task) => `<button type="button" class="mini-list-row min-w-0 w-full" data-action="edit-note" data-id="${escapeAttr(task.id)}">
-        <span class="mini-check shrink-0 ${task.done ? 'is-done' : ''}">${task.done ? icon('check', 'w-2.5 h-2.5') : ''}</span>
-        <span class="min-w-0 flex-1">
-          <span class="block text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">${escapeHTML(task.title)}</span>
-          <span class="block text-[10px] truncate ${task.dueDate < todayISO() ? 'text-red-500' : 'text-slate-500 dark:text-slate-400'}">${escapeHTML(relativeDay(task.dueDate))}</span>
+    ? tasks.map((task) => `<button type="button" class="mini-list-row min-w-0 w-full p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl transition-colors flex items-center gap-3" data-action="edit-note" data-id="${escapeAttr(task.id)}">
+        <span class="mini-check shrink-0 ${task.done ? 'is-done text-emerald-500' : 'text-slate-300'}">${task.done ? icon('check', 'w-4 h-4') : icon('circle', 'w-4 h-4')}</span>
+        <span class="min-w-0 flex-1 text-left">
+          <span class="block text-xs font-bold text-slate-800 dark:text-slate-100 truncate ${task.done ? 'line-through text-slate-400' : ''}">${escapeHTML(task.title)}</span>
+          <span class="block text-[10px] truncate mt-0.5 ${task.dueDate < todayISO() ? 'text-red-500 font-medium' : 'text-slate-500 dark:text-slate-400'}">${escapeHTML(relativeDay(task.dueDate))}</span>
         </span>
-        <span class="shrink-0">${badge(task.priority === 'urgent' ? 'Mendesak' : task.priority === 'high' ? 'Tinggi' : 'Tugas', task.priority === 'urgent' ? 'red' : task.priority === 'high' ? 'amber' : 'blue', 'badge-soft')}</span>
+        <span class="shrink-0">${badge(task.priority === 'urgent' ? 'Mendesak' : task.priority === 'high' ? 'Tinggi' : 'Tugas', task.priority === 'urgent' ? 'red' : task.priority === 'high' ? 'amber' : 'slate', 'badge-soft')}</span>
       </button>`).join('')
-    : `<p class="mini-empty">Tidak ada tugas yang mendekati tenggat. <button type="button" class="link-button" data-action="add-todo">Tambah tugas</button></p>`;
+    : `<p class="mini-empty text-center p-4">Tidak ada tugas yang mendekati tenggat. <button type="button" class="link-button font-semibold" data-action="add-todo">Tambah tugas</button></p>`;
 
-  return `<div class="page-stack min-w-0 w-full overflow-hidden">
+  return `<div class="page-stack min-w-0 w-full overflow-hidden space-y-6">
     ${pageHeader({
       eyebrow: `Ringkasan ${escapeHTML(formatMonth(month))}`,
       title: `${escapeHTML(greeting())}, ${escapeHTML(user?.name || '')} <span class="wave">👋</span>`,
       subtitle: 'Pencatatan keuangan keluarga dalam satu tempat.',
-      actions: `<button type="button" class="btn btn-primary hidden sm:inline-flex" data-action="add-tx" data-type="expense">${icon('plus', 'w-4 h-4')} Transaksi</button>`,
+      actions: ``,
     })}
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 min-w-0 w-full">
-    <section class="networth-card lg:col-span-2 min-w-0 w-full overflow-hidden relative rounded-2xl bg-white text-slate-900 p-6 shadow-lg shadow-slate-200/50 border border-slate-200/80 flex flex-col justify-between gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 min-w-0 w-full items-stretch">
+      <!-- KARTU KEKAYAAN (CLEAN & SWITCHABLE) -->
+      <section class="networth-card lg:col-span-2 min-w-0 w-full overflow-hidden relative rounded-2xl bg-white dark:bg-[#132347] p-6 shadow-sm border border-slate-200 dark:border-slate-800/50 flex flex-col justify-between">
 
-      <!-- HEADER: KEKAYAAN SAYA & KELUARGA -->
-      <div class="flex items-center justify-between gap-4 min-w-0">
-        <!-- Main Net Worth -->
-        <div class="min-w-0">
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Kekayaan Saya</span>
-            <button type="button" class="text-slate-400 hover:text-slate-600 transition-colors shrink-0" data-action="toggle-privacy">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>
-            </button>
+        <!-- Switcher Header -->
+        <div class="flex items-center justify-between min-w-0 mb-6">
+          <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl w-fit">
+            <button type="button" data-action="switch-networth" data-target="personal" class="px-4 py-1.5 text-xs font-bold bg-white dark:bg-slate-700/80 text-slate-800 dark:text-white shadow-sm rounded-lg transition-all">Saya</button>
+            <button type="button" data-action="switch-networth" data-target="family" class="px-4 py-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all">Keluarga</button>
           </div>
-          <h2 class="text-3xl font-extrabold tracking-tight text-slate-900 truncate mt-1">Rp 1.989.000</h2>
+          <button type="button" class="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-lg transition-colors shrink-0" data-action="toggle-privacy" aria-label="Sembunyikan nominal">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>
+          </button>
         </div>
 
-        <!-- Family Net Worth (Badge Light Clean) -->
-        <div class="bg-slate-50 border border-slate-200/80 rounded-xl px-4 py-2.5 text-right shrink-0">
-          <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Kekayaan Keluarga</span>
-          <span class="text-base font-bold text-slate-800 mt-0.5 block">Rp 2.811.305</span>
-        </div>
-      </div>
-
-      <!-- STATISTIK ARUS KAS BULAN INI -->
-      <div class="grid grid-cols-3 gap-3 bg-slate-50/80 rounded-xl p-4 border border-slate-100">
-        <div class="min-w-0">
-          <span class="block text-xs font-medium text-slate-500 truncate">Masuk (Bln Ini)</span>
-          <span class="block text-sm font-bold text-emerald-600 truncate mt-1">+Rp 4.698.200</span>
-        </div>
-        <div class="min-w-0 border-l border-slate-200/60 pl-3 sm:pl-4">
-          <span class="block text-xs font-medium text-slate-500 truncate">Keluar (Bln Ini)</span>
-          <span class="block text-sm font-bold text-rose-600 truncate mt-1">-Rp 2.460.768</span>
-        </div>
-        <div class="min-w-0 border-l border-slate-200/60 pl-3 sm:pl-4">
-          <span class="block text-xs font-medium text-slate-500 truncate">Arus Kas</span>
-          <span class="block text-sm font-bold text-blue-600 truncate mt-1">+Rp 2.237.432</span>
-        </div>
-      </div>
-
-      <!-- TOMBOL AKSI TERANG -->
-      <div class="grid grid-cols-3 gap-3">
-        <!-- Pengeluaran (Primary Action) -->
-        <button type="button" data-action="add-tx" data-type="expense" class="flex items-center justify-center gap-2 bg-rose-500 hover:bg-rose-600 text-white font-semibold text-xs sm:text-sm py-2.5 px-3 rounded-xl transition-all shadow-md shadow-rose-500/20 active:scale-95">
-          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
-          <span class="truncate">Pengeluaran</span>
-        </button>
-
-        <!-- Pemasukan (Secondary Action) -->
-        <button type="button" data-action="add-tx" data-type="income" class="flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 font-semibold text-xs sm:text-sm py-2.5 px-3 rounded-xl transition-all active:scale-95">
-          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
-          <span class="truncate">Pemasukan</span>
-        </button>
-
-        <!-- Transfer (Tertiary Action) -->
-        <button type="button" data-action="add-tx" data-type="transfer" class="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200/80 text-slate-700 border border-slate-200/80 font-semibold text-xs sm:text-sm py-2.5 px-3 rounded-xl transition-all active:scale-95">
-          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h13M17 4l3 3-3 3M17 17H4M7 14l-3 3 3 3"></path></svg>
-          <span class="truncate">Transfer</span>
-        </button>
-      </div>
-    </section>
-
-      <section class="card budget-card min-w-0 w-full overflow-hidden">
-        <div class="flex items-start justify-between gap-3 min-w-0">
-          <div class="min-w-0">
-            <p class="card-kicker">Anggaran bulan ini</p>
-            <h2 class="text-lg font-bold text-slate-900 dark:text-white mt-0.5 truncate">${budget.total > 0 ? formatPercent(budget.percent) : 'Belum diatur'}</h2>
+        <!-- Area Nominal Besar -->
+        <div class="mb-8 min-w-0">
+          <div id="networth-personal" class="block min-w-0">
+             <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Total Kekayaan Saya</p>
+             <h2 class="text-4xl sm:text-5xl font-extrabold text-slate-900 text-white truncate tracking-tight">${money(myNetWorth)}</h2>
           </div>
-          <button type="button" class="icon-btn shrink-0" data-action="nav" data-route="budgets" aria-label="Kelola anggaran">${icon('edit', 'w-4 h-4')}</button>
-        </div>
-        ${budget.total > 0 ? `
-          <div class="mt-4 min-w-0">
-            ${progressBar(budget.percent, budgetTone, 'progress-lg')}
-            <div class="budget-scale">
-              <span>0</span>
-              <span class="${budget.percent >= budget.warning ? 'text-amber-500' : ''}">${budget.warning}%</span>
-              <span class="${budget.percent >= budget.danger ? 'text-red-500' : ''}">${budget.danger}%</span>
-              <span>100%</span>
-            </div>
+          <div id="networth-family" class="hidden min-w-0">
+             <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Total Kekayaan Keluarga</p>
+             <h2 class="text-4xl sm:text-5xl font-extrabold text-slate-900 text-white truncate tracking-tight">${money(netWorth)}</h2>
           </div>
-          <div class="flex items-end justify-between mt-4 gap-3 min-w-0">
+        </div>
+
+        <!-- Arus Kas -->
+        <div class="pt-5 border-t border-slate-100 dark:border-slate-800/60">
+          <div class="grid grid-cols-3 gap-2 sm:gap-4 min-w-0">
             <div class="min-w-0">
-              <p class="text-xs text-slate-500 dark:text-slate-400">Terpakai</p>
-              <p class="text-base font-bold text-slate-900 dark:text-white truncate">${money(budget.spent)}</p>
+              <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 truncate">Masuk</span>
+              <span class="block text-sm sm:text-base font-bold text-emerald-600 dark:text-emerald-400 truncate">+${money(income)}</span>
             </div>
-            <div class="text-right min-w-0">
-              <p class="text-xs text-slate-500 dark:text-slate-400">${budget.remaining < 0 ? 'Kelebihan' : 'Tersisa'}</p>
-              <p class="text-base font-bold truncate ${budget.remaining < 0 ? 'amount-expense' : 'text-slate-900 dark:text-white'}">${money(Math.abs(budget.remaining))}</p>
+            <div class="min-w-0 border-l border-slate-100 dark:border-slate-800/60 pl-2 sm:pl-4">
+              <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 truncate">Keluar</span>
+              <span class="block text-sm sm:text-base font-bold text-rose-600 dark:text-rose-400 truncate">-${money(expense)}</span>
+            </div>
+            <div class="min-w-0 border-l border-slate-100 dark:border-slate-800/60 pl-2 sm:pl-4">
+              <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 truncate">Arus Kas</span>
+              <span class="block text-sm sm:text-base font-bold ${cashflowColor} truncate">${cashflowPrefix}${money(cashflow)}</span>
             </div>
           </div>
-          ${budget.remaining < 0 ? `<p class="budget-alert mt-3 min-w-0">${icon('alert-triangle', 'w-3.5 h-3.5')} Pengeluaran sudah melewati anggaran.</p>` : budget.percent >= budget.warning ? `<p class="budget-alert budget-alert-warning mt-3 min-w-0">${icon('info', 'w-3.5 h-3.5')} Hampir mencapai batas anggaran.</p>` : ''}
-          <div class="budget-mini-list mt-4 min-w-0">${categoryBudgetMini}</div>
-        ` : `<div class="budget-empty mt-5 min-w-0">
-          <span class="empty-icon shrink-0">${icon('chart-pie', 'w-5 h-5')}</span>
-          <p>Tentukan batas pengeluaran keluarga agar progresnya bisa dipantau.</p>
-          <button type="button" class="btn btn-primary btn-sm" data-action="nav" data-route="budgets">${icon('plus', 'w-3.5 h-3.5')} Atur anggaran</button>
-        </div>`}
-        <button type="button" class="budget-footer-link" data-action="nav" data-route="budgets">Detail anggaran ${icon('arrow-right', 'w-3.5 h-3.5')}</button>
+        </div>
+      </section>
+
+      <!-- KARTU ANGGARAN -->
+      <section class="card budget-card min-w-0 w-full overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+        <div>
+          <div class="flex items-start justify-between gap-3 min-w-0">
+            <div class="min-w-0">
+              <p class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Anggaran bulan ini</p>
+              <h2 class="text-2xl font-extrabold text-slate-900 dark:text-white mt-1 truncate">${budget.total > 0 ? formatPercent(budget.percent) : 'Belum diatur'}</h2>
+            </div>
+            <button type="button" class="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors shrink-0" data-action="nav" data-route="budgets" aria-label="Kelola anggaran">${icon('edit', 'w-4 h-4')}</button>
+          </div>
+
+          ${budget.total > 0 ? `
+            <div class="mt-5 min-w-0">
+              ${progressBar(budget.percent, budgetTone, 'progress-lg')}
+              <div class="flex justify-between text-[10px] font-medium text-slate-400 mt-1.5 px-1">
+                <span>0</span>
+                <span class="${budget.percent >= budget.warning ? 'text-amber-500 font-bold' : ''}">${budget.warning}%</span>
+                <span class="${budget.percent >= budget.danger ? 'text-red-500 font-bold' : ''}">${budget.danger}%</span>
+                <span>100%</span>
+              </div>
+            </div>
+            <div class="flex items-end justify-between mt-5 gap-3 min-w-0 bg-slate-50 dark:bg-slate-800/40 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
+              <div class="min-w-0">
+                <p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Terpakai</p>
+                <p class="text-sm font-bold text-slate-900 dark:text-white truncate">${money(budget.spent)}</p>
+              </div>
+              <div class="text-right min-w-0">
+                <p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">${budget.remaining < 0 ? 'Kelebihan' : 'Tersisa'}</p>
+                <p class="text-sm font-bold truncate ${budget.remaining < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}">${money(Math.abs(budget.remaining))}</p>
+              </div>
+            </div>
+            ${budget.remaining < 0 ? `<p class="flex items-center gap-1.5 text-xs font-medium text-rose-600 dark:text-rose-400 mt-3 min-w-0">${icon('alert-triangle', 'w-3.5 h-3.5')} Pengeluaran melewati anggaran.</p>` : budget.percent >= budget.warning ? `<p class="flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 mt-3 min-w-0">${icon('info', 'w-3.5 h-3.5')} Hampir mencapai batas.</p>` : ''}
+            <div class="mt-4 min-w-0">${categoryBudgetMini}</div>
+          ` : `
+            <div class="flex flex-col items-center justify-center mt-6 text-center min-w-0 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-700/50">
+              <span class="text-slate-300 dark:text-slate-600 mb-2">${icon('chart-pie', 'w-8 h-8')}</span>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">Tentukan batas pengeluaran keluarga agar progresnya terpantau.</p>
+              <button type="button" class="btn btn-primary btn-sm rounded-lg" data-action="nav" data-route="budgets">${icon('plus', 'w-3.5 h-3.5')} Atur anggaran</button>
+            </div>
+          `}
+        </div>
+        <button type="button" class="flex items-center justify-center gap-1 w-full mt-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors" data-action="nav" data-route="budgets">Detail anggaran ${icon('arrow-right', 'w-3.5 h-3.5')}</button>
       </section>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 min-w-0 w-full">
-      <section class="card chart-card min-w-0 w-full overflow-hidden">
-        <div class="card-heading min-w-0">
+    <!-- CHARTS -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 min-w-0 w-full">
+      <section class="card chart-card min-w-0 w-full overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-sm border border-slate-200 dark:border-slate-800">
+        <div class="flex items-start justify-between mb-4 min-w-0">
           <div class="min-w-0">
-            <p class="card-kicker">Komposisi pengeluaran</p>
-            <h2 class="section-title truncate">Ke mana uang pergi?</h2>
+            <p class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Komposisi pengeluaran</p>
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white truncate">Ke mana uang pergi?</h2>
           </div>
-          <span class="period-chip shrink-0">${escapeHTML(formatMonth(month, { month: 'short' }))}</span>
+          <span class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold px-2.5 py-1 rounded-md shrink-0">${escapeHTML(formatMonth(month, { month: 'short' }))}</span>
         </div>
-        <div class="donut-layout min-w-0">
-          <div class="chart-box chart-box-donut min-w-0"><canvas id="expense-donut" aria-label="Diagram donat pengeluaran per kategori"></canvas></div>
-          <div class="donut-legend min-w-0 w-full">${topCategories || `<p class="text-xs text-slate-500 dark:text-slate-400">Belum ada pengeluaran bulan ini.</p>`}</div>
+        <div class="flex flex-col sm:flex-row items-center gap-6 min-w-0 mt-4">
+          <div class="chart-box chart-box-donut min-w-0 w-full sm:w-1/2 relative"><canvas id="expense-donut" aria-label="Diagram donat pengeluaran per kategori"></canvas></div>
+          <div class="min-w-0 w-full sm:w-1/2 space-y-1">${topCategories || `<p class="text-xs text-center text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl">Belum ada pengeluaran bulan ini.</p>`}</div>
         </div>
       </section>
 
-      <section class="card chart-card min-w-0 w-full overflow-hidden">
-        <div class="card-heading min-w-0">
+      <section class="card chart-card min-w-0 w-full overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-sm border border-slate-200 dark:border-slate-800">
+        <div class="flex items-start justify-between mb-4 min-w-0">
           <div class="min-w-0">
-            <p class="card-kicker">Tren 6 bulan</p>
+            <p class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Tren 6 bulan</p>
             <h2 class="section-title truncate">Arus kas keluarga</h2>
           </div>
-          <button type="button" class="icon-btn shrink-0" data-action="nav" data-route="reports" aria-label="Buka laporan">${icon('chart-pie', 'w-4 h-4')}</button>
+          <button type="button" class="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors shrink-0" data-action="nav" data-route="reports" aria-label="Buka laporan">${icon('chart-pie', 'w-4 h-4')}</button>
         </div>
-        <div class="chart-box chart-box-bars min-w-0"><canvas id="cashflow-bars" aria-label="Diagram batang arus kas enam bulan"></canvas></div>
+        <div class="chart-box chart-box-bars min-w-0 mt-4"><canvas id="cashflow-bars" aria-label="Diagram batang arus kas enam bulan"></canvas></div>
       </section>
     </div>
 
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 min-w-0 w-full">
-      <section class="card xl:col-span-2 min-w-0 w-full overflow-hidden">
-        ${sectionHeading('Transaksi terbaru', `<button type="button" class="link-button shrink-0" data-action="nav" data-route="transactions">Lihat semua ${icon('arrow-right', 'w-3 h-3')}</button>`)}
-        ${recent.length ? `<div class="tx-list min-w-0 w-full">${recent.map((tx) => txRow(tx, { compact: false })).join('')}</div>` : emptyState('receipt', 'Belum ada transaksi', 'Catat pengeluaran atau pemasukan pertama.', `<button type="button" class="btn btn-primary btn-sm" data-action="add-tx" data-type="expense">${icon('plus', 'w-3.5 h-3.5')} Catat transaksi</button>`)}
-        ${dueRecurring > 0 || dueTasks > 0 ? `<div class="attention-strip min-w-0">
-          ${dueRecurring > 0 ? `<button type="button" data-action="nav" data-route="recurring">${icon('repeat', 'w-3.5 h-3.5')} ${dueRecurring} transaksi berulang jatuh tempo</button>` : ''}
-          ${dueTasks > 0 ? `<button type="button" data-action="open-tasks">${icon('check-square', 'w-3.5 h-3.5')} ${dueTasks} tugas perlu perhatian</button>` : ''}
+    <!-- TRANSAKSI & SIDEBAR -->
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 lg:gap-6 min-w-0 w-full">
+      <section class="card xl:col-span-2 min-w-0 w-full overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-sm border border-slate-200 dark:border-slate-800">
+        <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-4">
+           <h2 class="text-lg font-bold text-slate-900 dark:text-white">Transaksi terbaru</h2>
+           <button type="button" class="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center gap-1" data-action="nav" data-route="transactions">Lihat semua ${icon('arrow-right', 'w-3 h-3')}</button>
+        </div>
+        ${recent.length ? `<div class="tx-list space-y-1 min-w-0 w-full">${recent.map((tx) => txRow(tx, { compact: false })).join('')}</div>` : emptyState('receipt', 'Belum ada transaksi', 'Catat pengeluaran atau pemasukan pertama.', `<button type="button" class="btn btn-primary btn-sm rounded-lg" data-action="add-tx" data-type="expense">${icon('plus', 'w-3.5 h-3.5')} Catat transaksi</button>`)}
+
+        ${dueRecurring > 0 || dueTasks > 0 ? `<div class="mt-6 flex flex-col gap-2 min-w-0">
+          ${dueRecurring > 0 ? `<button type="button" class="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-xl text-xs font-bold transition-colors hover:bg-amber-100" data-action="nav" data-route="recurring">${icon('repeat', 'w-4 h-4')} ${dueRecurring} transaksi berulang jatuh tempo</button>` : ''}
+          ${dueTasks > 0 ? `<button type="button" class="flex items-center gap-2 p-3 bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400 rounded-xl text-xs font-bold transition-colors hover:bg-rose-100" data-action="open-tasks">${icon('check-square', 'w-4 h-4')} ${dueTasks} tugas perlu perhatian</button>` : ''}
         </div>` : ''}
       </section>
 
-      <div class="space-y-4 min-w-0 w-full">
-        <section class="card min-w-0 w-full overflow-hidden">
-          ${sectionHeading('Aksi cepat')}
-          <div class="quick-grid min-w-0 w-full">${quickActions}</div>
+      <div class="space-y-4 lg:space-y-6 min-w-0 w-full">
+        <!-- Aksi Cepat Redesigned (2x2 Grid) -->
+        <section class="card min-w-0 w-full overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-5 shadow-sm border border-slate-200 dark:border-slate-800">
+          <h2 class="text-sm font-bold text-slate-900 dark:text-white mb-4">Aksi Cepat</h2>
+          <div class="grid grid-cols-2 gap-3 min-w-0 w-full">${quickActions}</div>
         </section>
-        <section class="card min-w-0 w-full overflow-hidden">
-          ${sectionHeading('Jadwal mendatang', `<button type="button" class="link-button shrink-0" data-action="nav" data-route="recurring">Semua</button>`)}
-          <div class="mini-list min-w-0 w-full">${upcomingHtml}</div>
+
+        <section class="card min-w-0 w-full overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-5 shadow-sm border border-slate-200 dark:border-slate-800">
+          <div class="flex items-center justify-between mb-4">
+             <h2 class="text-sm font-bold text-slate-900 dark:text-white">Jadwal Mendatang</h2>
+             <button type="button" class="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" data-action="nav" data-route="recurring">Semua</button>
+          </div>
+          <div class="space-y-1 min-w-0 w-full">${upcomingHtml}</div>
         </section>
-        <section class="card min-w-0 w-full overflow-hidden">
-          ${sectionHeading('Tugas terdekat', `<button type="button" class="link-button shrink-0" data-action="nav" data-route="notes">Buka</button>`)}
-          <div class="mini-list min-w-0 w-full">${tasksHtml}</div>
+
+        <section class="card min-w-0 w-full overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-5 shadow-sm border border-slate-200 dark:border-slate-800">
+          <div class="flex items-center justify-between mb-4">
+             <h2 class="text-sm font-bold text-slate-900 dark:text-white">Tugas Terdekat</h2>
+             <button type="button" class="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" data-action="nav" data-route="notes">Buka</button>
+          </div>
+          <div class="space-y-1 min-w-0 w-full">${tasksHtml}</div>
         </section>
       </div>
     </div>

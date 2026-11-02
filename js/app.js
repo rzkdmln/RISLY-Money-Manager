@@ -1416,6 +1416,31 @@ async function driveRestoreFile(fileId) {
 async function handleAction(action, element) {
   const id = element.dataset.id;
   switch (action) {
+    /* Custom UI Actions */
+    case 'switch-networth': {
+      const targetId = element.dataset.target; // 'personal' atau 'family'
+
+      // 1. Sembunyikan semua nominal
+      document.getElementById('networth-personal')?.classList.replace('block', 'hidden');
+      document.getElementById('networth-family')?.classList.replace('block', 'hidden');
+
+      // 2. Tampilkan nominal yang dipilih
+      document.getElementById(`networth-${targetId}`)?.classList.replace('hidden', 'block');
+
+      // 3. Ambil kontainer tombol dan reset gaya semua tombol di dalamnya
+      const container = element.parentElement;
+      const buttons = container.querySelectorAll('button');
+      buttons.forEach(b => {
+        b.classList.remove('bg-white', 'dark:bg-slate-700/80', 'text-slate-800', 'dark:text-white', 'shadow-sm');
+        b.classList.add('text-slate-500', 'dark:text-slate-400');
+      });
+
+      // 4. Beri gaya aktif pada tombol yang sedang diklik
+      element.classList.remove('text-slate-500', 'dark:text-slate-400');
+      element.classList.add('bg-white', 'dark:bg-slate-700/80', 'text-slate-800', 'dark:text-white', 'shadow-sm');
+      break;
+    }
+
     /* Auth */
     case 'select-user':
       ui.selectedUser = element.dataset.user;
