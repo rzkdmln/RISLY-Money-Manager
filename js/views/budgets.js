@@ -19,6 +19,11 @@ export function budgetsView() {
   const tone = toneForPercent(status.percent, status.warning, status.danger);
   const hasBudget = status.total > 0;
   const categories = status.categories;
+  const allocated = categories.reduce((sum, item) => sum + safeNumber(item.limit), 0);
+  const unallocated = status.total - allocated;
+  const unallocatedText = status.total > 0
+    ? `Tidak teralokasi ke kategori: ${money(Math.max(0, unallocated))}${unallocated < 0 ? ' (melebihi total)' : ''}.`
+    : '';
 
   return `<div class="page-stack">
     ${pageHeader({
@@ -72,12 +77,7 @@ export function budgetsView() {
             <div class="budget-metric"><span>Sisa</span><strong class="${status.remaining < 0 ? 'amount-expense' : ''}">${money(Math.abs(status.remaining))}</strong></div>
             <div class="budget-metric"><span>Harian aman</span><strong>${money(sisaHarian(status.remaining))}</strong></div>
           </div>
-          ${(() => {
-            const allocated = categories.reduce((sum, item) => sum + safeNumber(item.limit), 0);
-            const unallocated = status.total - allocated;
-            if (status.total <= 0) return '';
-            return `<p class="text-[11px] text-slate-400 mt-2">Tidak teralokasi ke kategori: ${money(Math.max(0, unallocated))}${unallocated < 0 ? ' (melebihi total)' : ''}.</p>`;
-          })()}`
+          ${unallocatedText ? `<p class="text-[11px] text-slate-400 mt-2">${unallocatedText}</p>` : ''}`
           ${status.remaining < 0 ? `<p class="budget-alert mt-3">${icon('alert-triangle', 'w-3.5 h-3.5')} Anggaran terlampaui ${money(Math.abs(status.remaining))}.</p>` : status.percent >= status.warning ? `<p class="budget-alert budget-alert-warning mt-3">${icon('info', 'w-3.5 h-3.5')} ${status.percent >= status.danger ? 'Sangat dekat' : 'Mendekati'} batas anggaran. Sisa harian aman ${money(sisaHarian(status.remaining))}.</p>` : `<p class="budget-alert budget-alert-safe mt-3">${icon('check-circle', 'w-3.5 h-3.5')} Arus kas masih sehat. Pertahankan ritme belanja.</p>`}
         </div>` : `<p class="text-sm leading-6 text-slate-500 dark:text-slate-400">Isi total anggaran untuk melihat progres, sisa dana, dan rekomendasi batas belanja harian.</p>`}
       </div>
