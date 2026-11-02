@@ -326,6 +326,16 @@ function enterApplication(user, { fresh = false } = {}) {
   if (fresh) toast(`Selamat datang, ${user.name}.`, 'success');
   runRecurring({ notify: true });
   setTimeout(checkReminders, 1_200);
+  // Sync family workspace from cloud in background
+  if (store.workspaceId) {
+    store.syncFamilyWorkspace().then((result) => {
+      if (result?.changed) {
+        ui.appMounted = false;
+        renderApplication();
+        toast('Data ruang diperbarui dari cloud.', 'info');
+      }
+    }).catch(() => {});
+  }
 }
 
 function lockApplication({ expired = false } = {}) {
@@ -1175,7 +1185,7 @@ async function submitJoinWorkspace(form) {
   if (submit) submit.disabled = true;
   try {
     const account = await GoogleDrive.signIn({ prompt: 'select_account' });
-    const result = store.joinWorkspaceByCode(code, account);
+    const result = await store.joinWorkspaceByCode(code, account);
     closeModal({ silent: true });
     enterApplication(result.user);
     toast('Bergabung ke ruang keluarga.', 'success');
@@ -2163,6 +2173,30 @@ async function handleAction(action, element) {
     case 'google-join':
       openJoinWorkspaceModal();
       break;
+    case 'sync-family': {
+      const label = element.innerHTML;
+      element.disabled = true;
+      element.textContent = 'Menyinkronkan...';
+      try {
+        const result = await store.syncFamilyWorkspace();
+        if (result?.changed) {
+          ui.appMounted = false;
+          renderApplication();
+          toast('Ruang diperbarui dari cloud.', 'success');
+        } else {
+          // Also try uploading
+          const uploaded = await store.uploadFamilyWorkspace();
+          if (uploaded) toast('Ruang tersimpan ke cloud.', 'success');
+          else toast('Sudah tersinkron.', 'info');
+        }
+      } catch (error) {
+        toast(error.message || 'Gagal menyinkronkan.', 'error');
+      } finally {
+        element.disabled = false;
+        element.innerHTML = label;
+      }
+      break;
+    }
     case 'offline-open': {
       const opened = store.openLastWorkspace();
       if (!opened) {

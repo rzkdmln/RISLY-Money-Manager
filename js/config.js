@@ -30,6 +30,9 @@ export const APP = Object.freeze({
   driveBackupLimit: 10,
   // Public OAuth client ID (safe to ship in a browser app). Never add a client secret here.
   googleClientId: '56904374704-nlpn19hmj5rmq7878sgkmrchq5t8nrh6.apps.googleusercontent.com',
+  // Shared JSONBin family hub (used for cross-device family sharing via invite code).
+  familyBinId: '6ae401b8ffd5d16053977a61',
+  familyMasterKey: '$2a$10$gbDFMyiNvka4a7qEz2TRcuXgmAbnOgIhB4CndvCn0n0m43emrvKc6',
 });
 
 export const ROUTES = Object.freeze({

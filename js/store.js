@@ -78,6 +78,7 @@ class Store {
     this.listeners = new Set();
     this.lastError = null;
     this._initialized = false;
+    this._uploadTimer = null;
   }
 
   init() {
@@ -101,6 +102,11 @@ class Store {
       this.lastError = error;
       throw error;
     }
+    // Debounced upload to family cloud hub
+    if (this._uploadTimer) clearTimeout(this._uploadTimer);
+    this._uploadTimer = setTimeout(() => {
+      this.uploadFamilyWorkspace().catch(() => {});
+    }, 3000);
   }
 
   updateWorkspaceMeta() {
@@ -220,6 +226,8 @@ class Store {
     this.updateWorkspaceMeta();
     this.registerAccount(account, workspaceId);
     this.persist();
+    // Upload to cloud family hub in background
+    this.uploadFamilyWorkspace().catch(() => {});
     return { user, created: true, workspaceId };
   }
 
@@ -267,25 +275,35 @@ class Store {
     this.registry.legacyWorkspaceId = workspaceId;
     localStorage.setItem(workspaceStorageKey(workspaceId), JSON.stringify(data));
     writeWorkspaceRegistry(this.registry);
+    // Upload to cloud in background
+    setTimeout(() => {
+      this.workspaceId = workspaceId;
+      this.data = data;
+      this.uploadFamilyWorkspace().catch(() => {});
+    }, 100);
     return workspaceId;
   }
 
-  joinWorkspaceByCode(code, account) {
+  async joinWorkspaceByCode(code, account) {
     const normalized = String(code || '').trim().toUpperCase();
     if (!/^[A-Z0-9]{4,8}$/.test(normalized)) {
       throw new Error('Kode undangan tidak valid.');
     }
+    // Try local first
     const workspaceId = Object.keys(this.registry.workspaces)
       .find((id) => String(this.registry.workspaces[id]?.inviteCode || '').toUpperCase() === normalized);
-    if (!workspaceId || !localStorage.getItem(workspaceStorageKey(workspaceId))) {
-      throw new Error('Kode undangan tidak ditemukan di perangkat ini.');
+    if (workspaceId && localStorage.getItem(workspaceStorageKey(workspaceId))) {
+      this.openWorkspace(workspaceId, { account });
+      const user = this.ensureMember(account);
+      this.currentUserId = user.id;
+      this.registerAccount(account, workspaceId);
+      this.persist();
+      return { user, workspaceId };
     }
-    this.openWorkspace(workspaceId, { account });
-    const user = this.ensureMember(account);
-    this.currentUserId = user.id;
-    this.registerAccount(account, workspaceId);
-    this.persist();
-    return { user, workspaceId };
+    // Try cloud
+    const cloudResult = await this.joinFamilyWorkspaceFromCloud(normalized, account);
+    if (cloudResult) return cloudResult;
+    throw new Error('Kode undangan tidak ditemukan di perangkat maupun cloud.');
   }
 
   openLastWorkspace() {
@@ -1424,7 +1442,155 @@ class Store {
     }
     return { changed, data: local };
   }
+
+  /* ------------------------------------------------------------------------ */
+  /*  Family sharing via JSONBin cloud hub                                     */
+  /* ------------------------------------------------------------------------ */
+
+  get familyHubUrl() {
+    return `https://api.jsonbin.io/v3/b/${APP.familyBinId}`;
+  }
+
+  familyHeaders() {
+    return {
+      'Content-Type': 'application/json',
+      'X-Master-Key': APP.familyMasterKey,
+    };
+  }
+
+  async fetchFamilyHub() {
+    try {
+      const response = await fetch(`${this.familyHubUrl}/latest`, {
+        method: 'GET',
+        headers: this.familyHeaders(),
+      });
+      if (!response.ok) return null;
+      const json = await response.json();
+      return json?.record || null;
+    } catch (error) {
+      console.warn('Family hub fetch failed:', error);
+      return null;
+    }
+  }
+
+  async uploadFamilyWorkspace() {
+    if (!this.workspaceId || !this.data) return false;
+    const code = String(this.data.settings?.inviteCode || '').toUpperCase();
+    if (!code) return false;
+    try {
+      const hub = (await this.fetchFamilyHub()) || {};
+      // Migrate old format (single workspace) to new format (workspaces keyed by code)
+      if (hub.data && !hub.workspaces) {
+        const oldCode = String(hub.data?.settings?.inviteCode || '').toUpperCase();
+        if (oldCode) {
+          hub.workspaces = hub.workspaces || {};
+          hub.workspaces[oldCode] = {
+            data: hub.data,
+            ownerEmail: hub.data?.settings?.ownerEmail || '',
+            updatedAt: hub.savedAt || nowISO(),
+          };
+        }
+        delete hub.data;
+        delete hub.app;
+        delete hub.schemaVersion;
+        delete hub.revision;
+        delete hub.savedAt;
+        delete hub.client;
+      }
+      if (!hub.workspaces || typeof hub.workspaces !== 'object') hub.workspaces = {};
+      hub.workspaces[code] = {
+        data: deepClone(this.data),
+        ownerEmail: this.data.settings.ownerEmail || '',
+        updatedAt: nowISO(),
+      };
+      const response = await fetch(this.familyHubUrl, {
+        method: 'PUT',
+        headers: this.familyHeaders(),
+        body: JSON.stringify(hub),
+      });
+      return response.ok;
+    } catch (error) {
+      console.warn('Family hub upload failed:', error);
+      return false;
+    }
+  }
+
+  async fetchFamilyWorkspace(code) {
+    const normalized = String(code || '').trim().toUpperCase();
+    if (!/^[A-Z0-9]{4,8}$/.test(normalized)) return null;
+    try {
+      const response = await fetch(`${this.familyHubUrl}/latest`, {
+        method: 'GET',
+        headers: this.familyHeaders(),
+      });
+      if (!response.ok) return null;
+      const json = await response.json();
+      const record = json?.record;
+      if (!record) return null;
+
+      // New format: workspaces keyed by code
+      if (record.workspaces && record.workspaces[normalized]) {
+        const entry = record.workspaces[normalized];
+        return entry?.data ? migrateData(entry.data) : null;
+      }
+
+      // Old format: single workspace with inviteCode in settings
+      if (record.data && record.data.settings) {
+        const recordCode = String(record.data.settings.inviteCode || '').toUpperCase();
+        if (recordCode === normalized) {
+          return migrateData(record.data);
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.warn('Family hub fetch failed:', error);
+      return null;
+    }
+  }
+
+  async joinFamilyWorkspaceFromCloud(code, account) {
+    const data = await this.fetchFamilyWorkspace(code);
+    if (!data) return null;
+    const workspaceId = uid('ws');
+    data.settings = { ...data.settings, workspaceId, inviteCode: code };
+    localStorage.setItem(workspaceStorageKey(workspaceId), JSON.stringify(data));
+    this.registry.workspaces[workspaceId] = {
+      id: workspaceId,
+      name: data.settings.workspaceName || data.settings.householdName,
+      inviteCode: code,
+      ownerEmail: data.settings.ownerEmail || '',
+      updatedAt: nowISO(),
+    };
+    this.openWorkspace(workspaceId, { account });
+    const user = this.ensureMember(account);
+    this.currentUserId = user.id;
+    this.registerAccount(account, workspaceId);
+    this.persist();
+    return { user, workspaceId };
+  }
+
+  async syncFamilyWorkspace() {
+    if (!this.workspaceId || !this.data) return { changed: false };
+    const code = String(this.data.settings?.inviteCode || '').toUpperCase();
+    if (!code) return { changed: false };
+    const cloudData = await this.fetchFamilyWorkspace(code);
+    if (!cloudData) return { changed: false };
+    // Only merge if cloud is newer
+    const cloudStamp = new Date(cloudData.updatedAt || 0).getTime();
+    const localStamp = new Date(this.data.updatedAt || 0).getTime();
+    if (cloudStamp <= localStamp) return { changed: false };
+    // Merge: replace data with cloud version, re-apply workspaceId
+    const merged = migrateData(cloudData);
+    merged.settings.workspaceId = this.workspaceId;
+    merged.settings.inviteCode = code;
+    this.data = merged;
+    this.persist();
+    this.emit({ source: 'remote', reason: 'family:sync' });
+    return { changed: true };
+  }
 }
+
 
 function addDaysLocal(value, days) {
   const [year, month, day] = String(value).split('-').map(Number);
