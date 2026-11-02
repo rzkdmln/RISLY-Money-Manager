@@ -166,6 +166,7 @@ class GoogleDriveClient {
   }
 
   async requestToken(prompt = 'select_account') {
+      const validPrompt = typeof prompt === 'string' ? prompt : 'select_account';
       const validClientId = typeof this.clientId === 'string' ? this.clientId.trim() : String(this.clientId || '').trim();
       if (!validClientId) {
         throw new DriveAuthError('Client ID Google belum diisi atau tidak valid.');
@@ -204,7 +205,7 @@ class GoogleDriveClient {
         });
 
         try {
-          client.requestAccessToken({ prompt: prompt || 'select_account' });
+          client.requestAccessToken({ prompt: validPrompt });
         } catch (error) {
           finish(reject, new DriveAuthError(error?.message || 'Google Sign-In gagal dibuka.'));
         }
@@ -216,8 +217,9 @@ class GoogleDriveClient {
    * This gets an OAuth2 token and then uses it to fetch user info.
    */
   async signIn(prompt = 'select_account') {
+    const validPrompt = typeof prompt === 'string' ? prompt : 'select_account';
     // 1. Get OAuth2 token
-    const tokenResponse = await this.requestToken(prompt);
+    const tokenResponse = await this.requestToken(validPrompt);
 
     // 2. Get user info using the access token
     try {
