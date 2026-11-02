@@ -2155,7 +2155,7 @@ async function handleAction(action, element) {
       element.textContent = 'Menghubungkan…';
       try {
         const account = await GoogleDrive.signIn({ prompt: 'select_account' });
-        const result = store.signInWithGoogle(account);
+        const result = await store.signInWithGoogle(account);
         closeModal({ silent: true });
         enterApplication(result.user);
         if (result.created) toast('Ruang baru dibuat.', 'success');
@@ -2227,7 +2227,7 @@ async function handleAction(action, element) {
       element.textContent = 'Menghubungkan…';
       try {
         const account = await GoogleDrive.signIn({ prompt: 'select_account' });
-        if (!store.hasWorkspace) store.signInWithGoogle(account);
+        if (!store.hasWorkspace) await store.signInWithGoogle(account);
         await openDriveRestoreModal();
       } catch (error) {
         console.error(error);

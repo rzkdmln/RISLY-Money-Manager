@@ -55,6 +55,10 @@ function googleDriveCard(user, driveConnected) {
         <span class="settings-row-icon">${icon('user', 'w-4 h-4')}</span>
         <span class="flex-1"><strong>${escapeHTML(user?.name || 'Anggota')}</strong><small>${escapeHTML(user?.googleEmail || 'Belum terhubung Google')}</small></span>
       </div>
+      <div class="settings-row">
+        <span class="settings-row-icon">${icon('cloud', 'w-4 h-4')}</span>
+        <span class="flex-1"><strong>Cloud ruang</strong><small>JSONBin (sinkron otomatis)</small></span>
+      </div>
     </div>
 
     ${driveConnected ? `<div class="settings-actions mt-4">

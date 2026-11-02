@@ -168,9 +168,26 @@ class Store {
 
   ensureMember(account) {
     const email = String(account?.email || '').trim().toLowerCase();
+    if (!email) return this.data.users.find((item) => !item.deletedAt) || this.data.users[0];
+    // Match by email first
     let user = this.data.users.find((item) => !item.deletedAt
       && String(item.googleEmail || '').toLowerCase() === email);
     if (user) return user;
+    // For legacy users without googleEmail, try matching by name
+    const accountName = String(account?.name || email.split('@')[0] || '').trim().toLowerCase();
+    if (accountName) {
+      user = this.data.users.find((item) => !item.deletedAt
+        && !String(item.googleEmail || '').trim()
+        && String(item.name || '').trim().toLowerCase() === accountName);
+      if (user) {
+        user.googleEmail = email;
+        user.picture = user.picture || String(account?.picture || '');
+        user.updatedAt = nowISO();
+        this.persist();
+        return user;
+      }
+    }
+    // Create new user
     const name = String(account?.name || email.split('@')[0] || 'Pengguna').trim() || 'Pengguna';
     user = {
       id: uid('user'),
@@ -192,7 +209,7 @@ class Store {
     return user;
   }
 
-  signInWithGoogle(account) {
+  async signInWithGoogle(account) {
     const email = String(account?.email || '').trim().toLowerCase();
     if (!email) throw new Error('Akun Google tidak valid.');
     const entry = this.registry.accounts[email];
@@ -200,6 +217,8 @@ class Store {
       const user = this.ensureMember(account);
       this.currentUserId = user.id;
       this.persist();
+      // Sync in background
+      this.syncFamilyWorkspace().catch(() => {});
       return { user, created: false, workspaceId: this.workspaceId };
     }
 
@@ -212,8 +231,23 @@ class Store {
         const user = this.ensureMember(account);
         this.currentUserId = user.id;
         this.persist();
+        this.uploadFamilyWorkspace().catch(() => {});
         return { user, created: false, adopted: true, workspaceId };
       }
+    }
+
+    // Try cloud family hub: look up email -> invite code
+    try {
+      const code = await this.lookupFamilyCodeByEmail(email);
+      if (code) {
+        const cloudResult = await this.joinFamilyWorkspaceFromCloud(code, account);
+        if (cloudResult) {
+          this.syncFamilyWorkspace().catch(() => {});
+          return { user: cloudResult.user, created: false, workspaceId: cloudResult.workspaceId };
+        }
+      }
+    } catch (error) {
+      console.warn('Cloud family lookup failed:', error);
     }
 
     const workspaceId = uid('ws');
@@ -275,12 +309,6 @@ class Store {
     this.registry.legacyWorkspaceId = workspaceId;
     localStorage.setItem(workspaceStorageKey(workspaceId), JSON.stringify(data));
     writeWorkspaceRegistry(this.registry);
-    // Upload to cloud in background
-    setTimeout(() => {
-      this.workspaceId = workspaceId;
-      this.data = data;
-      this.uploadFamilyWorkspace().catch(() => {});
-    }, 100);
     return workspaceId;
   }
 
@@ -1503,6 +1531,12 @@ class Store {
         ownerEmail: this.data.settings.ownerEmail || '',
         updatedAt: nowISO(),
       };
+      // Update member email -> code mapping for cross-device login
+      if (!hub.members || typeof hub.members !== 'object') hub.members = {};
+      (this.data.users || []).forEach((u) => {
+        const email = String(u.googleEmail || '').trim().toLowerCase();
+        if (email) hub.members[email] = code;
+      });
       const response = await fetch(this.familyHubUrl, {
         method: 'PUT',
         headers: this.familyHeaders(),
@@ -1512,6 +1546,32 @@ class Store {
     } catch (error) {
       console.warn('Family hub upload failed:', error);
       return false;
+    }
+  }
+
+  async lookupFamilyCodeByEmail(email) {
+    const normalized = String(email || '').trim().toLowerCase();
+    if (!normalized) return null;
+    try {
+      const hub = await this.fetchFamilyHub();
+      if (!hub) return null;
+      // Check members mapping
+      if (hub.members && hub.members[normalized]) {
+        return String(hub.members[normalized]).toUpperCase();
+      }
+      // Fallback: search workspaces for matching googleEmail
+      if (hub.workspaces) {
+        for (const [code, entry] of Object.entries(hub.workspaces)) {
+          const users = entry?.data?.users || [];
+          if (users.some((u) => String(u.googleEmail || '').toLowerCase() === normalized)) {
+            return String(code).toUpperCase();
+          }
+        }
+      }
+      return null;
+    } catch (error) {
+      console.warn('Family hub lookup failed:', error);
+      return null;
     }
   }
 
