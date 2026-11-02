@@ -36,7 +36,11 @@ function accountCard(account, archived = false) {
 }
 
 export function accountsView() {
-  const accounts = store.activeAccounts();
+  const allAccounts = store.activeAccounts();
+  const accountsFilter = prefs.accountsFilter || 'all';
+  const myAccounts = allAccounts.filter((a) => a.owner === store.currentUserId);
+  const accounts = accountsFilter === 'mine' ? myAccounts : allAccounts;
+  const isMine = accountsFilter === 'mine';
   const archived = store.archivedAccounts();
   const netWorth = store.totalBalance();
   const totalOpening = accounts.reduce((sum, account) => sum + Number(account.openingBalance || 0), 0);
@@ -53,9 +57,14 @@ export function accountsView() {
 
     <section class="accounts-hero min-w-0 w-full overflow-hidden">
       <div class="relative z-10 min-w-0">
-        <p class="networth-label">Total seluruh akun aktif</p>
-        <p class="accounts-hero-value truncate">${money(netWorth)}</p>
-        <div class="accounts-hero-meta min-w-0 flex flex-wrap gap-x-4 gap-y-1">
+        <div class="flex items-start justify-between gap-4 min-w-0">
+          <div class="min-w-0">
+            <p class="networth-label">${isMine ? 'Akun saya' : 'Seluruh akun keluarga'}</p>
+            <p class="accounts-hero-value truncate">${money(isMine ? store.personalBalance() : netWorth)}</p>
+          </div>
+          <button type="button" class="networth-filter" data-action="toggle-accounts-filter" title="${isMine ? 'Lihat semua akun keluarga' : 'Lihat hanya akun saya'}">${isMine ? 'Semua keluarga' : 'Akun saya'}</button>
+        </div>
+        <div class="accounts-hero-meta min-w-0 flex flex-wrap gap-x-4 gap-y-1 mt-4">
           <span class="truncate">${icon('wallet', 'w-3.5 h-3.5')} ${accounts.length} akun</span>
           <span class="truncate">${icon('receipt', 'w-3.5 h-3.5')} ${totalTx} transaksi</span>
           <span class="truncate">${icon('trending-up', 'w-3.5 h-3.5')} ${money(totalOpening, { compact: true })} saldo awal</span>

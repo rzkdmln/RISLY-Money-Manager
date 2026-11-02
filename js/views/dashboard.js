@@ -28,13 +28,7 @@ export function dashboardView(user) {
   const summary = store.monthSummary(month);
   const budget = store.budgetStatus(month);
   const netWorth = store.totalBalance();
-  const accounts = store.activeAccounts();
-  const users = store.activeUsers();
-  const networthFilter = prefs.networthFilter || 'all';
-  const myAccounts = accounts.filter((a) => a.owner === store.currentUserId);
-  const filteredAccounts = networthFilter === 'mine' ? myAccounts : accounts;
-  const filteredTotal = networthFilter === 'mine' ? store.personalBalance() : netWorth;
-  const isMine = networthFilter === 'mine';
+  const myNetWorth = store.personalBalance();
   const recent = store.transactions().slice(0, 6);
   const spending = store.expenseByCategory(month);
   const spendingTotal = spending.reduce((total, item) => total + item.total, 0);
@@ -116,15 +110,18 @@ export function dashboardView(user) {
       <section class="networth-card lg:col-span-2 min-w-0 w-full overflow-hidden">
         <div class="networth-glow"></div>
         <div class="relative z-10 min-w-0">
-          <div class="flex items-start justify-between gap-4 min-w-0">
+          <div class="flex flex-col sm:flex-row items-start justify-between gap-4 min-w-0">
             <div class="min-w-0">
               <div class="flex items-center gap-2">
-                <p class="networth-label">${isMine ? 'Kekayaan saya' : 'Kekayaan keluarga'}</p>
+                <p class="networth-label">Kekayaan saya</p>
                 <button type="button" class="networth-eye shrink-0" data-action="toggle-privacy" aria-label="${prefs.hideAmounts ? 'Tampilkan nominal' : 'Sembunyikan nominal'}">${icon(prefs.hideAmounts ? 'eye-off' : 'eye', 'w-4 h-4')}</button>
               </div>
-              <p class="networth-value truncate">${money(filteredTotal)}</p>
+              <p class="networth-value truncate">${money(myNetWorth)}</p>
             </div>
-            <button type="button" class="networth-filter" data-action="toggle-networth-filter" title="${isMine ? 'Lihat semua akun keluarga' : 'Lihat hanya akun saya'}">${isMine ? 'Semua keluarga' : 'Akun saya'}</button>
+            <div class="min-w-0">
+              <p class="networth-label">Kekayaan keluarga</p>
+              <p class="networth-value truncate">${money(netWorth)}</p>
+            </div>
           </div>
 
           <div class="networth-flow min-w-0">
@@ -144,20 +141,6 @@ export function dashboardView(user) {
             </div>
           </div>
 
-          <div class="networth-owners min-w-0">
-            ${filteredAccounts.length
-              ? filteredAccounts.map((a) => {
-                  const owner = users.find((u) => u.id === a.owner);
-                  return `<div class="networth-owner">
-                    <span class="networth-owner-name truncate">${escapeHTML(a.name)} ${owner ? `<small style="opacity:.6">· ${escapeHTML(owner.name)}</small>` : ''}</span>
-                    <strong class="networth-owner-balance">${money(store.accountBalance(a.id))}</strong>
-                  </div>`;
-                }).join('')
-              : '<span class="text-xs text-white/60">Belum ada akun.</span>'}
-          </div>
-          ${users.length > 1
-            ? `<button type="button" class="networth-more shrink-0" data-action="nav" data-route="accounts">${icon('chevron-right', 'w-4 h-4')}</button>`
-            : ''}
 
           <div class="networth-actions min-w-0">
             <button type="button" data-action="add-tx" data-type="transfer">${icon('arrow-left-right', 'w-3.5 h-3.5')} Transfer</button>

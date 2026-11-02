@@ -1567,6 +1567,12 @@ async function handleAction(action, element) {
       renderApplication();
       break;
     }
+    case 'toggle-accounts-filter': {
+      const next = prefs.accountsFilter === 'mine' ? 'all' : 'mine';
+      savePrefs({ accountsFilter: next });
+      renderApplication();
+      break;
+    }
     case 'theme-set':
       setTheme(element.dataset.theme);
       renderApplication();
