@@ -90,7 +90,8 @@ function driveErrorMessage(status, detail) {
 }
 
 function authErrorMessage(response) {
-  const code = String(response?.error || '');
+  const errorValue = response?.error || '';
+  const code = typeof errorValue === 'string' ? errorValue.trim() : String(errorValue || '').trim();
   if (code === 'access_denied') {
     return 'Google menolak akses (403). Tambahkan akun ini sebagai Test user di OAuth consent screen, atau klik Publish app di Google Cloud Console.';
   }
