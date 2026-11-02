@@ -30,7 +30,7 @@ export function dashboardView(user) {
   const netWorth = store.totalBalance();
   const accounts = store.activeAccounts();
   const users = store.activeUsers();
-  const networthFilter = ui.networthFilter || 'all';
+  const networthFilter = prefs.networthFilter || 'all';
   const myAccounts = accounts.filter((a) => a.owner === store.currentUserId);
   const filteredAccounts = networthFilter === 'mine' ? myAccounts : accounts;
   const filteredTotal = networthFilter === 'mine' ? store.personalBalance() : netWorth;
