@@ -98,9 +98,10 @@ export function getSession() {
   }
 }
 
-export function createSession(userId) {
+export function createSession(userId, workspaceId = null) {
   const session = {
     userId,
+    workspaceId,
     issuedAt: Date.now(),
     lastActivity: Date.now(),
   };

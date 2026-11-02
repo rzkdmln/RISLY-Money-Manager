@@ -82,7 +82,7 @@ import { recurringView } from './views/recurring.js';
 import { categoriesView } from './views/categories.js';
 import { reportsView } from './views/reports.js';
 import { settingsView } from './views/settings.js';
-import { loginView, setupView } from './views/auth.js';
+import { loginView } from './views/auth.js';
 import {
   moreSheet,
   profileSheet,
@@ -222,7 +222,7 @@ function scheduleRender(delay = 60) {
   clearTimeout(renderTimer);
   renderTimer = setTimeout(() => {
     renderTimer = null;
-    if (store.currentUser) renderApplication();
+    if (store.currentUser && !ui.locked) renderApplication();
     else renderAuth();
   }, delay);
 }
@@ -237,7 +237,7 @@ function mountShell() {
 
 function renderApplication({ focus = null } = {}) {
   const user = store.currentUser;
-  if (!user) {
+  if (!user || ui.locked) {
     renderAuth();
     return;
   }
@@ -316,7 +316,7 @@ function enterApplication(user, { fresh = false } = {}) {
   ui.locked = false;
   ui.appMounted = false;
   savePrefs({ lastUser: user.id });
-  createSession(user.id);
+  createSession(user.id, store.workspaceId);
   renderApplication();
   if (fresh) toast(`Selamat datang, ${user.name}.`, 'success');
   runRecurring({ notify: true });
@@ -324,9 +324,13 @@ function enterApplication(user, { fresh = false } = {}) {
 }
 
 function lockApplication({ expired = false } = {}) {
+  if (!store.currentUser?.pinHash) {
+    leaveApplication();
+    if (expired) toast('Sesi berakhir. Masuk kembali dengan Google.', 'info');
+    return;
+  }
   clearSession();
-  store.setCurrentUser(null);
-  ui.currentUser = null;
+  ui.currentUser = store.currentUser;
   ui.locked = true;
   ui.appMounted = false;
   closeModal({ silent: true });
@@ -342,7 +346,7 @@ function leaveApplication() {
   ui.appMounted = false;
   closeModal({ silent: true });
   renderAuth();
-  toast('Anda sudah keluar dari sesi.', 'info');
+  toast('Anda sudah keluar.', 'info');
 }
 
 function checkAutoLock() {
@@ -1003,6 +1007,58 @@ async function resetApplication() {
   closeModal({ silent: true });
   renderAuth();
   toast('Aplikasi sudah direset. Buat PIN baru untuk memulai.', 'info');
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Workspace sharing                                                        */
+/* -------------------------------------------------------------------------- */
+
+function openJoinWorkspaceModal() {
+  openModal({
+    size: 'sm',
+    className: 'form-modal',
+    html: `<form data-form="join-workspace" class="modal-form" novalidate>
+      <header class="modal-header">
+        <div>
+          <p class="modal-kicker">Ruang keluarga</p>
+          <h2 class="modal-title">Gabung dengan kode</h2>
+        </div>
+        <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
+      </header>
+      <div class="modal-body">
+        <label class="field-label">Kode undangan
+          <input class="field mt-1.5" name="inviteCode" maxlength="8" autocomplete="off" placeholder="ABC123" required>
+        </label>
+        <p class="form-error hidden" data-form-error role="alert"></p>
+      </div>
+      <footer class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-action="close-modal">Batal</button>
+        <button type="submit" class="btn btn-primary">Lanjut dengan Google</button>
+      </footer>
+    </form>`,
+  });
+}
+
+async function submitJoinWorkspace(form) {
+  const code = stringValue(form, 'inviteCode').toUpperCase();
+  if (!/^[A-Z0-9]{4,8}$/.test(code)) {
+    showFormError(form, 'Kode undangan tidak valid.');
+    return;
+  }
+  const submit = form.querySelector('[type="submit"]');
+  if (submit) submit.disabled = true;
+  try {
+    const account = await GoogleDrive.signIn({ prompt: 'select_account' });
+    const result = store.joinWorkspaceByCode(code, account);
+    closeModal({ silent: true });
+    enterApplication(result.user);
+    toast('Bergabung ke ruang keluarga.', 'success');
+  } catch (error) {
+    console.error(error);
+    showFormError(form, error.message || 'Gagal bergabung ke ruang.');
+  } finally {
+    if (submit) submit.disabled = false;
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1875,19 +1931,11 @@ async function handleAction(action, element) {
       break;
     }
     case 'gdrive-signin': {
-      const form = element.closest('form');
-      const input = form?.querySelector('[name="gdriveClientId"]') || document.querySelector('[name="gdriveClientId"]');
-      const clientId = String(input?.value || GoogleDrive.getClientId() || '').trim();
-      if (!clientId) {
-        toast('Isi Google OAuth Client ID dulu.', 'info');
-        input?.focus();
-        break;
-      }
       const label = element.innerHTML;
       element.disabled = true;
       element.textContent = 'Menghubungkan…';
       try {
-        const account = await GoogleDrive.signIn({ clientId, prompt: 'select_account' });
+        const account = await GoogleDrive.signIn({ prompt: 'select_account' });
         refreshDriveUi();
         if (store.currentUser) {
           ui.appMounted = false;
@@ -1905,59 +1953,18 @@ async function handleAction(action, element) {
       }
       break;
     }
-    case 'gdrive-link-user': {
-      const user = store.currentUser;
-      const account = GoogleDrive.getAccount();
-      if (!user) break;
-      if (!account?.email) {
-        toast('Masuk dengan Google dulu untuk menautkan akun.', 'info');
-        break;
-      }
-      const email = account.email.toLowerCase();
-      const taken = store.activeUsers().find((item) => item.id !== user.id
-        && String(item.googleEmail || '').toLowerCase() === email);
-      if (taken) {
-        toast(`Akun Google ini sudah tertaut ke profil ${taken.name}.`, 'error');
-        break;
-      }
-      store.updateUser(user.id, { googleEmail: email });
-      ui.appMounted = false;
-      renderApplication();
-      toast(`Akun ${account.email} ditautkan ke profil ${user.name}.`, 'success');
-      break;
-    }
-    case 'gdrive-unlink-user': {
-      const user = store.currentUser;
-      if (!user?.googleEmail) break;
-      store.updateUser(user.id, { googleEmail: '' });
-      ui.appMounted = false;
-      renderApplication();
-      toast('Tautan akun Google dilepas. Login Google untuk profil ini dinonaktifkan.', 'success');
-      break;
-    }
     case 'google-login': {
       const label = element.innerHTML;
       element.disabled = true;
       element.textContent = 'Menghubungkan…';
       try {
         const account = await GoogleDrive.signIn({ prompt: 'select_account' });
-        const email = String(account.email || '').toLowerCase();
-        const linked = store.activeUsers().find((user) => String(user.googleEmail || '').toLowerCase() === email);
-        if (linked?.pinHash) {
-          ui.pendingGoogleLink = null;
-          enterApplication(linked, { fresh: true });
-          toast(`Masuk sebagai ${linked.name}.`, 'success');
-          break;
-        }
-        ui.pendingGoogleLink = email;
-        if (!store.activeUsers().some((user) => user.pinHash)) {
-          // Fresh device: nothing to unlock yet, offer the Drive backup.
-          renderAuth();
-          await openDriveRestoreModal();
-          break;
-        }
-        toast('Akun Google ini belum ditautkan. Masuk dengan PIN sekali untuk menautkannya.', 'info');
-        renderAuth();
+        const result = store.signInWithGoogle(account);
+        closeModal({ silent: true });
+        enterApplication(result.user);
+        if (result.created) toast('Ruang baru dibuat.', 'success');
+        else if (result.adopted) toast('Ruang keluarga dipulihkan.', 'success');
+        else toast(`Masuk sebagai ${result.user.name}.`, 'success');
       } catch (error) {
         console.error(error);
         toast(error.message || 'Gagal masuk dengan Google.', 'error');
@@ -1967,11 +1974,40 @@ async function handleAction(action, element) {
       }
       break;
     }
+    case 'google-join':
+      openJoinWorkspaceModal();
+      break;
+    case 'offline-open': {
+      const opened = store.openLastWorkspace();
+      if (!opened) {
+        toast('Data terakhir tidak ditemukan. Masuk dengan Google.', 'info');
+        break;
+      }
+      if (opened.hasPin) {
+        ui.locked = true;
+        ui.currentUser = opened.user;
+        renderAuth();
+      } else {
+        enterApplication(opened.user);
+      }
+      break;
+    }
+    case 'switch-account':
+      clearSession();
+      store.setCurrentUser(null);
+      ui.currentUser = null;
+      ui.locked = false;
+      ui.appMounted = false;
+      closeModal({ silent: true });
+      renderAuth();
+      break;
     case 'google-restore': {
       const label = element.innerHTML;
       element.disabled = true;
       element.textContent = 'Menghubungkan…';
       try {
+        const account = await GoogleDrive.signIn({ prompt: 'select_account' });
+        if (!store.hasWorkspace) store.signInWithGoogle(account);
         await openDriveRestoreModal();
       } catch (error) {
         console.error(error);
@@ -1984,9 +2020,9 @@ async function handleAction(action, element) {
     }
     case 'gdrive-signout': {
       const ok = await confirmDialog({
-        title: 'Keluar dari Google?',
-        message: 'Backup Drive dan login Google berhenti di perangkat ini. Tautan akun ke profil tetap tersimpan, data lokal tetap aman.',
-        confirmLabel: 'Keluar',
+        title: 'Putuskan Google?',
+        message: 'Backup Drive berhenti di perangkat ini. Data lokal tetap aman.',
+        confirmLabel: 'Putuskan',
       });
       if (!ok) return;
       await GoogleDrive.signOut();
@@ -2059,17 +2095,7 @@ async function submitLogin(form) {
     const valid = await verifyPin(user, pin);
     if (valid) {
       resetFailedAttempts(user.id);
-      if (ui.pendingGoogleLink) {
-        const email = String(ui.pendingGoogleLink).toLowerCase();
-        ui.pendingGoogleLink = null;
-        const taken = store.activeUsers().find((item) => item.id !== user.id
-          && String(item.googleEmail || '').toLowerCase() === email);
-        if (!taken) {
-          store.updateUser(user.id, { googleEmail: email });
-          toast(`Akun Google ${email} ditautkan ke profil ${user.name}.`, 'success');
-        }
-      }
-      enterApplication(user, { fresh: true });
+      enterApplication(user);
       return;
     }
     const result = registerFailedAttempt(user.id);
@@ -2090,57 +2116,6 @@ async function submitLogin(form) {
   } catch (error) {
     showFormError(form, error.message || 'PIN tidak valid.');
   } finally {
-    if (submit) submit.disabled = false;
-  }
-}
-
-async function submitSetup(form) {
-  const householdName = stringValue(form, 'householdName') || 'Rizki & Shelly';
-  if (!form.querySelector('[name="acknowledge"]')?.checked) {
-    showFormError(form, 'Centang pernyataan keamanan untuk melanjutkan.');
-    return;
-  }
-
-  const users = store.activeUsers();
-  const pending = users.filter((user) => form.querySelector(`[name="pin_${user.id}"]`));
-  if (!pending.length) {
-    showFormError(form, 'Tidak ada pengguna yang perlu disiapkan.');
-    return;
-  }
-
-  const prepared = [];
-  for (const user of pending) {
-    const pin = String(formValue(form, `pin_${user.id}`) || '');
-    const confirm = String(formValue(form, `confirm_${user.id}`) || '');
-    if (!/^\d{4,8}$/.test(pin)) {
-      showFormError(form, `PIN ${user.name} harus 4–8 angka.`);
-      return;
-    }
-    if (pin !== confirm) {
-      showFormError(form, `PIN ${user.name} dan ulangannya tidak sama.`);
-      return;
-    }
-    prepared.push({ user, pin });
-  }
-
-  const submit = form.querySelector('[type="submit"]');
-  if (submit) submit.disabled = true;
-  suppressRender = true;
-  try {
-    for (const { user, pin } of prepared) {
-      const credentials = await createPinCredentials(pin);
-      store.updateUser(user.id, credentials);
-    }
-    store.updateSettings({ householdName });
-    const first = store.getUser(prepared[0].user.id) || store.activeUsers()[0];
-    suppressRender = false;
-    toast('PIN berhasil dibuat. Ruang keuangan kalian siap.', 'success');
-    enterApplication(first);
-  } catch (error) {
-    console.error(error);
-    showFormError(form, error.message || 'Gagal membuat PIN.');
-  } finally {
-    suppressRender = false;
     if (submit) submit.disabled = false;
   }
 }
@@ -2475,9 +2450,6 @@ async function submitForm(form) {
   switch (type) {
     case 'login':
       await submitLogin(form);
-      break;
-    case 'setup':
-      await submitSetup(form);
       break;
     case 'transaction':
       submitTransaction(form);

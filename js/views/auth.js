@@ -1,204 +1,144 @@
 import { APP } from '../config.js';
-import { getLockRemaining, usersNeedingSetup } from '../auth.js';
-import { Cloud } from '../cloud.js';
+import { getLockRemaining } from '../auth.js';
 import { GoogleDrive, googleGlyph } from '../gdrive.js';
 import { icon } from '../icons.js';
 import { store } from '../store.js';
-import { avatar, ui } from '../ui.js';
+import { ui } from '../ui.js';
 import { escapeAttr, escapeHTML, isIos, isStandalone } from '../utils.js';
 
-function storeUsers() {
-  return store.activeUsers();
+function lastAccount() {
+  try {
+    const raw = localStorage.getItem(APP.lastAccountKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.workspaceId ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
-function cloudLine() {
-  const status = Cloud.getStatus();
-  if (status.provider === 'local') {
-    return `<button type="button" class="auth-cloud-link" data-action="auth-cloud">
-      ${icon('cloud', 'w-3.5 h-3.5')} Sinkron cloud lain
-    </button>`;
-  }
-  const tone = status.state === 'error' ? 'text-red-500' : status.state === 'offline' ? 'text-amber-500' : 'text-emerald-600 dark:text-emerald-400';
-  return `<button type="button" class="auth-cloud-link ${tone}" data-action="sync-now">
-    ${icon('cloud', 'w-3.5 h-3.5')} ${escapeHTML(status.providerLabel)} · ${escapeHTML(status.state === 'synced' ? 'tersinkron' : status.state === 'error' ? 'gagal' : status.state)}
+function brandBlock() {
+  return `<div class="auth-brand">
+    <img src="icons/icon-192.png" alt="RISLY Logo" class="w-12 h-12 rounded-2xl shadow-sm object-cover">
+    <div>
+      <p class="brand-name">${APP.name}</p>
+      <p class="brand-caption">${APP.fullName}</p>
+    </div>
+  </div>`;
+}
+
+function googleButton(label, action = 'google-login', ghost = false) {
+  return `<button type="button" class="auth-google ${ghost ? 'is-ghost' : ''}" data-action="${action}">
+    ${googleGlyph('w-4.5 h-4.5')}
+    <span>${escapeHTML(label)}</span>
   </button>`;
 }
 
-function googleLoginBlock() {
-  const account = GoogleDrive.getAccount();
-  const email = String(account?.email || '').toLowerCase();
-  const linked = email
-    ? storeUsers().find((user) => String(user.googleEmail || '').toLowerCase() === email)
-    : null;
-  const label = linked ? `Masuk sebagai ${linked.name}` : 'Masuk dengan Google';
-  const hint = account
-    ? linked
-      ? `Akun ${account.email} tertaut ke profil ${linked.name}. PIN tetap bisa dipakai saat offline.`
-      : `Akun ${account.email} belum ditautkan. Masuk dengan PIN sekali, lalu tautkan di Pengaturan.`
-    : 'Pilih akun Google yang sudah ditautkan ke profilmu untuk masuk tanpa PIN.';
-  return `<div class="auth-google-wrap">
-    <button type="button" class="auth-google" data-action="google-login">
-      ${googleGlyph('w-4.5 h-4.5')}
-      <span>${escapeHTML(label)}</span>
-    </button>
-    <p class="auth-google-hint">${escapeHTML(hint)}</p>
-  </div>`;
+function installTip() {
+  if (!isIos() || isStandalone()) return '';
+  return `<p class="auth-install-tip">${icon('info', 'w-3.5 h-3.5')} Buka di Safari, lalu pilih <strong>Bagikan → Tambahkan ke Layar Utama</strong>.</p>`;
 }
 
-function googleRestoreBlock() {
-  const account = GoogleDrive.getAccount();
-  return `<div class="auth-google-wrap">
-    <button type="button" class="auth-google" data-action="google-restore">
-      ${googleGlyph('w-4.5 h-4.5')}
-      <span>${account ? 'Pulihkan dari Google Drive' : 'Masuk & pulihkan dari Google Drive'}</span>
-    </button>
-    <p class="auth-google-hint">Perangkat baru atau data hilang? Ambil backup terakhir dari Drive, lalu masuk dengan akun Google yang tertaut ke profilmu.</p>
-  </div>`;
-}
-
-export function loginView() {
-  const users = storeUsers();
-  const available = users.filter((user) => user.pinHash);
-  const selected = available.find((user) => user.id === ui.selectedUser) || available[0];
-  ui.selectedUser = selected?.id || null;
-  const lockRemaining = selected ? getLockRemaining(selected.id) : 0;
-  const locked = lockRemaining > 0;
-  const expired = ui.locked;
-  const installTip = isIos() && !isStandalone()
-    ? `<p class="auth-install-tip">${icon('info', 'w-3.5 h-3.5')} Untuk pengalaman layar penuh, buka di Safari lalu pilih <strong>Bagikan → Tambahkan ke Layar Utama</strong>.</p>`
-    : '';
-
-  if (!available.length) {
-    return setupView(users);
-  }
-
+function welcomeView() {
+  const last = lastAccount();
   return `<div class="auth-screen">
     <div class="auth-orb auth-orb-one"></div>
     <div class="auth-orb auth-orb-two"></div>
     <div class="auth-orb auth-orb-three"></div>
     <main class="auth-shell">
-      <div class="auth-brand">
-        <img src="icons/icon-192.png" alt="RISLY Logo" class="w-12 h-12 rounded-2xl shadow-sm object-cover">
-        <div>
-          <p class="brand-name">${APP.name}</p>
-          <p class="brand-caption">${APP.fullName}</p>
-        </div>
-      </div>
+      ${brandBlock()}
 
       <section class="auth-card">
         <div class="auth-heading">
-          <span class="auth-kicker">${expired ? 'Sesi terkunci' : 'Selamat datang kembali'}</span>
-          <h1>${expired ? 'Aplikasi dikunci' : 'Masuk ke ruang keuangan kalian'}</h1>
-          <p>${expired ? 'Masukkan PIN untuk melanjutkan.' : 'Masuk dengan Google, atau pilih anggota keluarga dan masukkan PIN.'}</p>
+          <span class="auth-kicker">Selamat datang</span>
+          <h1>Masuk ke ${APP.name}</h1>
+          <p>Kelola keuangan pribadi atau keluarga dalam satu tempat.</p>
         </div>
 
-        ${googleLoginBlock()}
-        <div class="auth-divider"><span>atau masuk dengan PIN</span></div>
+        ${googleButton('Masuk dengan Google')}
+        <div class="auth-divider"><span>atau</span></div>
 
-        <div class="auth-users" role="tablist" aria-label="Pilih pengguna">
-          ${available.map((user) => `<button type="button" role="tab" aria-selected="${user.id === selected.id}" class="auth-user ${user.id === selected.id ? 'is-selected' : ''}" data-action="select-user" data-user="${escapeAttr(user.id)}">
-            ${avatar(user, 'md')}
-            <span>${escapeHTML(user.name)}</span>
-          </button>`).join('')}
+        <div class="auth-stack">
+          <button type="button" class="auth-google is-ghost" data-action="google-join">
+            ${icon('users', 'w-4 h-4')}
+            <span>Punya kode undangan?</span>
+          </button>
+          ${last ? `<button type="button" class="auth-google is-ghost" data-action="offline-open">
+            ${icon('device', 'w-4 h-4')}
+            <span>Buka data terakhir${last.name ? ` · ${escapeHTML(last.name)}` : ''}</span>
+          </button>` : ''}
+        </div>
+
+        <div class="auth-links">
+          <button type="button" data-action="google-restore">
+            ${googleGlyph('w-3.5 h-3.5')} Pulihkan dari Drive
+          </button>
+        </div>
+        ${installTip()}
+      </section>
+
+      <footer class="auth-footer">
+        <span>${APP.name} v${APP.version}</span>
+        <span class="auth-private">${icon('shield', 'w-3 h-3')} Data tersimpan di perangkat ini</span>
+      </footer>
+    </main>
+  </div>`;
+}
+
+function lockView(user) {
+  const lockRemaining = getLockRemaining(user.id);
+  const locked = lockRemaining > 0;
+  return `<div class="auth-screen">
+    <div class="auth-orb auth-orb-one"></div>
+    <div class="auth-orb auth-orb-two"></div>
+    <div class="auth-orb auth-orb-three"></div>
+    <main class="auth-shell">
+      ${brandBlock()}
+
+      <section class="auth-card">
+        <div class="auth-heading">
+          <span class="auth-kicker">Sesi terkunci</span>
+          <h1>Masuk sebagai ${escapeHTML(user.name)}</h1>
+          <p>Masukkan PIN untuk melanjutkan.</p>
         </div>
 
         <form id="login-form" data-form="login" class="auth-form" novalidate>
-          <input type="hidden" name="user" value="${escapeAttr(selected.id)}">
-          <label class="field-label" for="pin-input">PIN ${escapeHTML(selected.name)}</label>
+          <input type="hidden" name="user" value="${escapeAttr(user.id)}">
+          <label class="field-label" for="pin-input">PIN</label>
           <div class="pin-input-wrap ${locked ? 'is-locked' : ''}">
-            <input id="pin-input" class="pin-input" name="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="current-password" aria-label="PIN ${escapeAttr(selected.name)}" ${locked ? 'disabled' : 'autofocus'} placeholder="••••">
+            <input id="pin-input" class="pin-input" name="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="current-password" aria-label="PIN" ${locked ? 'disabled' : 'autofocus'} placeholder="••••">
             <button type="button" class="pin-eye" data-action="toggle-pin" aria-label="Tampilkan PIN">${icon('eye', 'w-4.5 h-4.5')}</button>
           </div>
           <p id="auth-error" class="auth-error ${locked ? '' : 'hidden'}" data-form-error role="alert">${locked ? `Terlalu banyak percobaan. Coba lagi dalam ${Math.ceil(lockRemaining / 1000)} detik.` : ''}</p>
 
           <button type="submit" class="btn btn-primary auth-submit" ${locked ? 'disabled' : ''}>
-            ${locked ? 'Terkunci sementara' : `Masuk sebagai ${escapeHTML(selected.name)}`}
+            ${locked ? 'Terkunci sementara' : 'Buka aplikasi'}
             ${locked ? icon('lock', 'w-4 h-4') : icon('arrow-right', 'w-4 h-4')}
           </button>
         </form>
 
         <div class="auth-links">
           <button type="button" data-action="forgot-pin">Lupa PIN?</button>
-          ${cloudLine()}
+          <button type="button" data-action="switch-account">Ganti akun</button>
         </div>
-        ${installTip}
       </section>
 
       <footer class="auth-footer">
         <span>${APP.name} v${APP.version}</span>
-        <span class="auth-private">${icon('shield', 'w-3 h-3')} Data pribadi Rizki & Shelly</span>
+        <span class="auth-private">${icon('lock', 'w-3 h-3')} PIN tersimpan sebagai hash</span>
       </footer>
     </main>
   </div>`;
 }
 
-export function setupView(users = storeUsers()) {
-  const missing = usersNeedingSetup(users.length ? users : storeUsers());
-  const targetUsers = missing.length ? missing : users;
-  const cards = targetUsers.map((user) => `<div class="setup-user-card">
-    <div class="flex items-center gap-3">
-      ${avatar(user, 'md')}
-      <div>
-        <p class="font-semibold text-slate-900 dark:text-white">${escapeHTML(user.name)}</p>
-        <p class="text-xs text-slate-500 dark:text-slate-400">Buat PIN pribadi 4–8 angka</p>
-      </div>
-    </div>
-    <div class="grid sm:grid-cols-2 gap-3 mt-4">
-      <label class="field-label">PIN
-        <input class="field mt-1.5" type="password" name="pin_${escapeAttr(user.id)}" inputmode="numeric" pattern="[0-9]{4,8}" minlength="4" maxlength="8" placeholder="••••" autocomplete="new-password" required>
-      </label>
-      <label class="field-label">Ulangi PIN
-        <input class="field mt-1.5" type="password" name="confirm_${escapeAttr(user.id)}" inputmode="numeric" pattern="[0-9]{4,8}" minlength="4" maxlength="8" placeholder="••••" autocomplete="new-password" required>
-      </label>
-    </div>
-  </div>`).join('');
+export function loginView() {
+  if (ui.locked && store.currentUserId) {
+    const user = store.getUser(store.currentUserId);
+    if (user?.pinHash) return lockView(user);
+  }
+  return welcomeView();
+}
 
-  return `<div class="auth-screen">
-    <div class="auth-orb auth-orb-one"></div>
-    <div class="auth-orb auth-orb-two"></div>
-    <div class="auth-orb auth-orb-three"></div>
-    <main class="auth-shell auth-shell-setup">
-      <div class="auth-brand">
-        <img src="icons/icon-192.png" alt="RISLY Logo" class="w-12 h-12 rounded-2xl shadow-sm object-cover">
-        <div>
-          <p class="brand-name">${APP.name}</p>
-          <p class="brand-caption">${APP.fullName}</p>
-        </div>
-      </div>
-      <section class="auth-card setup-card">
-        <div class="auth-heading">
-          <span class="auth-kicker">Persiapan pertama</span>
-          <h1>Siapkan ruang keuangan kalian</h1>
-          <p>Buat PIN untuk setiap anggota. PIN dipakai untuk membuka aplikasi di perangkat ini maupun perangkat yang tersinkron.</p>
-        </div>
-
-        ${googleRestoreBlock()}
-        <div class="auth-divider"><span>atau buat PIN baru</span></div>
-
-        <form id="setup-form" data-form="setup" class="space-y-4" novalidate>
-          <label class="field-label">Nama keluarga
-            <input class="field mt-1.5" name="householdName" maxlength="60" value="${escapeAttr('Rizki & Shelly')}" required>
-          </label>
-          ${cards}
-          <p class="form-error hidden" data-form-error role="alert"></p>
-          <label class="setup-check">
-            <input type="checkbox" name="acknowledge" required>
-            <span>Saya memahami PIN ini adalah kunci tampilan aplikasi, bukan enkripsi data cloud. Saya akan memakai kode perangkat dan penyimpanan cloud yang aman.</span>
-          </label>
-          <button type="submit" class="btn btn-primary w-full">
-            ${icon('shield', 'w-4 h-4')} Aktifkan ${APP.name}
-          </button>
-        </form>
-
-        <div class="auth-links">
-          ${cloudLine()}
-          <button type="button" data-action="forgot-pin">Panduan keamanan</button>
-        </div>
-      </section>
-      <footer class="auth-footer">
-        <span>${APP.name} v${APP.version}</span>
-        <span class="auth-private">${icon('lock', 'w-3 h-3')} PIN disimpan sebagai hash PBKDF2</span>
-      </footer>
-    </main>
-  </div>`;
+export function setupView() {
+  return loginView();
 }

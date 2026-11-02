@@ -13,6 +13,21 @@ import {
 
 const SEED_DATE = '2025-01-01T00:00:00.000Z';
 
+export function initialsFromName(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  const initials = parts.slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+  return initials || '?';
+}
+
+export function generateInviteCode() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  let code = '';
+  bytes.forEach((byte) => { code += alphabet[byte % alphabet.length]; });
+  return code;
+}
+
 function category(id, type, name, icon, color, subcategories) {
   return {
     id,
@@ -88,8 +103,8 @@ export function defaultCategories() {
       ['sub-other-misc', 'Tak Terduga'],
     ]),
     category('cat-inc-salary', 'income', 'Gaji', 'briefcase', '#16A34A', [
-      ['sub-salary-rizki', 'Gaji Rizki'],
-      ['sub-salary-shelly', 'Gaji Shelly'],
+      ['sub-salary-rizki', 'Gaji Utama'],
+      ['sub-salary-shelly', 'Gaji Pasangan'],
       ['sub-salary-bonus', 'Bonus'],
       ['sub-salary-thr', 'THR'],
     ]),
@@ -157,26 +172,16 @@ export function defaultAccounts() {
   ];
 }
 
-export function defaultUsers() {
+export function defaultUsers(owner = null) {
+  const name = String(owner?.name || 'Pengguna').trim() || 'Pengguna';
   return [
     {
-      id: 'rizki',
-      name: 'Rizki',
-      color: '#2563EB',
-      initials: 'R',
-      googleEmail: '',
-      pinHash: '',
-      pinSalt: '',
-      pinIterations: 0,
-      createdAt: SEED_DATE,
-      updatedAt: SEED_DATE,
-    },
-    {
-      id: 'shelly',
-      name: 'Shelly',
-      color: '#DB2777',
-      initials: 'S',
-      googleEmail: '',
+      id: owner?.id || uid('user'),
+      name,
+      color: owner?.color || '#2563EB',
+      initials: initialsFromName(name),
+      googleEmail: String(owner?.email || '').trim().toLowerCase(),
+      picture: String(owner?.picture || ''),
       pinHash: '',
       pinSalt: '',
       pinIterations: 0,
@@ -186,8 +191,10 @@ export function defaultUsers() {
   ];
 }
 
-export function createDefaultData() {
+export function createDefaultData(owner = null) {
   const now = nowISO();
+  const ownerUser = defaultUsers(owner)[0];
+  const workspaceName = ownerUser.googleEmail ? `Ruang ${ownerUser.name}` : 'Keuangan Saya';
   return {
     app: 'risly-money-manager',
     schemaVersion: APP.schemaVersion,
@@ -195,7 +202,10 @@ export function createDefaultData() {
     updatedAt: now,
     updatedBy: null,
     settings: {
-      householdName: 'Rizki & Shelly',
+      householdName: workspaceName,
+      workspaceName,
+      ownerEmail: ownerUser.googleEmail || '',
+      inviteCode: generateInviteCode(),
       currency: 'IDR',
       locale: 'id-ID',
       defaultMonthlyBudget: 0,
@@ -205,7 +215,7 @@ export function createDefaultData() {
       autoLockMinutes: APP.defaultAutoLockMinutes,
       updatedAt: now,
     },
-    users: defaultUsers(),
+    users: [ownerUser],
     accounts: defaultAccounts(),
     categories: defaultCategories(),
     transactions: [],
@@ -235,6 +245,9 @@ export function migrateData(raw) {
 
   const settings = { ...defaults.settings, ...(data.settings || {}) };
   settings.householdName = String(settings.householdName || defaults.settings.householdName);
+  settings.workspaceName = String(settings.workspaceName || settings.householdName);
+  settings.ownerEmail = String(settings.ownerEmail || '').trim().toLowerCase();
+  settings.inviteCode = String(settings.inviteCode || defaults.settings.inviteCode).toUpperCase();
   settings.currency = 'IDR';
   settings.locale = 'id-ID';
   settings.defaultMonthlyBudget = Math.max(0, Number(settings.defaultMonthlyBudget) || 0);
@@ -246,20 +259,28 @@ export function migrateData(raw) {
   data.settings = settings;
 
   const existingUsers = Array.isArray(data.users) ? data.users : [];
-  data.users = defaults.users.map((base) => {
-    const found = existingUsers.find((user) => user?.id === base.id);
-    if (!found) return base;
+  const baseUsers = existingUsers.length ? existingUsers : defaults.users;
+  data.users = baseUsers.map((user) => {
+    const name = String(user?.name || 'Pengguna').trim() || 'Pengguna';
     return {
-      ...base,
-      ...found,
-      id: base.id,
-      name: String(found.name || base.name),
-      initials: String(found.initials || found.name?.[0] || base.initials),
-      googleEmail: String(found.googleEmail || '').trim().toLowerCase(),
-      updatedAt: found.updatedAt || base.updatedAt,
-      createdAt: found.createdAt || base.createdAt,
+      id: user?.id || uid('user'),
+      name,
+      color: user?.color || '#2563EB',
+      initials: String(user?.initials || initialsFromName(name)),
+      googleEmail: String(user?.googleEmail || '').trim().toLowerCase(),
+      picture: String(user?.picture || ''),
+      pinHash: String(user?.pinHash || ''),
+      pinSalt: String(user?.pinSalt || ''),
+      pinIterations: Math.max(0, Number(user?.pinIterations) || 0),
+      createdAt: user?.createdAt || data.updatedAt || SEED_DATE,
+      updatedAt: user?.updatedAt || data.updatedAt || SEED_DATE,
+      ...(user?.deletedAt ? { deletedAt: user.deletedAt } : {}),
     };
   });
+  if (!data.users.length) data.users = defaults.users;
+  if (!settings.ownerEmail) {
+    settings.ownerEmail = data.users.find((user) => user.googleEmail)?.googleEmail || '';
+  }
 
   data.accounts = Array.isArray(data.accounts) ? data.accounts : defaultAccounts();
   data.accounts = data.accounts.map((account) => ({
@@ -307,8 +328,8 @@ export function migrateData(raw) {
     categoryId: tx.categoryId || null,
     subcategoryId: tx.subcategoryId || null,
     note: String(tx.note || ''),
-    createdBy: tx.createdBy || 'rizki',
-    createdByName: tx.createdByName || (tx.createdBy === 'shelly' ? 'Shelly' : 'Rizki'),
+    createdBy: tx.createdBy || data.users[0]?.id || 'owner',
+    createdByName: tx.createdByName || data.users.find((user) => user.id === tx.createdBy)?.name || data.users[0]?.name || 'Pengguna',
     createdAt: tx.createdAt || data.updatedAt,
     updatedAt: tx.updatedAt || data.updatedAt,
     updatedBy: tx.updatedBy || tx.createdBy || null,
@@ -348,8 +369,8 @@ export function migrateData(raw) {
     autoPost: rule.autoPost !== false,
     active: rule.active !== false,
     lastRunDate: rule.lastRunDate || null,
-    createdBy: rule.createdBy || 'rizki',
-    createdByName: rule.createdByName || (rule.createdBy === 'shelly' ? 'Shelly' : 'Rizki'),
+    createdBy: rule.createdBy || data.users[0]?.id || 'owner',
+    createdByName: rule.createdByName || data.users.find((user) => user.id === rule.createdBy)?.name || data.users[0]?.name || 'Pengguna',
     createdAt: rule.createdAt || data.updatedAt,
     updatedAt: rule.updatedAt || data.updatedAt,
     ...(rule.deletedAt ? { deletedAt: rule.deletedAt } : {}),
@@ -379,8 +400,8 @@ export function migrateData(raw) {
     priority: ['low', 'normal', 'high', 'urgent'].includes(note.priority) ? note.priority : 'normal',
     status: ['active', 'archived', 'trashed'].includes(note.status) ? note.status : 'active',
     order: Number(note.order) || 0,
-    createdBy: note.createdBy || 'rizki',
-    createdByName: note.createdByName || (note.createdBy === 'shelly' ? 'Shelly' : 'Rizki'),
+    createdBy: note.createdBy || data.users[0]?.id || 'owner',
+    createdByName: note.createdByName || data.users.find((user) => user.id === note.createdBy)?.name || data.users[0]?.name || 'Pengguna',
     createdAt: note.createdAt || data.updatedAt,
     updatedAt: note.updatedAt || data.updatedAt,
     completedAt: note.completedAt || null,
@@ -393,8 +414,8 @@ export function migrateData(raw) {
 export function createSampleData(base, actor = {}) {
   const data = deepClone(base);
   const now = nowISO();
-  const by = actor.id || 'rizki';
-  const byName = actor.name || 'Rizki';
+  const by = actor.id || data.users[0]?.id || 'owner';
+  const byName = actor.name || data.users[0]?.name || 'Pengguna';
   const accounts = data.accounts.filter((account) => !account.archived && !account.deletedAt);
   const cash = accounts.find((a) => a.type === 'cash') || accounts[0];
   const bank = accounts.find((a) => a.type === 'bank') || accounts[1] || cash;
@@ -430,12 +451,12 @@ export function createSampleData(base, actor = {}) {
     const key = shiftMonthKey(current, -offset);
     const baseDate = `${key}-01`;
     const incomeDate = offset === 0 ? `${key}-25` : `${key}-25`;
-    txList.push(tx(incomeDate, 'income', 8_500_000, bank.id, 'cat-inc-salary', 'sub-salary-rizki', 'Gaji bulanan Rizki'));
-    txList.push(tx(incomeDate, 'income', 5_750_000, bank.id, 'cat-inc-salary', 'sub-salary-shelly', 'Gaji bulanan Shelly'));
+    txList.push(tx(incomeDate, 'income', 8_500_000, bank.id, 'cat-inc-salary', 'sub-salary-rizki', 'Gaji utama'));
+    txList.push(tx(incomeDate, 'income', 5_750_000, bank.id, 'cat-inc-salary', 'sub-salary-shelly', 'Gaji pasangan'));
     txList.push(tx(`${key}-03`, 'expense', 1_850_000, bank.id, 'cat-exp-home', 'sub-home-utility', 'Listrik, air, dan internet'));
     txList.push(tx(`${key}-05`, 'expense', 1_450_000, bank.id, 'cat-exp-food', 'sub-food-grocery', 'Belanja bulanan'));
     txList.push(tx(`${key}-08`, 'expense', 650_000, cash.id, 'cat-exp-transport', 'sub-transport-fuel', 'Bensin mobil'));
-    txList.push(tx(`${key}-11`, 'expense', 425_000, wallet.id, 'cat-exp-food', 'sub-food-dining', 'Makan keluarga akhir pekan'));
+    txList.push(tx(`${key}-11`, 'expense', 425_000, wallet.id, 'cat-exp-food', 'sub-food-dining', 'Makan akhir pekan'));
     txList.push(tx(`${key}-14`, 'transfer', 1_000_000, bank.id, null, null, 'Tabungan rutin', { toAccountId: savings.id }));
     txList.push(tx(`${key}-17`, 'expense', 325_000, wallet.id, 'cat-exp-fun', 'sub-fun-subscription', 'Langganan hiburan'));
     txList.push(tx(`${key}-20`, 'expense', 780_000, bank.id, 'cat-exp-family', 'sub-family-kids', 'Kebutuhan anak'));
@@ -556,7 +577,7 @@ export function createSampleData(base, actor = {}) {
       id: uid('demo_note'),
       kind: 'todo',
       title: 'Urusan rumah tangga',
-      content: 'Pekerjaan kecil yang bisa diselesaikan berdua.',
+      content: 'Pekerjaan rumah kecil yang perlu diselesaikan.',
       color: 'blue',
       pinned: true,
       favorite: false,

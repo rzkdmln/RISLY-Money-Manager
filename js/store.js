@@ -1,5 +1,11 @@
 import { APP } from './config.js';
-import { createDefaultData, createSampleData, migrateData } from './data.js';
+import {
+  createDefaultData,
+  createSampleData,
+  generateInviteCode,
+  initialsFromName,
+  migrateData,
+} from './data.js';
 import {
   advanceDate,
   deepClone,
@@ -40,10 +46,35 @@ function mergeCollection(localItems, remoteItems) {
   return [...map.values()];
 }
 
+function workspaceStorageKey(workspaceId) {
+  return `${APP.workspaceDataPrefix}${workspaceId}`;
+}
+
+function readWorkspaceRegistry() {
+  try {
+    const raw = localStorage.getItem(APP.workspaceRegistryKey);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return {
+      accounts: parsed?.accounts && typeof parsed.accounts === 'object' ? parsed.accounts : {},
+      workspaces: parsed?.workspaces && typeof parsed.workspaces === 'object' ? parsed.workspaces : {},
+      legacyWorkspaceId: parsed?.legacyWorkspaceId || null,
+    };
+  } catch {
+    return { accounts: {}, workspaces: {}, legacyWorkspaceId: null };
+  }
+}
+
+function writeWorkspaceRegistry(registry) {
+  localStorage.setItem(APP.workspaceRegistryKey, JSON.stringify(registry));
+}
+
 class Store {
   constructor() {
     this.data = null;
     this.currentUserId = null;
+    this.workspaceId = null;
+    this.account = null;
+    this.registry = { accounts: {}, workspaces: {}, legacyWorkspaceId: null };
     this.listeners = new Set();
     this.lastError = null;
     this._initialized = false;
@@ -51,33 +82,240 @@ class Store {
 
   init() {
     if (this._initialized) return this.data;
-    try {
-      const raw = localStorage.getItem(APP.storageKey);
-      if (raw) {
-        this.data = migrateData(JSON.parse(raw));
-      } else {
-        this.data = createDefaultData();
-        this.persist();
-      }
-    } catch (error) {
-      console.error('Gagal memuat data lokal:', error);
-      this.lastError = error;
-      this.data = createDefaultData();
-    }
+    this.registry = readWorkspaceRegistry();
+    // Keep a lightweight placeholder for the signed-out screen. It is never
+    // persisted until a Google account opens or creates a workspace.
+    this.data = createDefaultData();
     this._initialized = true;
     return this.data;
   }
 
   persist() {
-    if (!this.data) return;
+    if (!this.data || !this.workspaceId) return;
     try {
-      localStorage.setItem(APP.storageKey, JSON.stringify(this.data));
+      localStorage.setItem(workspaceStorageKey(this.workspaceId), JSON.stringify(this.data));
+      this.updateWorkspaceMeta();
       this.lastError = null;
     } catch (error) {
       console.error('Gagal menyimpan data lokal:', error);
       this.lastError = error;
       throw error;
     }
+  }
+
+  updateWorkspaceMeta() {
+    if (!this.workspaceId || !this.data) return;
+    const meta = this.registry.workspaces[this.workspaceId] || {};
+    this.registry.workspaces[this.workspaceId] = {
+      ...meta,
+      id: this.workspaceId,
+      name: this.data.settings.workspaceName || this.data.settings.householdName || 'Ruang',
+      inviteCode: this.data.settings.inviteCode || meta.inviteCode || '',
+      ownerEmail: this.data.settings.ownerEmail || meta.ownerEmail || '',
+      updatedAt: nowISO(),
+    };
+    writeWorkspaceRegistry(this.registry);
+  }
+
+  openWorkspace(workspaceId, { account = null } = {}) {
+    if (!workspaceId) return false;
+    try {
+      const raw = localStorage.getItem(workspaceStorageKey(workspaceId));
+      if (!raw) return false;
+      this.data = migrateData(JSON.parse(raw));
+      this.workspaceId = workspaceId;
+      this.account = account || this.accountForWorkspace(workspaceId);
+      this.currentUserId = null;
+      this.persist();
+      return true;
+    } catch (error) {
+      console.error('Gagal membuka ruang:', error);
+      this.lastError = error;
+      return false;
+    }
+  }
+
+  accountForWorkspace(workspaceId) {
+    const entry = Object.values(this.registry.accounts)
+      .find((item) => item?.workspaceId === workspaceId);
+    return entry ? { email: entry.email, name: entry.name, picture: entry.picture || '' } : null;
+  }
+
+  registerAccount(account, workspaceId) {
+    const email = String(account?.email || '').trim().toLowerCase();
+    if (!email) return;
+    this.registry.accounts[email] = {
+      email,
+      workspaceId,
+      name: String(account.name || email),
+      picture: String(account.picture || ''),
+      lastLoginAt: nowISO(),
+    };
+    writeWorkspaceRegistry(this.registry);
+    localStorage.setItem(APP.lastAccountKey, JSON.stringify({
+      email,
+      workspaceId,
+      name: String(account.name || email),
+      picture: String(account.picture || ''),
+    }));
+  }
+
+  ensureMember(account) {
+    const email = String(account?.email || '').trim().toLowerCase();
+    let user = this.data.users.find((item) => !item.deletedAt
+      && String(item.googleEmail || '').toLowerCase() === email);
+    if (user) return user;
+    const name = String(account?.name || email.split('@')[0] || 'Pengguna').trim() || 'Pengguna';
+    user = {
+      id: uid('user'),
+      name,
+      color: '#2563EB',
+      initials: initialsFromName(name),
+      googleEmail: email,
+      picture: String(account?.picture || ''),
+      pinHash: '',
+      pinSalt: '',
+      pinIterations: 0,
+      createdAt: nowISO(),
+      updatedAt: nowISO(),
+    };
+    this.data.users.push(user);
+    this.data.updatedAt = nowISO();
+    this.data.revision = Math.max(1, Number(this.data.revision) || 1) + 1;
+    this.persist();
+    return user;
+  }
+
+  signInWithGoogle(account) {
+    const email = String(account?.email || '').trim().toLowerCase();
+    if (!email) throw new Error('Akun Google tidak valid.');
+    const entry = this.registry.accounts[email];
+    if (entry?.workspaceId && this.openWorkspace(entry.workspaceId, { account })) {
+      const user = this.ensureMember(account);
+      this.currentUserId = user.id;
+      this.persist();
+      return { user, created: false, workspaceId: this.workspaceId };
+    }
+
+    const legacy = this.readLegacyData();
+    if (legacy) {
+      const match = (legacy.users || []).find((user) => String(user.googleEmail || '').toLowerCase() === email);
+      if (match) {
+        const workspaceId = this.adoptLegacyWorkspace(legacy, account);
+        this.openWorkspace(workspaceId, { account });
+        const user = this.ensureMember(account);
+        this.currentUserId = user.id;
+        this.persist();
+        return { user, created: false, adopted: true, workspaceId };
+      }
+    }
+
+    const workspaceId = uid('ws');
+    this.data = createDefaultData(account);
+    this.workspaceId = workspaceId;
+    this.account = account;
+    const user = this.data.users[0];
+    this.currentUserId = user.id;
+    this.data.settings.ownerEmail = email;
+    this.updateWorkspaceMeta();
+    this.registerAccount(account, workspaceId);
+    this.persist();
+    return { user, created: true, workspaceId };
+  }
+
+  readLegacyData() {
+    try {
+      const raw = localStorage.getItem(APP.storageKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.users)) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  adoptLegacyWorkspace(legacy, account) {
+    if (this.registry.legacyWorkspaceId
+      && localStorage.getItem(workspaceStorageKey(this.registry.legacyWorkspaceId))) {
+      return this.registry.legacyWorkspaceId;
+    }
+    const workspaceId = uid('ws');
+    const data = migrateData(legacy);
+    data.settings.workspaceName = data.settings.workspaceName || data.settings.householdName;
+    data.settings.inviteCode = data.settings.inviteCode || generateInviteCode();
+    data.settings.ownerEmail = data.settings.ownerEmail
+      || data.users.find((user) => user.googleEmail)?.googleEmail
+      || account.email;
+    data.users.forEach((user) => {
+      if (!user.googleEmail) return;
+      this.registry.accounts[user.googleEmail] = {
+        email: user.googleEmail,
+        workspaceId,
+        name: user.name,
+        picture: user.picture || '',
+        lastLoginAt: nowISO(),
+      };
+    });
+    this.registry.workspaces[workspaceId] = {
+      id: workspaceId,
+      name: data.settings.workspaceName,
+      inviteCode: data.settings.inviteCode,
+      ownerEmail: data.settings.ownerEmail,
+      updatedAt: nowISO(),
+    };
+    this.registry.legacyWorkspaceId = workspaceId;
+    localStorage.setItem(workspaceStorageKey(workspaceId), JSON.stringify(data));
+    writeWorkspaceRegistry(this.registry);
+    return workspaceId;
+  }
+
+  joinWorkspaceByCode(code, account) {
+    const normalized = String(code || '').trim().toUpperCase();
+    if (!/^[A-Z0-9]{4,8}$/.test(normalized)) {
+      throw new Error('Kode undangan tidak valid.');
+    }
+    const workspaceId = Object.keys(this.registry.workspaces)
+      .find((id) => String(this.registry.workspaces[id]?.inviteCode || '').toUpperCase() === normalized);
+    if (!workspaceId || !localStorage.getItem(workspaceStorageKey(workspaceId))) {
+      throw new Error('Kode undangan tidak ditemukan di perangkat ini.');
+    }
+    this.openWorkspace(workspaceId, { account });
+    const user = this.ensureMember(account);
+    this.currentUserId = user.id;
+    this.registerAccount(account, workspaceId);
+    this.persist();
+    return { user, workspaceId };
+  }
+
+  openLastWorkspace() {
+    try {
+      const last = JSON.parse(localStorage.getItem(APP.lastAccountKey) || 'null');
+      if (!last?.workspaceId) return null;
+      if (!this.openWorkspace(last.workspaceId, { account: last })) return null;
+      const user = this.data.users.find((item) => !item.deletedAt
+        && String(item.googleEmail || '').toLowerCase() === String(last.email || '').toLowerCase());
+      if (!user) return null;
+      this.currentUserId = user.id;
+      this.account = last;
+      return { user, hasPin: Boolean(user.pinHash) };
+    } catch {
+      return null;
+    }
+  }
+
+  getWorkspaceCode() {
+    return String(this.data?.settings?.inviteCode || '');
+  }
+
+  rotateWorkspaceCode() {
+    const code = generateInviteCode();
+    this.updateSettings({ inviteCode: code });
+    return code;
+  }
+
+  get hasWorkspace() {
+    return Boolean(this.workspaceId && this.data);
   }
 
   subscribe(listener) {
@@ -148,8 +386,8 @@ class Store {
         categoryId: payload.type === 'transfer' ? null : payload.categoryId || null,
         subcategoryId: payload.type === 'transfer' ? null : payload.subcategoryId || null,
         note: String(payload.note || '').trim(),
-        createdBy: user?.id || 'rizki',
-        createdByName: user?.name || 'Rizki',
+        createdBy: user?.id || this.currentUserId || this.data.users[0]?.id || 'owner',
+        createdByName: user?.name || this.data.users[0]?.name || 'Pengguna',
         createdAt: now,
         updatedAt: now,
         updatedBy: user?.id || null,
@@ -669,8 +907,8 @@ class Store {
         autoPost: payload.autoPost !== false,
         active: payload.active !== false,
         lastRunDate: null,
-        createdBy: user?.id || 'rizki',
-        createdByName: user?.name || 'Rizki',
+        createdBy: user?.id || this.currentUserId || this.data.users[0]?.id || 'owner',
+        createdByName: user?.name || this.data.users[0]?.name || 'Pengguna',
         createdAt: now,
         updatedAt: now,
       };
@@ -882,8 +1120,8 @@ class Store {
         priority: payload.priority || 'normal',
         status: 'active',
         order: Date.now(),
-        createdBy: user?.id || 'rizki',
-        createdByName: user?.name || 'Rizki',
+        createdBy: user?.id || this.currentUserId || this.data.users[0]?.id || 'owner',
+        createdByName: user?.name || this.data.users[0]?.name || 'Pengguna',
         createdAt: now,
         updatedAt: now,
         completedAt: payload.done || allItemsDone ? now : null,
@@ -1060,7 +1298,7 @@ class Store {
   }
 
   userDisplayName(id) {
-    return this.getUser(id)?.name || (id === 'shelly' ? 'Shelly' : 'Rizki');
+    return this.getUser(id)?.name || this.data?.users?.[0]?.name || 'Pengguna';
   }
 
   /* ------------------------------------------------------------------------ */
@@ -1073,13 +1311,32 @@ class Store {
 
   importData(raw, { emit = true } = {}) {
     this.data = migrateData(raw);
+    if (this.workspaceId) {
+      this.data.settings.workspaceName = this.data.settings.workspaceName
+        || this.data.settings.householdName
+        || 'Ruang';
+      this.updateWorkspaceMeta();
+      this.data.users.forEach((user) => {
+        const email = String(user.googleEmail || '').trim().toLowerCase();
+        if (!email) return;
+        this.registry.accounts[email] = {
+          email,
+          workspaceId: this.workspaceId,
+          name: user.name,
+          picture: user.picture || '',
+          lastLoginAt: nowISO(),
+        };
+      });
+      writeWorkspaceRegistry(this.registry);
+    }
     this.persist();
     if (emit) this.emit({ source: 'local', reason: 'data:import' });
     return this.data;
   }
 
   loadSampleData() {
-    const actor = this.currentUser || this.activeUsers()[0] || { id: 'rizki', name: 'Rizki' };
+    const actor = this.currentUser || this.activeUsers()[0]
+      || { id: this.currentUserId || 'owner', name: 'Pengguna' };
     this.data = createSampleData(this.data, actor);
     this.persist();
     this.emit({ source: 'local', reason: 'data:sample' });
@@ -1087,9 +1344,23 @@ class Store {
   }
 
   resetLocalData() {
+    if (this.workspaceId) {
+      localStorage.removeItem(workspaceStorageKey(this.workspaceId));
+      delete this.registry.workspaces[this.workspaceId];
+      Object.keys(this.registry.accounts).forEach((email) => {
+        if (this.registry.accounts[email]?.workspaceId === this.workspaceId) {
+          delete this.registry.accounts[email];
+        }
+      });
+      if (this.registry.legacyWorkspaceId === this.workspaceId) {
+        this.registry.legacyWorkspaceId = null;
+      }
+      writeWorkspaceRegistry(this.registry);
+    }
     localStorage.removeItem(APP.storageKey);
     this.data = createDefaultData();
-    this.persist();
+    this.workspaceId = null;
+    this.account = null;
     this.currentUserId = null;
     this.emit({ source: 'local', reason: 'data:reset' });
     return this.data;
