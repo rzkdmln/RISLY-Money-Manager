@@ -101,12 +101,14 @@ function authErrorMessage(response) {
   return response?.error_description || response?.message || 'Masuk dengan Google gagal.';
 }
 
+// js/gdrive.js
+
 class GoogleDriveClient {
   constructor() {
     this.account = readAccount();
-    // Memastikan clientId yang dibaca selalu bertipe String
+    // 1. Paksa konversi ke String saat pembacaan awal
     const rawId = this.account?.clientId || APP.googleClientId || '';
-    this.clientId = typeof rawId === 'string' ? rawId.trim() : String(rawId).trim();
+    this.clientId = typeof rawId === 'string' ? rawId.trim() : String(rawId || '').trim();
     this.accessToken = '';
     this.expiresAt = 0;
     this.listeners = new Set();
@@ -141,7 +143,7 @@ class GoogleDriveClient {
   }
 
   setClientId(clientId) {
-    // Memastikan parameter clientId dikonversi ke String terlebih dahulu
+    // 2. Paksa parameter clientId menjadi String sebelum dieksekusi .trim()
     const next = typeof clientId === 'string' ? clientId.trim() : String(clientId || '').trim();
     if (next === this.clientId) return;
     this.clientId = next;
@@ -155,11 +157,12 @@ class GoogleDriveClient {
   }
 
   async requestToken(prompt = 'select_account') {
-    // Menjamin client_id yang dikirim ke SDK Google pasti bertipe String
+    // 3. Jamin validClientId pasti String sebelum dikirim ke SDK Google
     const validClientId = typeof this.clientId === 'string' ? this.clientId.trim() : String(this.clientId || '').trim();
     if (!validClientId) {
       throw new DriveAuthError('Client ID Google belum diisi atau tidak valid.');
     }
+
     const google = await loadGis();
     return new Promise((resolve, reject) => {
       let settled = false;
@@ -168,8 +171,9 @@ class GoogleDriveClient {
         settled = true;
         fn(value);
       };
+
       const client = google.accounts.oauth2.initTokenClient({
-        client_id: validClientId, // Safe String
+        client_id: validClientId, // Guaranteed String
         scope: DRIVE_SCOPE,
         callback: (response) => {
           if (response?.error) {
@@ -179,7 +183,6 @@ class GoogleDriveClient {
           this.accessToken = response.access_token;
           this.expiresAt = Date.now() + (Number(response.expires_in) || 3600) * 1000;
 
-          // Simpan token ke localStorage agar PWA iOS dapat membaca ulang sesi
           localStorage.setItem('risly_access_token', response.access_token);
           localStorage.setItem('risly_token_expires_at', String(this.expiresAt));
 
@@ -189,6 +192,7 @@ class GoogleDriveClient {
           finish(reject, new DriveAuthError(authErrorMessage(error)));
         },
       });
+
       try {
         client.requestAccessToken({ prompt: prompt || 'select_account' });
       } catch (error) {
