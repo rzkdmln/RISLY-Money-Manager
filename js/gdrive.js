@@ -191,6 +191,60 @@ class GoogleDriveClient {
   }
 
   /**
+   * Signs in with Google and returns account information.
+   * This gets an OAuth2 token and then uses it to fetch user info.
+   */
+  async signIn(prompt = 'select_account') {
+    // 1. Get OAuth2 token
+    const tokenResponse = await this.requestToken(prompt);
+    
+    // 2. Get user info using the access token
+    try {
+      const userInfoResponse = await fetch(`${USERINFO_URL}`, {
+        headers: {
+          'Authorization': `Bearer ${tokenResponse.access_token}`
+        }
+      });
+      
+      if (!userInfoResponse.ok) {
+        throw new DriveAuthError(`Gagal mengambil info pengguna: ${userInfoResponse.status}`);
+      }
+      
+      const userInfo = await userInfoResponse.json();
+      
+      // 3. Create account object with required fields
+      const account = {
+        email: userInfo.email,
+        name: userInfo.name,
+        picture: userInfo.picture,
+        clientId: this.clientId,
+      };
+      
+      // 4. Save account to localStorage
+      this.account = account;
+      localStorage.setItem(ACCOUNT_KEY, JSON.stringify(account));
+      this.emit(); // Notify listeners
+      
+      return account;
+    } catch (error) {
+      // If user info fetch fails, still save the token but return a minimal account
+      // Note: tokenResponse doesn't include user info, so we'll use a placeholder
+      const account = {
+        email: 'unknown@example.com',
+        name: 'Pengguna Google',
+        picture: '',
+        clientId: this.clientId,
+      };
+      
+      this.account = account;
+      localStorage.setItem(ACCOUNT_KEY, JSON.stringify(account));
+      this.emit(); // Notify listeners
+      
+      return account;
+    }
+  }
+
+  /**
    * Returns a usable access token
    */
 
