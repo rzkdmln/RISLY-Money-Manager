@@ -22,6 +22,20 @@ const UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 const ACCOUNT_KEY = 'risly.mm.google.v1';
 const APP_DATA_FOLDER = 'appDataFolder';
 
+function gdriveCookie(name, value, days) {
+  if (value === undefined || value === null) {
+    document.cookie = `${name}=; path=/; SameSite=None; Secure; expires=Thu, 01 Jan 1970 00:00:00 UTC`;
+    return;
+  }
+  const expires = new Date(Date.now() + (days || 30) * 24 * 60 * 60 * 1000).toUTCString();
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; SameSite=None; Secure; expires=${expires}`;
+}
+
+function gdriveReadCookie(name) {
+  const pair = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith(name + '='));
+  return pair ? decodeURIComponent(pair.slice(name.length + 1)) : null;
+}
+
 export const DRIVE_SCOPE = [
   'openid',
   'email',
@@ -40,7 +54,8 @@ export class DriveAuthError extends Error {
 
 function readAccount() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(ACCOUNT_KEY) || 'null');
+    const raw = gdriveReadCookie(ACCOUNT_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
     return parsed && typeof parsed === 'object' ? parsed : null;
   } catch {
     return null;
@@ -160,7 +175,7 @@ class GoogleDriveClient {
     this.expiresAt = 0;
     if (this.account && this.account.clientId !== next) {
       this.account = null;
-      localStorage.removeItem(ACCOUNT_KEY);
+      gdriveCookie(ACCOUNT_KEY, null);
       this.emit();
     }
   }
@@ -192,8 +207,8 @@ class GoogleDriveClient {
             this.accessToken = response.access_token;
             this.expiresAt = Date.now() + (Number(response.expires_in) || 3600) * 1000;
 
-            localStorage.setItem('risly_access_token', response.access_token);
-            localStorage.setItem('risly_token_expires_at', String(this.expiresAt));
+            gdriveCookie('risly_access_token', response.access_token, 1);
+            gdriveCookie('risly_token_expires_at', String(this.expiresAt), 1);
 
             finish(resolve, response);
           },
@@ -245,7 +260,7 @@ class GoogleDriveClient {
 
       // 4. Save account to localStorage
       this.account = account;
-      localStorage.setItem(ACCOUNT_KEY, JSON.stringify(account));
+      gdriveCookie(ACCOUNT_KEY, JSON.stringify(account), 30);
       this.emit(); // Notify listeners
 
       return account;
@@ -266,8 +281,8 @@ class GoogleDriveClient {
 
     // Ambil token tersimpan dari LocalStorage jika memori JS ter-reset saat PWA minimised
     if (!this.accessToken) {
-      this.accessToken = localStorage.getItem('risly_access_token') || '';
-      this.expiresAt = Number(localStorage.getItem('risly_token_expires_at')) || 0;
+      this.accessToken = gdriveReadCookie('risly_access_token') || '';
+      this.expiresAt = Number(gdriveReadCookie('risly_token_expires_at')) || 0;
     }
 
     if (this.accessToken && this.expiresAt - 60_000 > Date.now()) return this.accessToken;
@@ -275,8 +290,8 @@ class GoogleDriveClient {
     // Jika token kadaluwarsa di iOS PWA, kosongkan token dan minta pengguna menekan tombol login Google lagi
     this.accessToken = '';
     this.expiresAt = 0;
-    localStorage.removeItem('risly_access_token');
-    localStorage.removeItem('risly_token_expires_at');
+    gdriveCookie('risly_access_token', null);
+    gdriveCookie('risly_token_expires_at', null);
     throw new DriveAuthError('Sesi Google berakhir. Klik "Masuk dengan Google" untuk melanjutkan.');
   }
 
@@ -285,7 +300,7 @@ class GoogleDriveClient {
     this.accessToken = '';
     this.expiresAt = 0;
     this.account = null;
-    localStorage.removeItem(ACCOUNT_KEY);
+    gdriveCookie(ACCOUNT_KEY, null);
     this.emit();
     if (token) {
       try {
