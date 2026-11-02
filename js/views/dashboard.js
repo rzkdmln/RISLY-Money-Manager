@@ -107,57 +107,60 @@ export function dashboardView(user) {
     })}
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 min-w-0 w-full">
-      <section class="networth-card lg:col-span-2 min-w-0 w-full overflow-hidden relative rounded-2xl bg-[#132347] text-white p-6 shadow-xl border border-slate-800 flex flex-col justify-between gap-6">
+      <section class="networth-card lg:col-span-2 min-w-0 w-full overflow-hidden relative rounded-2xl bg-white text-slate-900 p-6 shadow-lg shadow-slate-200/50 border border-slate-200/80 flex flex-col justify-between gap-6">
 
-        <!-- HEADER: KEKAYAAN SAYA & KELUARGA (SEJAJAR) -->
+        <!-- HEADER: KEKAYAAN SAYA & KELUARGA -->
         <div class="flex items-center justify-between gap-4 min-w-0">
           <!-- Main Net Worth -->
           <div class="min-w-0">
             <div class="flex items-center gap-2">
-              <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Kekayaan Saya</span>
-              <button type="button" class="text-slate-400 hover:text-white transition-colors shrink-0" data-action="toggle-privacy">
+              <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Kekayaan Saya</span>
+              <button type="button" class="text-slate-400 hover:text-slate-600 transition-colors shrink-0" data-action="toggle-privacy">
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>
               </button>
             </div>
-            <h2 class="text-3xl font-extrabold tracking-tight text-white truncate mt-1">Rp 1.989.000</h2>
+            <h2 class="text-3xl font-extrabold tracking-tight text-slate-900 truncate mt-1">Rp 1.989.000</h2>
           </div>
 
-          <!-- Family Net Worth (Badge Clean) -->
-          <div class="bg-[#0b152c]/80 border border-slate-700/50 rounded-xl px-4 py-2.5 text-right shrink-0">
-            <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Kekayaan Keluarga</span>
-            <span class="text-base font-bold text-slate-200 mt-0.5 block">Rp 2.811.305</span>
+          <!-- Family Net Worth (Badge Light Clean) -->
+          <div class="bg-slate-50 border border-slate-200/80 rounded-xl px-4 py-2.5 text-right shrink-0">
+            <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Kekayaan Keluarga</span>
+            <span class="text-base font-bold text-slate-800 mt-0.5 block">Rp 2.811.305</span>
           </div>
         </div>
 
-        <!-- STATISTIK ARUS KAS BULAN INI (BERSIH & KONTRAS) -->
-        <div class="grid grid-cols-3 gap-3 bg-[#0b152c]/60 rounded-xl p-4 border border-slate-700/40">
+        <!-- STATISTIK ARUS KAS BULAN INI -->
+        <div class="grid grid-cols-3 gap-3 bg-slate-50/80 rounded-xl p-4 border border-slate-100">
           <div class="min-w-0">
-            <span class="block text-xs font-medium text-slate-400 truncate">Masuk (Bln Ini)</span>
-            <span class="block text-sm font-bold text-emerald-400 truncate mt-1">+Rp 4.698.200</span>
+            <span class="block text-xs font-medium text-slate-500 truncate">Masuk (Bln Ini)</span>
+            <span class="block text-sm font-bold text-emerald-600 truncate mt-1">+Rp 4.698.200</span>
           </div>
-          <div class="min-w-0 border-l border-slate-700/60 pl-3 sm:pl-4">
-            <span class="block text-xs font-medium text-slate-400 truncate">Keluar (Bln Ini)</span>
-            <span class="block text-sm font-bold text-rose-400 truncate mt-1">-Rp 2.460.768</span>
+          <div class="min-w-0 border-l border-slate-200/60 pl-3 sm:pl-4">
+            <span class="block text-xs font-medium text-slate-500 truncate">Keluar (Bln Ini)</span>
+            <span class="block text-sm font-bold text-rose-600 truncate mt-1">-Rp 2.460.768</span>
           </div>
-          <div class="min-w-0 border-l border-slate-700/60 pl-3 sm:pl-4">
-            <span class="block text-xs font-medium text-slate-400 truncate">Arus Kas</span>
-            <span class="block text-sm font-bold text-blue-400 truncate mt-1">+Rp 2.237.432</span>
+          <div class="min-w-0 border-l border-slate-200/60 pl-3 sm:pl-4">
+            <span class="block text-xs font-medium text-slate-500 truncate">Arus Kas</span>
+            <span class="block text-sm font-bold text-blue-600 truncate mt-1">+Rp 2.237.432</span>
           </div>
         </div>
 
-        <!-- TOMBOL AKSI TERINTEGRASI & HARMONIS -->
+        <!-- TOMBOL AKSI TERANG -->
         <div class="grid grid-cols-3 gap-3">
-          <button type="button" data-action="add-tx" data-type="expense" class="flex items-center justify-center gap-2 bg-rose-600/90 hover:bg-rose-600 text-white font-semibold text-xs sm:text-sm py-2.5 px-3 rounded-xl transition-all shadow-md shadow-rose-900/20 active:scale-95">
+          <!-- Pengeluaran (Primary Action) -->
+          <button type="button" data-action="add-tx" data-type="expense" class="flex items-center justify-center gap-2 bg-rose-500 hover:bg-rose-600 text-white font-semibold text-xs sm:text-sm py-2.5 px-3 rounded-xl transition-all shadow-md shadow-rose-500/20 active:scale-95">
             <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
             <span class="truncate">Pengeluaran</span>
           </button>
 
-          <button type="button" data-action="add-tx" data-type="income" class="flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/40 font-semibold text-xs sm:text-sm py-2.5 px-3 rounded-xl transition-all active:scale-95">
+          <!-- Pemasukan (Secondary Action) -->
+          <button type="button" data-action="add-tx" data-type="income" class="flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 font-semibold text-xs sm:text-sm py-2.5 px-3 rounded-xl transition-all active:scale-95">
             <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
             <span class="truncate">Pemasukan</span>
           </button>
 
-          <button type="button" data-action="add-tx" data-type="transfer" class="flex items-center justify-center gap-2 bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 border border-slate-700/60 font-semibold text-xs sm:text-sm py-2.5 px-3 rounded-xl transition-all active:scale-95">
+          <!-- Transfer (Tertiary Action) -->
+          <button type="button" data-action="add-tx" data-type="transfer" class="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200/80 text-slate-700 border border-slate-200/80 font-semibold text-xs sm:text-sm py-2.5 px-3 rounded-xl transition-all active:scale-95">
             <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h13M17 4l3 3-3 3M17 17H4M7 14l-3 3 3 3"></path></svg>
             <span class="truncate">Transfer</span>
           </button>
