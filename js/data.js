@@ -282,6 +282,7 @@ export function migrateData(raw) {
     settings.ownerEmail = data.users.find((user) => user.googleEmail)?.googleEmail || '';
   }
 
+  const defaultOwner = data.users?.[0]?.id || 'owner';
   data.accounts = Array.isArray(data.accounts) ? data.accounts : defaultAccounts();
   data.accounts = data.accounts.map((account) => ({
     id: account.id || uid('acc'),
@@ -289,6 +290,7 @@ export function migrateData(raw) {
     type: account.type || 'cash',
     color: account.color || '#3B82F6',
     openingBalance: Number(account.openingBalance) || 0,
+    owner: account.owner || defaultOwner,
     archived: Boolean(account.archived),
     createdAt: account.createdAt || data.updatedAt,
     updatedAt: account.updatedAt || data.updatedAt,

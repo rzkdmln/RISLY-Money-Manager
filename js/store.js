@@ -643,8 +643,23 @@ class Store {
     return sum(this.activeAccounts().map((account) => this.accountBalance(account.id)));
   }
 
+  personalBalance(userId = null) {
+    const ownerId = userId || this.currentUserId;
+    return sum(
+      this.activeAccounts()
+        .filter((account) => account.owner === ownerId)
+        .map((account) => this.accountBalance(account.id)),
+    );
+  }
+
+  accountsByOwner(userId = null) {
+    const ownerId = userId || this.currentUserId;
+    return this.activeAccounts().filter((account) => account.owner === ownerId);
+  }
+
   saveAccount(payload, id = null) {
     return this.commit(id ? 'account:update' : 'account:add', (data, now) => {
+      const owner = payload.owner || this.currentUserId || (data.users?.[0]?.id || 'owner');
       if (id) {
         const account = data.accounts.find((item) => item.id === id);
         if (!account) throw new Error('Akun tidak ditemukan.');
@@ -653,6 +668,7 @@ class Store {
           type: payload.type || account.type,
           color: payload.color || account.color,
           openingBalance: safeNumber(payload.openingBalance),
+          owner: owner,
           updatedAt: now,
         });
         return account;
@@ -663,6 +679,7 @@ class Store {
         type: payload.type || 'cash',
         color: payload.color || '#3B82F6',
         openingBalance: safeNumber(payload.openingBalance),
+        owner: owner,
         archived: false,
         createdAt: now,
         updatedAt: now,

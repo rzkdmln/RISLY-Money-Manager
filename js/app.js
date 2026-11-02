@@ -1560,6 +1560,13 @@ async function handleAction(action, element) {
       togglePrivacy();
       renderApplication();
       break;
+    case 'toggle-networth-filter': {
+      const next = ui.networthFilter === 'mine' ? 'all' : 'mine';
+      savePrefs({ networthFilter: next });
+      ui.networthFilter = next;
+      renderApplication();
+      break;
+    }
     case 'theme-set':
       setTheme(element.dataset.theme);
       renderApplication();

@@ -17,6 +17,8 @@ export function accountForm(account = null) {
   const type = account?.type || 'cash';
   const color = account?.color || ACCOUNT_TYPES[type]?.color || '#3B82F6';
   const balance = editing ? store.accountBalance(account.id) : 0;
+  const users = store.activeUsers();
+  const ownerValue = account?.owner || store.currentUserId || users[0]?.id || '';
   return `<form data-form="account" data-id="${escapeAttr(account?.id || '')}" class="modal-form" novalidate>
     <header class="modal-header">
       <div>
@@ -38,6 +40,11 @@ export function accountForm(account = null) {
         <label class="field-label">Saldo awal
           <div class="input-with-prefix mt-1.5"><span>Rp</span><input class="field" type="number" name="openingBalance" step="1" inputmode="numeric" value="${Number(account?.openingBalance || 0)}"></div>
         </label>
+      ${users.length > 1 ? `<label class="field-label">Pemilik akun
+        <select class="field mt-1.5" name="owner">
+          ${users.map((u) => `<option value="${escapeAttr(u.id)}" ${ownerValue === u.id ? 'selected' : ''}>${escapeHTML(u.name)}</option>`).join('')}
+        </select>
+      </label>` : ''}
       </div>
       <p class="text-[11px] text-slate-400">Saldo saat ini dihitung dari saldo awal + seluruh pemasukan - pengeluaran + transfer. Untuk kartu kredit, saldo awal boleh negatif.</p>
       ${editing ? `<div class="account-form-balance">
