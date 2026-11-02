@@ -250,20 +250,8 @@ class GoogleDriveClient {
 
       return account;
     } catch (error) {
-      // If user info fetch fails, still save the token but return a minimal account
-      // Note: tokenResponse doesn't include user info, so we'll use a placeholder
-      const account = {
-        email: 'unknown@example.com',
-        name: 'Pengguna Google',
-        picture: '',
-        clientId: this.clientId,
-      };
-
-      this.account = account;
-      localStorage.setItem(ACCOUNT_KEY, JSON.stringify(account));
-      this.emit(); // Notify listeners
-
-      return account;
+      // Jangan menyimpan akun palsu; lemparkan error agar pengguna tahu
+      throw error instanceof DriveAuthError ? error : new DriveAuthError(error?.message || 'Gagal mengambil info pengguna Google.');
     }
   }
 
