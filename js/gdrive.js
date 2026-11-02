@@ -104,7 +104,9 @@ function authErrorMessage(response) {
 class GoogleDriveClient {
   constructor() {
     this.account = readAccount();
-    this.clientId = this.account?.clientId || APP.googleClientId || '';
+    // Memastikan clientId yang dibaca selalu bertipe String
+    const rawId = this.account?.clientId || APP.googleClientId || '';
+    this.clientId = typeof rawId === 'string' ? rawId.trim() : String(rawId).trim();
     this.accessToken = '';
     this.expiresAt = 0;
     this.listeners = new Set();
@@ -139,7 +141,8 @@ class GoogleDriveClient {
   }
 
   setClientId(clientId) {
-    const next = String(clientId || '').trim();
+    // Memastikan parameter clientId dikonversi ke String terlebih dahulu
+    const next = typeof clientId === 'string' ? clientId.trim() : String(clientId || '').trim();
     if (next === this.clientId) return;
     this.clientId = next;
     this.accessToken = '';
@@ -151,8 +154,12 @@ class GoogleDriveClient {
     }
   }
 
-  async requestToken(prompt = 'select_account') { // 1. Set default prompt ke 'select_account'
-    if (!this.clientId) throw new DriveAuthError('Client ID Google belum diisi.');
+  async requestToken(prompt = 'select_account') {
+    // Menjamin client_id yang dikirim ke SDK Google pasti bertipe String
+    const validClientId = typeof this.clientId === 'string' ? this.clientId.trim() : String(this.clientId || '').trim();
+    if (!validClientId) {
+      throw new DriveAuthError('Client ID Google belum diisi atau tidak valid.');
+    }
     const google = await loadGis();
     return new Promise((resolve, reject) => {
       let settled = false;
@@ -162,7 +169,7 @@ class GoogleDriveClient {
         fn(value);
       };
       const client = google.accounts.oauth2.initTokenClient({
-        client_id: this.clientId,
+        client_id: validClientId, // Safe String
         scope: DRIVE_SCOPE,
         callback: (response) => {
           if (response?.error) {
@@ -172,7 +179,7 @@ class GoogleDriveClient {
           this.accessToken = response.access_token;
           this.expiresAt = Date.now() + (Number(response.expires_in) || 3600) * 1000;
 
-          // SIMPAN TOKEN KE LOCALSTORAGE AGAR SIKLUS PWA BISA MEMBACA KEMBALI
+          // Simpan token ke localStorage agar PWA iOS dapat membaca ulang sesi
           localStorage.setItem('risly_access_token', response.access_token);
           localStorage.setItem('risly_token_expires_at', String(this.expiresAt));
 
@@ -183,7 +190,6 @@ class GoogleDriveClient {
         },
       });
       try {
-        // 2. Pastikan prompt dipanggil secara eksplisit untuk membuka Popup
         client.requestAccessToken({ prompt: prompt || 'select_account' });
       } catch (error) {
         finish(reject, new DriveAuthError(error?.message || 'Google Sign-In gagal dibuka.'));
@@ -198,7 +204,7 @@ class GoogleDriveClient {
   async signIn(prompt = 'select_account') {
     // 1. Get OAuth2 token
     const tokenResponse = await this.requestToken(prompt);
-    
+
     // 2. Get user info using the access token
     try {
       const userInfoResponse = await fetch(`${USERINFO_URL}`, {
@@ -206,13 +212,13 @@ class GoogleDriveClient {
           'Authorization': `Bearer ${tokenResponse.access_token}`
         }
       });
-      
+
       if (!userInfoResponse.ok) {
         throw new DriveAuthError(`Gagal mengambil info pengguna: ${userInfoResponse.status}`);
       }
-      
+
       const userInfo = await userInfoResponse.json();
-      
+
       // 3. Create account object with required fields
       const account = {
         email: userInfo.email,
@@ -220,12 +226,12 @@ class GoogleDriveClient {
         picture: userInfo.picture,
         clientId: this.clientId,
       };
-      
+
       // 4. Save account to localStorage
       this.account = account;
       localStorage.setItem(ACCOUNT_KEY, JSON.stringify(account));
       this.emit(); // Notify listeners
-      
+
       return account;
     } catch (error) {
       // If user info fetch fails, still save the token but return a minimal account
@@ -236,11 +242,11 @@ class GoogleDriveClient {
         picture: '',
         clientId: this.clientId,
       };
-      
+
       this.account = account;
       localStorage.setItem(ACCOUNT_KEY, JSON.stringify(account));
       this.emit(); // Notify listeners
-      
+
       return account;
     }
   }
