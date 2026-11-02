@@ -6,7 +6,6 @@
  */
 
 import { APP, CLOUD_PROVIDERS } from '../config.js';
-import { GoogleDrive, googleAccountBadge } from '../gdrive.js';
 import { icon } from '../icons.js';
 import { escapeAttr, escapeHTML } from '../utils.js';
 
@@ -22,13 +21,10 @@ export function cloudProviderFields(config = {}, options = {}) {
 
   const provider = config.provider && (includeLocal || config.provider !== 'local')
     ? config.provider
-    : includeLocal ? 'local' : 'gdrive';
-  const gdrive = config.gdrive || {};
+    : includeLocal ? 'local' : 'jsonbin';
   const jsonbin = config.jsonbin || {};
   const supabase = config.supabase || {};
   const firebase = config.firebase || {};
-  const account = GoogleDrive.getAccount();
-  const clientId = gdrive.clientId || GoogleDrive.getClientId() || '';
   const providerEntries = Object.entries(CLOUD_PROVIDERS)
     .filter(([id]) => includeLocal || id !== 'local');
 
@@ -39,19 +35,6 @@ export function cloudProviderFields(config = {}, options = {}) {
       </select>
     </label>
     <p class="text-[11px] leading-5 text-slate-500 dark:text-slate-400" ${helpId ? `id="${escapeAttr(helpId)}" ` : ''}data-cloud-help>${escapeHTML(CLOUD_PROVIDERS[provider]?.description || '')}</p>
-  </div>
-
-  <div class="cloud-fields" data-provider-section="gdrive" ${provider === 'gdrive' ? '' : 'hidden'}>
-    <label class="field-label">Google OAuth Client ID
-      <input class="field mt-1.5 font-mono text-[11px]" name="gdriveClientId" value="${escapeAttr(clientId)}" placeholder="1234567890-abc123.apps.googleusercontent.com" autocomplete="off" spellcheck="false">
-    </label>
-    <p class="text-[11px] leading-5 text-slate-400">Client ID bawaan sudah terisi. Ubah hanya jika memakai project Google Cloud lain. <b>Client Secret tidak dipakai</b> dan tidak boleh disimpan di aplikasi.</p>
-    <div data-gdrive-account>${googleAccountBadge(account)}</div>
-    <div class="flex flex-wrap items-center gap-2">
-      <button type="button" class="btn btn-secondary btn-sm" data-action="gdrive-signin">${icon('cloud', 'w-3.5 h-3.5')} ${account ? 'Sambungkan ulang' : 'Masuk dengan Google'}</button>
-      <button type="button" class="btn btn-ghost btn-sm" data-action="gdrive-signout" data-gdrive-when-connected ${account ? '' : 'hidden'}>Keluar dari Google</button>
-    </div>
-    <p class="text-[11px] leading-5 text-slate-500 dark:text-slate-400">Buat <b>OAuth Client ID</b> tipe <b>Web application</b> di Google Cloud Console, aktifkan <b>Google Drive API</b>, lalu tambahkan origin <code class="cloud-origin">${escapeHTML(location.origin)}</code> ke <i>Authorized JavaScript origins</i>. File disimpan di folder tersembunyi aplikasi, bukan di My Drive.</p>
   </div>
 
   <div class="cloud-fields" data-provider-section="jsonbin" ${provider === 'jsonbin' ? '' : 'hidden'}>

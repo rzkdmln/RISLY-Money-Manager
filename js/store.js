@@ -1049,7 +1049,7 @@ class Store {
       const user = data.users.find((item) => item.id === id);
       if (!user) throw new Error('Pengguna tidak ditemukan.');
       const allowed = [
-        'name', 'initials', 'color', 'pinHash', 'pinSalt', 'pinIterations',
+        'name', 'initials', 'color', 'googleEmail', 'pinHash', 'pinSalt', 'pinIterations',
       ];
       allowed.forEach((key) => {
         if (patch[key] !== undefined) user[key] = patch[key];

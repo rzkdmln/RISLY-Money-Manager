@@ -164,6 +164,7 @@ export function defaultUsers() {
       name: 'Rizki',
       color: '#2563EB',
       initials: 'R',
+      googleEmail: '',
       pinHash: '',
       pinSalt: '',
       pinIterations: 0,
@@ -175,6 +176,7 @@ export function defaultUsers() {
       name: 'Shelly',
       color: '#DB2777',
       initials: 'S',
+      googleEmail: '',
       pinHash: '',
       pinSalt: '',
       pinIterations: 0,
@@ -253,6 +255,7 @@ export function migrateData(raw) {
       id: base.id,
       name: String(found.name || base.name),
       initials: String(found.initials || found.name?.[0] || base.initials),
+      googleEmail: String(found.googleEmail || '').trim().toLowerCase(),
       updatedAt: found.updatedAt || base.updatedAt,
       createdAt: found.createdAt || base.createdAt,
     };

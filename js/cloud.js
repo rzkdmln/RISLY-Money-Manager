@@ -1,6 +1,5 @@
 import { APP, CLOUD_PROVIDERS } from './config.js';
 import { deepClone, nowISO } from './utils.js';
-import { DriveAuthError, GoogleDrive } from './gdrive.js';
 
 const FIREBASE_VERSION = '10.12.5';
 const FIREBASE_APP_URL = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`;
@@ -261,45 +260,6 @@ class FirebaseAdapter {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Google Drive adapter                                                      */
-/* -------------------------------------------------------------------------- */
-
-class GDriveAdapter {
-  constructor(config) {
-    this.clientId = String(config.gdrive?.clientId || '').trim();
-    this.fileName = String(config.gdrive?.fileName || APP.driveSyncFile).trim() || APP.driveSyncFile;
-    if (!this.clientId) throw new Error('Client ID Google wajib diisi.');
-    GoogleDrive.setClientId(this.clientId);
-  }
-
-  async read() {
-    const token = await GoogleDrive.token();
-    const file = await GoogleDrive.findFile(token, this.fileName);
-    if (!file) return null;
-    const text = await GoogleDrive.downloadFile(token, file.id);
-    if (!text) return null;
-    let parsed;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      throw new Error('File sinkronisasi di Drive rusak atau bukan JSON.');
-    }
-    return extractEnvelope(parsed);
-  }
-
-  async write(envelope) {
-    const token = await GoogleDrive.token();
-    const text = JSON.stringify(envelope);
-    await GoogleDrive.saveFile(token, this.fileName, text);
-    return envelope;
-  }
-
-  async subscribe() {
-    return null;
-  }
-}
-
-/* -------------------------------------------------------------------------- */
 /*  Cloud synchronisation controller                                          */
 /* -------------------------------------------------------------------------- */
 
@@ -334,6 +294,13 @@ class CloudSync {
   loadConfig() {
     try {
       const parsed = JSON.parse(localStorage.getItem(APP.cloudKey) || 'null');
+      if (parsed?.provider === 'gdrive') {
+        // Google Drive is backup-only now. Keep the Google account link but
+        // stop the old automatic sync engine.
+        const migrated = { provider: 'local' };
+        localStorage.setItem(APP.cloudKey, JSON.stringify(migrated));
+        return migrated;
+      }
       if (parsed?.provider) return parsed;
     } catch { /* noop */ }
     return { provider: 'local' };
@@ -354,15 +321,6 @@ class CloudSync {
 
   getConfig() {
     return deepClone(this.config);
-  }
-
-  /** Keep the saved config in sync when the user signs in with another Client ID. */
-  setGDriveClientId(clientId) {
-    if (this.config.provider !== 'gdrive') return;
-    const next = String(clientId || '').trim();
-    if (!next || this.config.gdrive?.clientId === next) return;
-    this.config = { ...this.config, gdrive: { ...(this.config.gdrive || {}), clientId: next } };
-    localStorage.setItem(APP.cloudKey, JSON.stringify(this.config));
   }
 
   getStatus() {
@@ -432,8 +390,6 @@ class CloudSync {
 
   createAdapter(config) {
     switch (config.provider) {
-      case 'gdrive':
-        return new GDriveAdapter(config);
       case 'jsonbin':
         return new JsonBinAdapter(config);
       case 'supabase':
@@ -489,10 +445,9 @@ class CloudSync {
       console.error('Cloud connect failed:', error);
       this.connected = false;
       this.lastError = error.message;
-      const needsAuth = error instanceof DriveAuthError || error?.code === 'auth';
-      this.setStatus(needsAuth ? 'idle' : 'error', error.message);
-      // Polling can recover from transient network failures, but not config or auth errors.
-      if (!needsAuth && !/wajib|valid|JSON|tidak|belum diaktifkan|Enable/i.test(error.message)) this.startEngine();
+      this.setStatus('error', error.message);
+      // Polling can recover from transient network failures, but not config errors.
+      if (!/wajib|valid|JSON|tidak|belum diaktifkan|Enable/i.test(error.message)) this.startEngine();
       return { ok: false, error };
     }
   }

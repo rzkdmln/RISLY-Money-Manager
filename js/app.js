@@ -522,7 +522,7 @@ function openAuthCloudModal() {
         <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
       </header>
       <div class="modal-body">
-        <p class="text-sm leading-6 text-slate-500 dark:text-slate-400">Pilih penyedia yang sudah berisi data keluarga. Untuk Google Drive, masuk dengan akun Google lebih dulu. Setelah terhubung, PIN dan data akan ditarik dari cloud, lalu Anda bisa masuk seperti biasa.</p>
+        <p class="text-sm leading-6 text-slate-500 dark:text-slate-400">Pilih penyedia sinkron lain (JSONBin, Supabase, atau Firebase) yang sudah berisi data keluarga. Google Drive tidak dipakai untuk sinkron otomatis — gunakan tombol Google di atas untuk login dan backup manual.</p>
         ${authCloudFields(Cloud.getConfig())}
         <p class="form-error hidden" data-form-error role="alert"></p>
       </div>
@@ -703,20 +703,6 @@ function parseCloudConfig(form) {
   const provider = String(fd.get('provider') || 'local');
   if (provider === 'local') return { provider: 'local' };
 
-  if (provider === 'gdrive') {
-    const clientId = String(fd.get('gdriveClientId') || '').trim() || APP.googleClientId;
-    if (!clientId) throw new Error('Client ID Google wajib diisi.');
-    if (!/\.apps\.googleusercontent\.com$/.test(clientId)) {
-      throw new Error('Client ID Google tidak valid (harus berakhiran .apps.googleusercontent.com).');
-    }
-    return {
-      provider,
-      gdrive: {
-        clientId,
-        fileName: APP.driveSyncFile,
-      },
-    };
-  }
   if (provider === 'jsonbin') {
     return {
       provider,
@@ -1103,9 +1089,24 @@ function refreshDriveUi() {
   });
 }
 
-async function driveBackupNow() {
+/** Make sure we have a Drive token, signing in again when the old session expired. */
+async function ensureDriveAccess() {
   if (!GoogleDrive.isConnected()) {
-    toast('Masuk dengan Google dulu untuk memakai backup Drive.', 'info');
+    await GoogleDrive.signIn({ prompt: 'select_account' });
+    return;
+  }
+  try {
+    await GoogleDrive.token();
+  } catch {
+    await GoogleDrive.signIn({ prompt: 'select_account' });
+  }
+}
+
+async function driveBackupNow() {
+  try {
+    await ensureDriveAccess();
+  } catch (error) {
+    toast(error.message || 'Masuk dengan Google dulu untuk memakai backup Drive.', 'error');
     return;
   }
   const payload = {
@@ -1134,8 +1135,10 @@ async function driveBackupNow() {
 }
 
 async function openDriveRestoreModal() {
-  if (!GoogleDrive.isConnected()) {
-    toast('Masuk dengan Google dulu untuk memakai backup Drive.', 'info');
+  try {
+    await ensureDriveAccess();
+  } catch (error) {
+    toast(error.message || 'Masuk dengan Google dulu untuk memakai backup Drive.', 'error');
     return;
   }
   let files = [];
@@ -1191,8 +1194,17 @@ async function driveRestoreFile(fileId) {
       throw new Error('Struktur backup tidak dikenali.');
     }
     store.importData(data);
-    const user = store.currentUser || store.activeUsers()[0];
+    const accountEmail = String(GoogleDrive.getAccount()?.email || '').toLowerCase();
+    const linked = accountEmail
+      ? store.activeUsers().find((user) => String(user.googleEmail || '').toLowerCase() === accountEmail)
+      : null;
     closeModal({ silent: true });
+    if (linked?.pinHash) {
+      enterApplication(linked, { fresh: true });
+      toast(`Backup dipulihkan. Masuk sebagai ${linked.name}.`, 'success');
+      return;
+    }
+    const user = store.currentUser || store.activeUsers()[0];
     if (!user?.pinHash) {
       clearSession();
       store.setCurrentUser(null);
@@ -1864,7 +1876,7 @@ async function handleAction(action, element) {
     }
     case 'gdrive-signin': {
       const form = element.closest('form');
-      const input = form?.querySelector('[name="gdriveClientId"]');
+      const input = form?.querySelector('[name="gdriveClientId"]') || document.querySelector('[name="gdriveClientId"]');
       const clientId = String(input?.value || GoogleDrive.getClientId() || '').trim();
       if (!clientId) {
         toast('Isi Google OAuth Client ID dulu.', 'info');
@@ -1875,13 +1887,15 @@ async function handleAction(action, element) {
       element.disabled = true;
       element.textContent = 'Menghubungkan…';
       try {
-        const account = await GoogleDrive.signIn(clientId);
+        const account = await GoogleDrive.signIn({ clientId, prompt: 'select_account' });
         refreshDriveUi();
-        toast(`Tersambung sebagai ${account.email}.`, 'success');
-        if (Cloud.getConfig().provider === 'gdrive') {
-          Cloud.setGDriveClientId(clientId);
-          Cloud.connect(Cloud.getConfig()).catch(() => {});
+        if (store.currentUser) {
+          ui.appMounted = false;
+          renderApplication();
+        } else {
+          renderAuth();
         }
+        toast(`Tersambung sebagai ${account.email}.`, 'success');
       } catch (error) {
         console.error(error);
         toast(error.message || 'Gagal masuk dengan Google.', 'error');
@@ -1891,25 +1905,58 @@ async function handleAction(action, element) {
       }
       break;
     }
-    case 'gdrive-login': {
+    case 'gdrive-link-user': {
+      const user = store.currentUser;
+      const account = GoogleDrive.getAccount();
+      if (!user) break;
+      if (!account?.email) {
+        toast('Masuk dengan Google dulu untuk menautkan akun.', 'info');
+        break;
+      }
+      const email = account.email.toLowerCase();
+      const taken = store.activeUsers().find((item) => item.id !== user.id
+        && String(item.googleEmail || '').toLowerCase() === email);
+      if (taken) {
+        toast(`Akun Google ini sudah tertaut ke profil ${taken.name}.`, 'error');
+        break;
+      }
+      store.updateUser(user.id, { googleEmail: email });
+      ui.appMounted = false;
+      renderApplication();
+      toast(`Akun ${account.email} ditautkan ke profil ${user.name}.`, 'success');
+      break;
+    }
+    case 'gdrive-unlink-user': {
+      const user = store.currentUser;
+      if (!user?.googleEmail) break;
+      store.updateUser(user.id, { googleEmail: '' });
+      ui.appMounted = false;
+      renderApplication();
+      toast('Tautan akun Google dilepas. Login Google untuk profil ini dinonaktifkan.', 'success');
+      break;
+    }
+    case 'google-login': {
       const label = element.innerHTML;
       element.disabled = true;
       element.textContent = 'Menghubungkan…';
       try {
-        const account = await GoogleDrive.signIn();
-        const current = Cloud.getConfig();
-        const clientId = GoogleDrive.getClientId();
-        const config = current.provider === 'gdrive'
-          ? { ...current, gdrive: { ...(current.gdrive || {}), clientId } }
-          : { provider: 'gdrive', gdrive: { clientId, fileName: APP.driveSyncFile } };
-        const result = await Cloud.connect(config);
-        if (!result.ok) throw result.error || new Error('Gagal menyinkronkan data dari Drive.');
-        const users = store.activeUsers().filter((user) => user.pinHash);
-        if (users.length) {
-          toast(`Tersambung sebagai ${account.email}. Data keluarga dimuat.`, 'success');
-        } else {
-          toast(`Tersambung sebagai ${account.email}, tetapi belum ada data keluarga di Drive ini.`, 'info');
+        const account = await GoogleDrive.signIn({ prompt: 'select_account' });
+        const email = String(account.email || '').toLowerCase();
+        const linked = store.activeUsers().find((user) => String(user.googleEmail || '').toLowerCase() === email);
+        if (linked?.pinHash) {
+          ui.pendingGoogleLink = null;
+          enterApplication(linked, { fresh: true });
+          toast(`Masuk sebagai ${linked.name}.`, 'success');
+          break;
         }
+        ui.pendingGoogleLink = email;
+        if (!store.activeUsers().some((user) => user.pinHash)) {
+          // Fresh device: nothing to unlock yet, offer the Drive backup.
+          renderAuth();
+          await openDriveRestoreModal();
+          break;
+        }
+        toast('Akun Google ini belum ditautkan. Masuk dengan PIN sekali untuk menautkannya.', 'info');
         renderAuth();
       } catch (error) {
         console.error(error);
@@ -1920,22 +1967,36 @@ async function handleAction(action, element) {
       }
       break;
     }
+    case 'google-restore': {
+      const label = element.innerHTML;
+      element.disabled = true;
+      element.textContent = 'Menghubungkan…';
+      try {
+        await openDriveRestoreModal();
+      } catch (error) {
+        console.error(error);
+        toast(error.message || 'Gagal memulihkan dari Google Drive.', 'error');
+      } finally {
+        element.disabled = false;
+        element.innerHTML = label;
+      }
+      break;
+    }
     case 'gdrive-signout': {
       const ok = await confirmDialog({
         title: 'Keluar dari Google?',
-        message: 'Sinkronisasi dan backup Drive berhenti di perangkat ini. Data lokal tetap aman.',
+        message: 'Backup Drive dan login Google berhenti di perangkat ini. Tautan akun ke profil tetap tersimpan, data lokal tetap aman.',
         confirmLabel: 'Keluar',
       });
       if (!ok) return;
-      if (Cloud.getConfig().provider === 'gdrive') {
-        try { await Cloud.disconnect(); } catch { /* noop */ }
-      }
       await GoogleDrive.signOut();
       refreshDriveUi();
       toast('Akun Google diputuskan.', 'success');
       if (store.currentUser) {
         ui.appMounted = false;
         renderApplication();
+      } else {
+        renderAuth();
       }
       break;
     }
@@ -1998,6 +2059,16 @@ async function submitLogin(form) {
     const valid = await verifyPin(user, pin);
     if (valid) {
       resetFailedAttempts(user.id);
+      if (ui.pendingGoogleLink) {
+        const email = String(ui.pendingGoogleLink).toLowerCase();
+        ui.pendingGoogleLink = null;
+        const taken = store.activeUsers().find((item) => item.id !== user.id
+          && String(item.googleEmail || '').toLowerCase() === email);
+        if (!taken) {
+          store.updateUser(user.id, { googleEmail: email });
+          toast(`Akun Google ${email} ditautkan ke profil ${user.name}.`, 'success');
+        }
+      }
       enterApplication(user, { fresh: true });
       return;
     }

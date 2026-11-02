@@ -6,7 +6,7 @@ import {
   WEEK_OPTIONS,
 } from '../config.js';
 import { Cloud } from '../cloud.js';
-import { GoogleDrive, googleAccountBadge } from '../gdrive.js';
+import { GoogleDrive, googleAccountBadge, googleGlyph } from '../gdrive.js';
 import { cloudProviderFields } from '../forms/cloud.js';
 import { store } from '../store.js';
 import { icon } from '../icons.js';
@@ -43,6 +43,46 @@ function notificationStatus() {
   if (Notification.permission === 'granted') return { label: 'Aktif', tone: 'green', canAsk: false };
   if (Notification.permission === 'denied') return { label: 'Diblokir', tone: 'red', canAsk: false };
   return { label: 'Belum diizinkan', tone: 'amber', canAsk: true };
+}
+
+function googleDriveCard(user, driveConnected) {
+  const account = GoogleDrive.getAccount();
+  const linkedEmail = String(user?.googleEmail || '').toLowerCase();
+  const accountEmail = String(account?.email || '').toLowerCase();
+  const linked = Boolean(linkedEmail);
+  const different = linked && accountEmail && linkedEmail !== accountEmail;
+  const canLink = driveConnected && accountEmail && (!linked || different);
+  return `<section class="card" id="google-drive">
+    <div class="card-heading">
+      <div><p class="card-kicker">Google</p><h2 class="section-title">Login, backup & pulihkan</h2></div>
+      ${icon('cloud', 'w-5 h-5 text-blue-500')}
+    </div>
+
+    <div data-gdrive-account>${googleAccountBadge(account)}</div>
+
+    <div class="settings-list mt-4">
+      <div class="settings-row">
+        <span class="settings-row-icon">${icon('user', 'w-4 h-4')}</span>
+        <span class="flex-1"><strong>Profil ${escapeHTML(user?.name || 'Anggota')}</strong><small>${linked ? `Tertaut ke ${escapeHTML(user.googleEmail)}` : 'Belum ada akun Google tertaut'}</small></span>
+        ${badge(linked ? 'Tertaut' : 'Belum', linked ? 'green' : 'slate', 'badge-soft')}
+      </div>
+      ${different ? `<div class="settings-row"><span class="settings-row-icon text-amber-500">${icon('alert-triangle', 'w-4 h-4')}</span><span class="flex-1"><strong>Akun Google berbeda</strong><small>Perangkat masuk sebagai ${escapeHTML(account.email)}. Tautkan ulang jika ingin login dengan akun ini.</small></span></div>` : ''}
+      ${canLink ? `<button type="button" class="settings-row" data-action="gdrive-link-user"><span class="settings-row-icon">${icon('user', 'w-4 h-4')}</span><span class="flex-1"><strong>Tautkan akun Google ini</strong><small>${escapeHTML(account.email)} → ${escapeHTML(user?.name || 'profil ini')}</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>` : ''}
+      ${linked ? `<button type="button" class="settings-row" data-action="gdrive-unlink-user"><span class="settings-row-icon text-red-500">${icon('x', 'w-4 h-4')}</span><span class="flex-1"><strong class="text-red-500">Lepas tautan Google</strong><small>Login Google untuk profil ini dinonaktifkan</small></span></button>` : ''}
+    </div>
+
+    ${driveConnected ? `<div class="settings-actions mt-4">
+      <button type="button" class="btn btn-secondary btn-sm" data-action="drive-backup" data-drive-requires-google>${icon('cloud', 'w-3.5 h-3.5')} Backup sekarang</button>
+      <button type="button" class="btn btn-secondary btn-sm" data-action="drive-restore" data-drive-requires-google>${icon('upload', 'w-3.5 h-3.5')} Pulihkan</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-action="gdrive-signout">${icon('log-out', 'w-3.5 h-3.5')} Keluar Google</button>
+    </div>
+    <p class="text-[11px] leading-5 text-slate-400 mt-3">Backup manual ke folder tersembunyi aplikasi. Maksimal ${APP.driveBackupLimit} berkas terbaru disimpan. Tidak ada sinkron otomatis — data lokal tetap jadi sumber utama. Login Google membuka aplikasi tanpa PIN, jadi amankan akun Google di perangkat ini.</p>`
+    : `<label class="field-label mt-4">Google OAuth Client ID
+      <input class="field mt-1.5 font-mono text-[11px]" name="gdriveClientId" value="${escapeAttr(GoogleDrive.getClientId() || APP.googleClientId)}" placeholder="…apps.googleusercontent.com" autocomplete="off" spellcheck="false">
+    </label>
+    <button type="button" class="btn btn-secondary w-full mt-3" data-action="gdrive-signin">${googleGlyph('w-4 h-4')} Masuk dengan Google</button>
+    <p class="text-[11px] leading-5 text-slate-400 mt-3">Client ID bawaan sudah terisi. Masuk sekali untuk mengaktifkan login Google dan backup Drive di perangkat ini.</p>`}
+  </section>`;
 }
 
 export function settingsView(user) {
@@ -148,11 +188,13 @@ export function settingsView(user) {
       </section>
     </div>
 
+    ${googleDriveCard(user, driveConnected)}
+
     <section class="card" id="cloud-settings">
       <div class="card-heading">
         <div>
-          <p class="card-kicker">Sinkronisasi dua perangkat</p>
-          <h2 class="section-title">Cloud backend</h2>
+          <p class="card-kicker">Opsional</p>
+          <h2 class="section-title">Sinkron cloud lain</h2>
         </div>
         <div class="flex items-center gap-2">${syncPill(status)}${badge(status.connected ? 'Terhubung' : 'Belum terhubung', status.connected ? 'green' : 'slate', 'badge-soft')}</div>
       </div>
@@ -161,7 +203,6 @@ export function settingsView(user) {
           <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">${escapeHTML(status.providerLabel)}</p>
           <p class="text-xs ${status.state === 'error' ? 'text-red-500' : 'text-slate-500 dark:text-slate-400'} mt-0.5">${escapeHTML(status.error || status.message || CLOUD_PROVIDERS[status.provider]?.description || 'Data lokal')}</p>
           <p class="text-[11px] text-slate-400 mt-1">${status.lastSyncAt ? `Terakhir sinkron ${formatDateTime(status.lastSyncAt)}` : 'Belum pernah tersinkron'}</p>
-          ${status.provider === 'gdrive' ? `<div class="mt-2" data-gdrive-account>${googleAccountBadge(GoogleDrive.getAccount())}</div>` : ''}
         </div>
         <div class="flex gap-2">
           ${status.provider !== 'local' ? `<button type="button" class="btn btn-secondary btn-sm" data-action="sync-now">${icon('refresh', 'w-3.5 h-3.5')} Sinkron</button>` : ''}
@@ -174,7 +215,7 @@ export function settingsView(user) {
           <button type="submit" class="btn btn-primary">${icon(status.connected ? 'refresh' : 'cloud', 'w-4 h-4')} ${status.connected ? 'Simpan & sambungkan ulang' : 'Simpan & hubungkan'}</button>
           <button type="button" class="btn btn-secondary" data-action="cloud-test">Uji koneksi</button>
         </div>
-        <p class="text-[11px] text-slate-400 mt-3">Google Drive, JSONBin, dan Supabase memakai polling ±20 detik. Firebase memakai listener real-time. Data tetap bisa dipakai offline dari cache lokal.</p>
+        <p class="text-[11px] text-slate-400 mt-3">Hanya untuk JSONBin, Supabase, atau Firebase. Google Drive sengaja tidak dipakai untuk sinkron otomatis — gunakan kartu Google di atas untuk backup manual.</p>
       </form>
     </section>
 
@@ -192,12 +233,10 @@ export function settingsView(user) {
         <div class="settings-actions">
           <button type="button" class="btn btn-secondary btn-sm" data-action="export-backup">${icon('download', 'w-3.5 h-3.5')} Unduh backup JSON</button>
           <button type="button" class="btn btn-secondary btn-sm" data-action="import-backup">${icon('upload', 'w-3.5 h-3.5')} Pulihkan backup</button>
-          <button type="button" class="btn btn-secondary btn-sm" data-action="drive-backup" data-drive-requires-google ${driveConnected ? '' : 'disabled'}>${icon('cloud', 'w-3.5 h-3.5')} Backup ke Drive</button>
-          <button type="button" class="btn btn-secondary btn-sm" data-action="drive-restore" data-drive-requires-google ${driveConnected ? '' : 'disabled'}>${icon('cloud-off', 'w-3.5 h-3.5')} Pulihkan dari Drive</button>
           <button type="button" class="btn btn-secondary btn-sm" data-action="load-sample">${icon('sparkles', 'w-3.5 h-3.5')} Muat data contoh</button>
           <button type="button" class="btn btn-danger-soft btn-sm" data-action="reset-app">${icon('trash', 'w-3.5 h-3.5')} Reset aplikasi</button>
         </div>
-        <p class="text-[11px] leading-5 text-slate-400 mt-3">Backup JSON memuat transaksi, akun, anggaran, catatan, dan hash PIN. Backup Drive memakai akun Google dan menyimpan maksimal ${APP.driveBackupLimit} berkas terbaru.</p>
+        <p class="text-[11px] leading-5 text-slate-400 mt-3">Backup JSON memuat transaksi, akun, anggaran, catatan, hash PIN, dan tautan akun Google. Untuk backup ke Drive, gunakan kartu Google di atas.</p>
       </section>
 
       <section class="card">

@@ -15,7 +15,7 @@ function cloudLine() {
   const status = Cloud.getStatus();
   if (status.provider === 'local') {
     return `<button type="button" class="auth-cloud-link" data-action="auth-cloud">
-      ${icon('cloud', 'w-3.5 h-3.5')} Hubungkan data cloud
+      ${icon('cloud', 'w-3.5 h-3.5')} Sinkron cloud lain
     </button>`;
   }
   const tone = status.state === 'error' ? 'text-red-500' : status.state === 'offline' ? 'text-amber-500' : 'text-emerald-600 dark:text-emerald-400';
@@ -24,16 +24,35 @@ function cloudLine() {
   </button>`;
 }
 
-function googleSignInBlock() {
+function googleLoginBlock() {
+  const account = GoogleDrive.getAccount();
+  const email = String(account?.email || '').toLowerCase();
+  const linked = email
+    ? storeUsers().find((user) => String(user.googleEmail || '').toLowerCase() === email)
+    : null;
+  const label = linked ? `Masuk sebagai ${linked.name}` : 'Masuk dengan Google';
+  const hint = account
+    ? linked
+      ? `Akun ${account.email} tertaut ke profil ${linked.name}. PIN tetap bisa dipakai saat offline.`
+      : `Akun ${account.email} belum ditautkan. Masuk dengan PIN sekali, lalu tautkan di Pengaturan.`
+    : 'Pilih akun Google yang sudah ditautkan ke profilmu untuk masuk tanpa PIN.';
+  return `<div class="auth-google-wrap">
+    <button type="button" class="auth-google" data-action="google-login">
+      ${googleGlyph('w-4.5 h-4.5')}
+      <span>${escapeHTML(label)}</span>
+    </button>
+    <p class="auth-google-hint">${escapeHTML(hint)}</p>
+  </div>`;
+}
+
+function googleRestoreBlock() {
   const account = GoogleDrive.getAccount();
   return `<div class="auth-google-wrap">
-    <button type="button" class="auth-google" data-action="gdrive-login">
+    <button type="button" class="auth-google" data-action="google-restore">
       ${googleGlyph('w-4.5 h-4.5')}
-      <span>${account ? 'Sinkronkan dari Drive' : 'Masuk dengan Google'}</span>
+      <span>${account ? 'Pulihkan dari Google Drive' : 'Masuk & pulihkan dari Google Drive'}</span>
     </button>
-    <p class="auth-google-hint">${account
-      ? `Tersambung sebagai ${escapeHTML(account.email)}. Ketuk untuk mengambil data terbaru dari Drive.`
-      : 'Ambil data keluarga yang sudah tersimpan di Google Drive perangkat ini.'}</p>
+    <p class="auth-google-hint">Perangkat baru atau data hilang? Ambil backup terakhir dari Drive, lalu masuk dengan akun Google yang tertaut ke profilmu.</p>
   </div>`;
 }
 
@@ -70,11 +89,11 @@ export function loginView() {
         <div class="auth-heading">
           <span class="auth-kicker">${expired ? 'Sesi terkunci' : 'Selamat datang kembali'}</span>
           <h1>${expired ? 'Aplikasi dikunci' : 'Masuk ke ruang keuangan kalian'}</h1>
-          <p>${expired ? 'Masukkan PIN untuk melanjutkan.' : 'Pilih anggota keluarga, lalu masukkan PIN pribadi.'}</p>
+          <p>${expired ? 'Masukkan PIN untuk melanjutkan.' : 'Masuk dengan Google, atau pilih anggota keluarga dan masukkan PIN.'}</p>
         </div>
 
-        ${googleSignInBlock()}
-        <div class="auth-divider"><span>atau gunakan PIN</span></div>
+        ${googleLoginBlock()}
+        <div class="auth-divider"><span>atau masuk dengan PIN</span></div>
 
         <div class="auth-users" role="tablist" aria-label="Pilih pengguna">
           ${available.map((user) => `<button type="button" role="tab" aria-selected="${user.id === selected.id}" class="auth-user ${user.id === selected.id ? 'is-selected' : ''}" data-action="select-user" data-user="${escapeAttr(user.id)}">
@@ -153,7 +172,7 @@ export function setupView(users = storeUsers()) {
           <p>Buat PIN untuk setiap anggota. PIN dipakai untuk membuka aplikasi di perangkat ini maupun perangkat yang tersinkron.</p>
         </div>
 
-        ${googleSignInBlock()}
+        ${googleRestoreBlock()}
         <div class="auth-divider"><span>atau buat PIN baru</span></div>
 
         <form id="setup-form" data-form="setup" class="space-y-4" novalidate>

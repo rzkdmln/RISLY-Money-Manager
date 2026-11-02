@@ -3,11 +3,11 @@
  *
  * Everything runs in the browser:
  *  - Google Identity Services (GIS) token flow for OAuth.
- *  - Google Drive REST v3, files live in the hidden `appDataFolder`.
+ *  - Google Drive REST v3, backups live in the hidden `appDataFolder`.
  *
- * Access tokens last about an hour. We refresh silently whenever Google still
- * has an active session; when Google requires interaction the user is asked to
- * sign in again from the cloud settings.
+ * Google is used for sign-in and manual backup/restore only; there is no
+ * background sync. Access tokens last about an hour and are refreshed silently
+ * whenever Google still has an active session.
  */
 
 import { escapeAttr, escapeHTML } from './utils.js';
@@ -200,12 +200,14 @@ class GoogleDriveClient {
 
   /**
    * Interactive sign-in. Must be called from a user gesture.
-   * @param {string} [clientId] optional Client ID to adopt before signing in.
+   * @param {object} [options]
+   * @param {string} [options.clientId] optional Client ID to adopt before signing in.
+   * @param {string} [options.prompt] GIS prompt mode: '' | 'none' | 'consent' | 'select_account'.
    */
-  async signIn(clientId) {
+  async signIn({ clientId, prompt = 'select_account' } = {}) {
     if (clientId !== undefined) this.setClientId(clientId);
     if (!this.clientId) throw new DriveAuthError('Client ID Google belum diisi.');
-    await this.requestToken('consent');
+    await this.requestToken(prompt);
     const profile = await this.fetchProfile();
     if (!profile.email) throw new DriveAuthError('Akun Google tidak mengembalikan alamat email.');
     this.account = {

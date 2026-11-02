@@ -7,7 +7,7 @@ export const APP = Object.freeze({
   name: 'RISLY',
   fullName: 'RISLY Money Manager',
   tagline: 'Keuangan keluarga, rapi untuk berdua.',
-  version: '1.0.0',
+  version: '1.1.0',
   schemaVersion: 3,
   storageKey: 'risly.mm.data.v3',
   backupKey: 'risly.mm.backup.v3',
@@ -23,7 +23,6 @@ export const APP = Object.freeze({
   currency: 'IDR',
   defaultAutoLockMinutes: 15,
   syncPollMs: 20_000,
-  driveSyncFile: 'risly-sync.json',
   driveBackupPrefix: 'risly-backup-',
   driveBackupLimit: 10,
   // Public OAuth client ID (safe to ship in a browser app). Never add a client secret here.
@@ -139,11 +138,6 @@ export const CLOUD_PROVIDERS = Object.freeze({
     label: 'Perangkat ini saja',
     description: 'Data hanya tersimpan di browser. Sinkronisasi tidak aktif.',
     icon: 'device',
-  },
-  gdrive: {
-    label: 'Google Drive',
-    description: 'Sinkron & backup ke Drive pribadi dengan akun Google. Tanpa server tambahan.',
-    icon: 'cloud',
   },
   jsonbin: {
     label: 'JSONBin',

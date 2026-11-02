@@ -4,7 +4,7 @@
 ![Architecture](https://img.shields.io/badge/Architecture-Vanilla_JS_SPA-blue.svg)
 ![License](https://img.shields.io/badge/License-MIT-orange.svg)
 
-**RISLY Money Manager** adalah aplikasi pengelolaan keuangan pribadi dan keluarga berbasis *Progressive Web App* (PWA). Aplikasi ini dirancang agar cepat, ringan, dapat bekerja offline secara penuh (*offline-first*), serta mendukung sinkronisasi cloud terenkripsi untuk kolaborasi keuangan antar anggota keluarga.
+**RISLY Money Manager** adalah aplikasi pengelolaan keuangan pribadi dan keluarga berbasis *Progressive Web App* (PWA). Aplikasi ini dirancang agar cepat, ringan, dapat bekerja offline secara penuh (*offline-first*), serta mendukung login Google dan backup/pemulihan manual ke Google Drive.
 
 ---
 
@@ -16,8 +16,8 @@
 - **Transaksi Berulang & Pengingat (Reminders):** Jadwalkan tagihan rutin harian, bulanan, atau tahunan.
 - **Laporan & Visualisasi Grafis:** Laporan arus kas harian/bulanan dengan visualisasi diagram interaktif.
 - **PWA & Offline-First Mode:** Dapatkan pengalaman seperti aplikasi native di Android & iOS (dapat di-install ke Home Screen) dengan kapabilitas luring penuh.
-- **Awan / Cloud Sync:** Sinkronisasi data real-time berbasis enkripsi antar perangkat keluarga.
-- **Google Drive:** Masuk dengan akun Google untuk sinkronisasi otomatis serta backup/pemulihan berkala langsung ke Drive pribadi.
+- **Awan / Cloud Sync (opsional):** Sinkronisasi data antar perangkat lewat JSONBin, Supabase, atau Firebase bagi yang membutuhkannya.
+- **Google Drive:** Masuk dengan akun Google di halaman depan, lalu backup/pemulihan manual ke Drive pribadi. Tidak ada sinkron otomatis ke Google.
 
 ---
 
@@ -67,17 +67,17 @@ RISLY-Money-Manager/
 │   ├── app.js                # Controller utama, router, dan inisialisasi aplikasi
 │   ├── auth.js               # Logika autentikasi & pengelolaan sesi pengguna
 │   ├── charts.js             # Modul pembuatan visualisasi grafik
-│   ├── cloud.js              # Mesin sinkronisasi data cloud
+│   ├── cloud.js              # Mesin sinkron opsional (JSONBin, Supabase, Firebase)
 │   ├── config.js             # Konfigurasi konstanta global aplikasi
 │   ├── data.js               # Pengelolaan skema data dasar & migrasi
-│   ├── gdrive.js             # Integrasi Google Sign-In & Google Drive (OAuth + REST)
+│   ├── gdrive.js             # Google Sign-In & Google Drive (OAuth + REST, backup manual)
 │   ├── icons.js              # Komponen pustaka ikon SVG dinamis
 │   ├── store.js              # State management & pemrosesan query data
 │   ├── ui.js                 # Helper UI (Modal, Toast, Money Formatter)
 │   ├── utils.js              # Helper fungsi matematika, tanggal, & string
 │   ├── forms/                # Form renderers & input handlers
 │   │   ├── account.js        # Form tambah/edit akun
-│   │   ├── cloud.js          # Field penyedia sinkronisasi (termasuk Google Drive)
+│   │   ├── cloud.js          # Field penyedia sinkron (JSONBin, Supabase, Firebase)
 │   │   ├── note.js           # Form catatan keuangan
 │   │   └── transaction.js    # Form input transaksi
 │   └── views/                # Halaman-halaman UI (Templates)
@@ -135,9 +135,9 @@ Karena aplikasi dibangun menggunakan **Pure Web Standards (Vanilla JavaScript ES
 
 ---
 
-## ☁️ Sinkronisasi & Backup Google Drive
+## 🔐 Login Google & Backup Drive
 
-RISLY bisa memakai **Google Drive pribadi** sebagai backend sinkronisasi dan penyimpanan backup, tanpa server tambahan.
+Google Drive dipakai **hanya untuk login dan backup/pemulihan manual**. Aplikasi tidak menyinkronkan data ke Google setiap saat — data utama tetap tersimpan lokal di perangkat (offline-first).
 
 ### Yang perlu disiapkan (sekali saja)
 
@@ -149,25 +149,31 @@ RISLY bisa memakai **Google Drive pribadi** sebagai backend sinkronisasi dan pen
    - *Authorized JavaScript origins*: `http://localhost:8080` (lokal) dan domain produksi Anda (mis. `https://risly.netlify.app`)
 5. Salin **Client ID** (`…apps.googleusercontent.com`).
 
-### Mengaktifkan di aplikasi
+### Menautkan akun Google (sekali per anggota)
 
-1. Buka **Pengaturan → Cloud backend**.
-2. Pilih penyedia **Google Drive**, tempel **Client ID**.
-3. Klik **Masuk dengan Google** lalu setujui izin akses.
-4. Klik **Simpan & hubungkan**.
+1. Masuk aplikasi dengan PIN.
+2. Buka **Pengaturan → kartu Google → Masuk dengan Google**.
+3. Klik **Tautkan akun Google ini**.
+4. Ulangi untuk anggota lain dengan Gmail masing-masing. Setelah tertaut, tombol **Masuk dengan Google** di halaman depan langsung membuka aplikasi tanpa PIN.
 
-Data disimpan sebagai `risly-sync.json` di folder tersembunyi aplikasi (`appDataFolder`), sehingga **tidak terlihat di My Drive** dan tidak bisa diakses aplikasi lain. Sinkronisasi berjalan otomatis setiap ±20 detik dan saat ada perubahan.
+### Login di halaman depan
 
-### Backup & pemulihan
+- Tombol **Masuk dengan Google** mencocokkan email Google dengan profil yang sudah tertaut.
+- Jika akun belum tertaut, masukkan PIN sekali; akun Google otomatis ditautkan ke profil yang dipakai.
+- PIN tetap menjadi cadangan saat offline atau jika Google tidak tersedia.
 
-- **Backup ke Drive** — membuat berkas `risly-backup-YYYY-MM-DD-HHmmss.json`. Maksimal 10 backup terbaru disimpan, yang lebih lama dihapus otomatis.
-- **Pulihkan dari Drive** — menampilkan daftar backup untuk dipilih dan dipulihkan.
+### Backup & pemulihan (manual)
+
+- **Backup sekarang** — membuat berkas `risly-backup-YYYY-MM-DD-HHmmss.json` di folder tersembunyi aplikasi (`appDataFolder`). Maksimal 10 backup terbaru disimpan; yang lebih lama dihapus otomatis.
+- **Pulihkan** — menampilkan daftar backup untuk dipilih. Data lokal saat ini akan diganti.
+- **Perangkat baru** — di halaman awal pilih **Masuk & pulihkan dari Google Drive**, pilih backup, lalu masuk. Jika akun Google itu tertaut di dalam backup, aplikasi langsung terbuka.
 
 ### Batasan yang perlu diketahui
 
 - Token akses Google berlaku ±1 jam. Aplikasi mencoba memperbarui token secara senyap; jika Google meminta konfirmasi ulang, klik **Masuk dengan Google** sekali lagi.
-- Google Drive tidak real-time; sinkronisasi memakai polling seperti JSONBin/Supabase. Untuk real-time gunakan Firebase.
-- PIN aplikasi tetap menjadi kunci lokal untuk membuka aplikasi. Google Sign-In hanya dipakai untuk akses Drive, bukan pengganti PIN.
+- **Tidak ada sinkron otomatis ke Google.** Backup hanya dibuat saat Anda menekan tombol backup.
+- Login Google membuka aplikasi tanpa PIN, jadi amankan akun Google di perangkat ini.
+- JSONBin, Supabase, dan Firebase tetap tersedia sebagai sinkron opsional di **Pengaturan → Sinkron cloud lain**.
 
 ### Troubleshooting
 
