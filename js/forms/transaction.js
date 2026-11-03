@@ -126,7 +126,7 @@ export function transactionForm(tx = null, defaults = {}) {
         </div>
       </div>
 
-      <div class="form-grid">
+      <div class="form-grid date-time-grid">
         <label class="field-label">Tanggal
           <div class="date-input-wrap mt-1.5">
             <input class="field date-display" type="text" name="dateDisplay" inputmode="numeric" autocomplete="off" placeholder="dd/mm/yyyy" maxlength="10" value="${escapeAttr(formatDateDMY(date))}" aria-label="Tanggal (dd/mm/yyyy)" required>

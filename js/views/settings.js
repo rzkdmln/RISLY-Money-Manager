@@ -57,7 +57,7 @@ function googleDriveCard(user, driveConnected) {
       </div>
       <div class="settings-row">
         <span class="settings-row-icon">${icon('cloud', 'w-4 h-4')}</span>
-        <span class="flex-1"><strong>Cloud ruang</strong><small>JSONBin (sinkron otomatis)</small></span>
+        <span class="flex-1"><strong>Cloud ruang</strong><small>Firebase RTDB (sinkron otomatis)</small></span>
       </div>
     </div>
 
@@ -223,9 +223,5 @@ export function settingsView(user) {
       </section>
     </div>
 
-    <footer class="settings-footer">
-      <p>${APP.name} <span>v${APP.version}</span></p>
-      <a href="./privacy.html">Kebijakan Privasi</a>
-    </footer>
   </div>`;
 }

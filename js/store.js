@@ -199,7 +199,15 @@ class Store {
     // Match by email first
     let user = this.data.users.find((item) => !item.deletedAt
       && String(item.googleEmail || '').toLowerCase() === email);
-    if (user) return user;
+    if (user) {
+      const picture = String(account?.picture || '').trim();
+      if (picture && user.picture !== picture) {
+        user.picture = picture;
+        user.updatedAt = nowISO();
+        this.persist();
+      }
+      return user;
+    }
     // For legacy users without googleEmail, try matching by name
     const accountName = normalizedMemberName(account?.name || email.split('@')[0] || '');
     if (accountName) {
@@ -997,10 +1005,11 @@ class Store {
   /* ------------------------------------------------------------------------ */
 
   recurringRules({ includeDeleted = false } = {}) {
-    return this.data.recurring
-      .filter((rule) => includeDeleted || !rule.deletedAt)
+    const list = Array.isArray(this.data?.recurring) ? this.data.recurring : [];
+    return list
+      .filter((rule) => includeDeleted || !rule?.deletedAt)
       .slice()
-      .sort((a, b) => String(a.nextDate).localeCompare(String(b.nextDate)));
+      .sort((a, b) => String(a?.nextDate || '').localeCompare(String(b?.nextDate || '')));
   }
 
   recurringById(id) {

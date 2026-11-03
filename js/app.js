@@ -2585,18 +2585,18 @@ async function handleAction(action, element) {
     case 'sync-family-header': {
       element.disabled = true;
       try {
-        const result = await store.syncFamilyWorkspace();
-        if (result?.changed) {
+        const result = await Cloud.syncNow();
+        if (result?.ok) {
           ui.appMounted = false;
           renderApplication();
-          toast('Ruang diperbarui dari cloud.', 'success');
+          toast('Sinkronisasi cloud selesai.', 'success');
+        } else if (result?.local) {
+          toast('Sinkronisasi cloud belum diaktifkan.', 'info');
         } else {
-          const uploaded = await store.uploadFamilyWorkspace();
-          if (uploaded) toast('Ruang tersimpan ke cloud.', 'success');
-          else toast('Gagal menyimpan ke cloud. Periksa key/bin JSONBin.', 'error');
+          toast(result?.error?.message || 'Gagal menyinkronkan ke cloud.', 'error');
         }
       } catch (error) {
-        toast(error.message || 'Gagal menyinkronkan.', 'error');
+        toast(error.message || 'Gagal menyinkronkan ke cloud.', 'error');
       } finally {
         element.disabled = false;
       }

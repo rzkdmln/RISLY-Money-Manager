@@ -30,18 +30,17 @@ export function budgetsView() {
     pageHeader({
       eyebrow: 'Rencana belanja',
       title: 'Anggaran',
-      subtitle: 'Tetapkan batas bulanan dan pantau sisa anggaran keluarga.',
+      subtitle: '',
       actions: '<button type="button" class="btn btn-secondary" data-action="copy-budget" title="Salin anggaran bulan sebelumnya">' + icon('copy', 'w-4 h-4') + ' Salin bulan lalu</button>',
     }) +
 
     '<section class="card">' +
-      '<div class="calendar-toolbar">' +
-        '<div class="month-nav">' +
+      '<div class="calendar-toolbar budget-toolbar">' +
+        '<div class="month-nav budget-month-nav">' +
           '<button type="button" class="icon-btn" data-action="budget-prev" aria-label="Bulan sebelumnya">' + icon('chevron-left') + '</button>' +
-          '<div class="month-nav-label">' + escapeHTML(formatMonth(month)) + '</div>' +
+          '<input type="month" class="field field-compact budget-month-input" id="budget-month-picker" value="' + escapeAttr(month) + '" data-filter="budget-month" aria-label="Pilih bulan anggaran">' +
           '<button type="button" class="icon-btn" data-action="budget-next" aria-label="Bulan berikutnya">' + icon('chevron-right') + '</button>' +
         '</div>' +
-        '<input type="month" class="field field-compact" id="budget-month-picker" value="' + escapeAttr(month) + '" data-filter="budget-month" aria-label="Pilih bulan anggaran">' +
       '</div>' +
 
       '<div class="budget-hero mt-4">' +

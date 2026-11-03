@@ -288,7 +288,8 @@ class CloudSync {
       }
       if (parsed?.provider) return parsed;
     } catch { /* noop */ }
-    return { provider: 'local' };
+    // Default to the built-in Firebase project so sync works out of the box.
+    return { provider: 'firebase', firebase: { path: `households/${APP.householdId}` } };
   }
 
   loadMeta() {
