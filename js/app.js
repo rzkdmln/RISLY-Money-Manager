@@ -3154,18 +3154,7 @@ function bindEvents() {
     });
   });
 
-  document.addEventListener('focusin', (event) => {
-    const target = event.target;
-    if (target?.matches?.('[name="amountExpression"]')) {
-      target.placeholder = '';
-    }
-  });
-  document.addEventListener('focusout', (event) => {
-    const target = event.target;
-    if (target?.matches?.('[name="amountExpression"]') && !String(target.value || '').trim()) {
-      target.placeholder = '0';
-    }
-  });
+  // Amount input is intentionally left empty until the user types.
   document.addEventListener('input', (event) => {
     const target = event.target;
     if (target.matches('[name="amountExpression"]')) {
@@ -3468,6 +3457,16 @@ function boot() {
 
   setupInstallPrompt();
 
+  if (location.search.includes('debug=1')) {
+    try {
+      // Render a fresh transaction form and inspect the amount input value/placeholder
+      const html = transactionForm(null, {});
+      const match = html.match(/name="amountExpression"[^>]*>/);
+      console.log('DEBUG amount input tag:', match ? match[0] : 'NOT FOUND');
+    } catch (e) {
+      console.error('DEBUG txform failed', e);
+    }
+  }
   if (store.hasWorkspace) {
     Cloud.bootstrap().then(() => {
       if (store.currentUser && !ui.locked) renderApplication();

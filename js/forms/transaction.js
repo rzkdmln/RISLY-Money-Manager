@@ -101,7 +101,7 @@ export function transactionForm(tx = null, defaults = {}) {
           <label class="field-label" for="tx-amount-expression">Nominal</label>
           <button type="button" class="calc-toggle ${calcOpen ? 'is-open' : ''}" data-action="toggle-calc" aria-expanded="${calcOpen}" aria-controls="tx-calc-keypad" aria-label="${calcOpen ? 'Sembunyikan kalkulator' : 'Tampilkan kalkulator'}">${icon('calculator', 'w-4 h-4')}</button>
         </div>
-        <input id="tx-amount-expression" class="calc-display" name="amountExpression" inputmode="decimal" autocomplete="off" value="${escapeAttr(displayAmount)}" placeholder="0" aria-label="Nominal atau ekspresi matematika">
+        <input id="tx-amount-expression" class="calc-display" name="amountExpression" inputmode="decimal" autocomplete="off" value="${escapeAttr(displayAmount)}" placeholder="" aria-label="Nominal atau ekspresi matematika">
         <div class="calc-result">
           <span>${icon('calculator', 'w-3.5 h-3.5')} Hasil</span>
           <strong id="tx-amount-result" class="${result === null ? 'text-slate-400' : ''}">${result === null ? 'Masukkan nominal' : formatCurrency(result, { hide: false })}</strong>
