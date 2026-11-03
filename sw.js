@@ -9,7 +9,7 @@
  *  - Cloud/API traffic is never cached.
  */
 
-const VERSION = 'risly-1.2.10';
+const VERSION = 'risly-1.2.12';
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 
@@ -126,6 +126,9 @@ async function networkFirstNavigation(request) {
       if (pathname.endsWith('/') || pathname.endsWith('/index.html')) {
         cache.put('./index.html', response.clone());
       }
+      if (pathname.endsWith('/oauth-callback.html')) {
+        cache.put('./oauth-callback.html', response.clone());
+      }
       return response;
     }
     throw new Error(`Navigation response ${response?.status}`);
@@ -133,7 +136,9 @@ async function networkFirstNavigation(request) {
     let pathname = '';
     try { pathname = new URL(request.url).pathname; } catch { pathname = ''; }
     if (pathname.endsWith('/oauth-callback.html')) {
-      return new Response('Halaman login Google tidak tersedia saat offline.', {
+      const cachedCallback = await cache.match('./oauth-callback.html');
+      if (cachedCallback) return cachedCallback;
+      return new Response('Halaman login Google sedang dimuat. Coba ulangi login.', {
         status: 503,
         headers: { 'Content-Type': 'text/plain; charset=utf-8' },
       });
@@ -189,6 +194,11 @@ self.addEventListener('fetch', (event) => {
 
   if (!/^https?:$/.test(url.protocol)) return;
   if (isApiRequest(url)) return;
+
+  // Let the browser handle the OAuth callback directly. Intercepting it with
+  // the service worker can turn a normal online navigation into an offline
+  // fallback page even when the network is available.
+  if (url.pathname.endsWith('/oauth-callback.html')) return;
 
   if (request.mode === 'navigate') {
     event.respondWith(networkFirstNavigation(request));

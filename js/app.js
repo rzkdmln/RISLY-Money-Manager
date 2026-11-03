@@ -3032,8 +3032,15 @@ function registerServiceWorker() {
           toast('Versi baru RISLY tersedia.', 'info', {
             label: 'Muat ulang',
             onClick: () => {
+              let reloaded = false;
+              const reloadPage = () => {
+                if (reloaded) return;
+                reloaded = true;
+                window.location.reload();
+              };
+              navigator.serviceWorker.addEventListener('controllerchange', reloadPage, { once: true });
               worker.postMessage({ type: 'SKIP_WAITING' });
-              setTimeout(() => location.reload(), 400);
+              setTimeout(reloadPage, 1200);
             },
           });
         }
