@@ -74,7 +74,6 @@ export function shellView(user, dueCount = 0) {
           </div>
         </div>
         <div class="topbar-right">
-          <div class="js-sync-slot desktop-sync-slot">${status.provider !== 'local' ? syncPill(status) : ''}</div>
           <button type="button" class="icon-btn topbar-cloud ${cloudColor}" data-action="sync-family-header" aria-label="Sinkronisasi cloud">
             ${icon('cloud', 'w-[18px] h-[18px]')}
           </button>

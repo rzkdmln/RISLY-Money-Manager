@@ -2585,7 +2585,12 @@ async function handleAction(action, element) {
     case 'sync-family-header': {
       element.disabled = true;
       try {
-        const result = await Cloud.syncNow();
+        let result = await Cloud.syncNow();
+        if (result?.local) {
+          const connected = await Cloud.connect(Cloud.getConfig());
+          if (connected?.ok) result = await Cloud.syncNow();
+          else result = connected;
+        }
         if (result?.ok) {
           ui.appMounted = false;
           renderApplication();
