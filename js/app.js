@@ -2423,13 +2423,33 @@ async function handleAction(action, element) {
           // Also try uploading
           const uploaded = await store.uploadFamilyWorkspace();
           if (uploaded) toast('Ruang tersimpan ke cloud.', 'success');
-          else toast('Sudah tersinkron.', 'info');
+          else toast('Gagal menyimpan ke cloud. Periksa key/bin JSONBin.', 'error');
         }
       } catch (error) {
         toast(error.message || 'Gagal menyinkronkan.', 'error');
       } finally {
         element.disabled = false;
         element.innerHTML = label;
+      }
+      break;
+    }
+    case 'sync-family-header': {
+      element.disabled = true;
+      try {
+        const result = await store.syncFamilyWorkspace();
+        if (result?.changed) {
+          ui.appMounted = false;
+          renderApplication();
+          toast('Ruang diperbarui dari cloud.', 'success');
+        } else {
+          const uploaded = await store.uploadFamilyWorkspace();
+          if (uploaded) toast('Ruang tersimpan ke cloud.', 'success');
+          else toast('Sudah tersinkron.', 'info');
+        }
+      } catch (error) {
+        toast(error.message || 'Gagal menyinkronkan.', 'error');
+      } finally {
+        element.disabled = false;
       }
       break;
     }
@@ -3334,7 +3354,15 @@ function bindEvents() {
   setInterval(() => {
     checkAutoLock();
     if (store.currentUser) checkReminders();
-  }, 30_000);
+    if (store.currentUser) {
+      store.syncFamilyWorkspace().then((result) => {
+        if (result?.changed) {
+          ui.appMounted = false;
+          renderApplication();
+        }
+      }).catch(() => {});
+    }
+  }, 60_000);
 }
 
 const debounceSearch = debounce((callback) => callback(), 280);

@@ -60,6 +60,9 @@ export function shellView(user, dueCount = 0) {
         </div>
         <div class="topbar-right">
           <div class="js-sync-slot desktop-sync-slot">${status.provider !== 'local' ? syncPill(status) : ''}</div>
+          <button type="button" class="icon-btn topbar-cloud" data-action="sync-family-header" aria-label="Sinkronisasi cloud">
+            ${icon('cloud', 'w-[18px] h-[18px]')}
+          </button>
           <button type="button" class="icon-btn topbar-bell" data-action="open-tasks" aria-label="Tugas dan pengingat">
             ${icon('bell', 'w-[18px] h-[18px]')}
             ${dueCount > 0 ? `<span class="notification-dot">${dueCount > 9 ? '9+' : dueCount}</span>` : ''}
