@@ -3467,6 +3467,15 @@ function boot() {
       console.error('DEBUG txform failed', e);
     }
   }
+  if (location.search.includes('debug=1')) {
+    try {
+      const html = transactionForm(null, {});
+      const idx = html.indexOf('name="time"');
+      console.log('DEBUG time input:', html.slice(Math.max(0, idx-80), idx+120));
+    } catch (e) {
+      console.error('DEBUG timeform failed', e);
+    }
+  }
   if (store.hasWorkspace) {
     Cloud.bootstrap().then(() => {
       if (store.currentUser && !ui.locked) renderApplication();
