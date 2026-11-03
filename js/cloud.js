@@ -1,4 +1,4 @@
-import { APP, CLOUD_PROVIDERS } from './config.js';
+import { APP, CLOUD_PROVIDERS, FIREBASE_CONFIG } from './config.js';
 import { deepClone, nowISO } from './utils.js';
 
 const FIREBASE_VERSION = '10.12.5';
@@ -197,65 +197,50 @@ class FirebaseAdapter {
   constructor(config) {
     this.config = config;
     const raw = config.firebase?.configJson;
-    if (!raw) throw new Error('Konfigurasi Firebase wajib diisi.');
-    try {
-      this.firebaseConfig = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    } catch {
-      throw new Error('Konfigurasi Firebase bukan JSON yang valid.');
+    let parsed = null;
+    if (raw) {
+      try {
+        parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      } catch {
+        throw new Error('Konfigurasi Firebase bukan JSON yang valid.');
+      }
+    } else {
+      parsed = FIREBASE_CONFIG;
     }
-    if (!this.firebaseConfig.databaseURL) throw new Error('databaseURL Firebase wajib ada.');
+    if (!parsed || !parsed.databaseURL) throw new Error('databaseURL Firebase wajib ada.');
+    this.firebaseConfig = parsed;
+    this.databaseURL = String(parsed.databaseURL).replace(/\/+$/, '');
     this.path = String(config.firebase?.path || `households/${APP.householdId}`).replace(/^\/+|\/+$/g, '');
-    this.db = null;
-    this.modules = null;
-    this.app = null;
   }
 
-  async ensure() {
-    if (this.db) return;
-    const [appModule, dbModule] = await Promise.all([
-      import(FIREBASE_APP_URL),
-      import(FIREBASE_DB_URL),
-    ]);
-    const appName = 'risly-sync';
-    const existing = appModule.getApps().find((app) => app.name === appName);
-    this.app = existing || appModule.initializeApp(this.firebaseConfig, appName);
-    this.db = dbModule.getDatabase(this.app);
-    this.modules = { ...appModule, ...dbModule };
+  endpoint() {
+    return `${this.databaseURL}/${this.path}.json`;
   }
 
   async read() {
-    await this.ensure();
-    const snapshot = await this.modules.get(this.modules.ref(this.db, this.path));
-    return extractEnvelope(snapshot.val());
+    const body = await requestJSON(this.endpoint(), {
+      method: 'GET',
+      cache: 'no-store',
+    });
+    return extractEnvelope(body);
   }
 
   async write(envelope) {
-    await this.ensure();
-    await this.modules.set(this.modules.ref(this.db, this.path), envelope);
+    await requestJSON(this.endpoint(), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(envelope),
+    });
     return envelope;
   }
 
-  async subscribe(callback) {
-    await this.ensure();
-    return this.modules.onValue(this.modules.ref(this.db, this.path), (snapshot) => {
-      const envelope = extractEnvelope(snapshot.val());
-      if (envelope) callback(envelope);
-    });
+  async subscribe() {
+    // REST mode uses polling in CloudSync instead of a live socket.
+    return null;
   }
 
   async destroy() {
-    if (this.modules?.off && this.db) {
-      try {
-        this.modules.off(this.modules.ref(this.db, this.path));
-      } catch { /* noop */ }
-    }
-    if (this.app && this.modules?.deleteApp) {
-      try {
-        await this.modules.deleteApp(this.app);
-      } catch { /* noop */ }
-    }
-    this.app = null;
-    this.db = null;
+    return null;
   }
 }
 

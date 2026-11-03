@@ -231,3 +231,13 @@ export const WEEK_OPTIONS = [
   { value: 1, label: 'Senin' },
   { value: 0, label: 'Minggu' },
 ];
+export const FIREBASE_CONFIG = Object.freeze({
+  apiKey: "AIzaSyD303YvMtqpE7IrnqIJrPXFKl4pgk2h_80",
+  authDomain: "risly24040710.firebaseapp.com",
+  databaseURL: "https://risly24040710-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "risly24040710",
+  storageBucket: "risly24040710.firebasestorage.app",
+  messagingSenderId: "741741330602",
+  appId: "1:741741330602:web:f6654d86aad6d880d5d0d3",
+  measurementId: "G-QKJBYTQWQZ",
+});
