@@ -9,14 +9,13 @@
  * the result survives a PWA reload.
  */
 
-import { APP } from './config.js';
+import { APP, FIREBASE_CONFIG } from './config.js';
 import { DRIVE_SCOPE } from './gdrive.js';
 import { isIos } from './utils.js';
 
-const RELAY_URL = `https://api.jsonbin.io/v3/b/${APP.authRelayBinId}`;
+const RELAY_URL = `${String(FIREBASE_CONFIG.databaseURL).replace(/\/+$/, '')}/oauth_relay.json`;
 const RELAY_HEADERS = {
   'Content-Type': 'application/json',
-  'X-Master-Key': APP.familyMasterKey,
 };
 const USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
 const PENDING_KEY = 'risly.mm.oauth.pending.v1';
@@ -112,13 +111,13 @@ function wait(ms, signal) {
 }
 
 async function readRelay() {
-  const response = await fetch(`${RELAY_URL}/latest`, {
+  const response = await fetch(RELAY_URL, {
     headers: RELAY_HEADERS,
     cache: 'no-store',
   });
   if (!response.ok) throw new Error(`Relay login tidak tersedia (${response.status}).`);
   const payload = await response.json();
-  const record = payload?.record;
+  const record = payload?.record ?? payload;
   return record && typeof record === 'object' ? record : {};
 }
 
