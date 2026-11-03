@@ -87,6 +87,19 @@ class Store {
     this.lastError = null;
     this._initialized = false;
     this._uploadTimer = null;
+    this._flushPendingUpload = () => {
+      if (this._uploadTimer) {
+        clearTimeout(this._uploadTimer);
+        this._uploadTimer = null;
+        this.uploadFamilyWorkspace().catch(() => {});
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pagehide', this._flushPendingUpload);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') this._flushPendingUpload();
+      });
+    }
   }
 
   init() {
@@ -113,8 +126,9 @@ class Store {
     // Debounced upload to family cloud hub
     if (this._uploadTimer) clearTimeout(this._uploadTimer);
     this._uploadTimer = setTimeout(() => {
+      this._uploadTimer = null;
       this.uploadFamilyWorkspace().catch(() => {});
-    }, 3000);
+    }, 1200);
   }
 
   updateWorkspaceMeta() {
@@ -1532,6 +1546,7 @@ class Store {
       const response = await fetch(`${this.familyHubUrl}/latest`, {
         method: 'GET',
         headers: this.familyHeaders(),
+        cache: 'no-store',
       });
       if (!response.ok) return null;
       const json = await response.json();
@@ -1547,7 +1562,11 @@ class Store {
     const code = String(this.data.settings?.inviteCode || '').toUpperCase();
     if (!code) return false;
     try {
-      const hub = (await this.fetchFamilyHub()) || {};
+      const fetchedHub = await this.fetchFamilyHub();
+      // Never overwrite the cloud hub with an empty snapshot if the fetch failed;
+      // that would destroy other devices' workspaces.
+      if (fetchedHub === null) return false;
+      const hub = fetchedHub || {};
       // Migrate old format (single workspace) to new format (workspaces keyed by code)
       if (hub.data && !hub.workspaces) {
         const oldCode = String(hub.data?.settings?.inviteCode || '').toUpperCase();
@@ -1567,14 +1586,43 @@ class Store {
         delete hub.client;
       }
       if (!hub.workspaces || typeof hub.workspaces !== 'object') hub.workspaces = {};
+      // Merge any existing cloud snapshot into the local one before writing so
+      // a second device never clobbers transactions created by another device.
+      const mergedData = deepClone(this.data);
+      const existingEntry = hub.workspaces[code];
+      if (existingEntry?.data) {
+        try {
+          const existing = migrateData(existingEntry.data);
+          mergedData.users = mergeCollection(mergedData.users, existing.users);
+          mergedData.accounts = mergeCollection(mergedData.accounts, existing.accounts);
+          mergedData.categories = mergeCollection(mergedData.categories, existing.categories);
+          mergedData.transactions = mergeCollection(mergedData.transactions, existing.transactions);
+          mergedData.budgets = mergeCollection(mergedData.budgets, existing.budgets);
+          mergedData.recurring = mergeCollection(mergedData.recurring, existing.recurring);
+          mergedData.notes = mergeCollection(mergedData.notes, existing.notes);
+          if (recordStamp(existing.settings) > recordStamp(mergedData.settings)) {
+            const workspaceId = mergedData.settings?.workspaceId;
+            const inviteCode = mergedData.settings?.inviteCode;
+            mergedData.settings = deepClone(existing.settings);
+            if (workspaceId) mergedData.settings.workspaceId = workspaceId;
+            if (inviteCode) mergedData.settings.inviteCode = inviteCode;
+          }
+          mergedData.revision = Math.max(Number(mergedData.revision) || 1, Number(existing.revision) || 1);
+          if (new Date(existing.updatedAt || 0) > new Date(mergedData.updatedAt || 0)) {
+            mergedData.updatedAt = existing.updatedAt;
+          }
+        } catch (error) {
+          console.warn('Family hub merge on upload failed:', error);
+        }
+      }
       hub.workspaces[code] = {
-        data: deepClone(this.data),
-        ownerEmail: this.data.settings.ownerEmail || '',
+        data: mergedData,
+        ownerEmail: mergedData.settings?.ownerEmail || this.data.settings.ownerEmail || '',
         updatedAt: nowISO(),
       };
       // Update member email -> code mapping for cross-device login
       if (!hub.members || typeof hub.members !== 'object') hub.members = {};
-      (this.data.users || []).forEach((u) => {
+      (mergedData.users || []).forEach((u) => {
         const email = String(u.googleEmail || '').trim().toLowerCase();
         if (email) hub.members[email] = code;
       });
@@ -1623,6 +1671,7 @@ class Store {
       const response = await fetch(`${this.familyHubUrl}/latest`, {
         method: 'GET',
         headers: this.familyHeaders(),
+        cache: 'no-store',
       });
       if (!response.ok) return null;
       const json = await response.json();
@@ -1677,15 +1726,36 @@ class Store {
     if (!code) return { changed: false };
     const cloudData = await this.fetchFamilyWorkspace(code);
     if (!cloudData) return { changed: false };
-    // Only merge if cloud is newer
-    const cloudStamp = new Date(cloudData.updatedAt || 0).getTime();
-    const localStamp = new Date(this.data.updatedAt || 0).getTime();
-    if (cloudStamp <= localStamp) return { changed: false };
-    // Merge: replace data with cloud version, re-apply workspaceId
-    const merged = migrateData(cloudData);
-    merged.settings.workspaceId = this.workspaceId;
-    merged.settings.inviteCode = code;
-    this.data = merged;
+    const before = JSON.stringify(this.data);
+    const remote = migrateData(cloudData);
+
+    // Merge collections instead of replacing, so transactions created on either
+    // device are preserved even when timestamps are out of order.
+    this.data.users = mergeCollection(this.data.users, remote.users);
+    this.data.accounts = mergeCollection(this.data.accounts, remote.accounts);
+    this.data.categories = mergeCollection(this.data.categories, remote.categories);
+    this.data.transactions = mergeCollection(this.data.transactions, remote.transactions);
+    this.data.budgets = mergeCollection(this.data.budgets, remote.budgets);
+    this.data.recurring = mergeCollection(this.data.recurring, remote.recurring);
+    this.data.notes = mergeCollection(this.data.notes, remote.notes);
+
+    // Settings: keep the newer side, but never lose this device's workspace id
+    // or invite code.
+    if (recordStamp(remote.settings) > recordStamp(this.data.settings)) {
+      const workspaceId = this.data.settings?.workspaceId;
+      const inviteCode = this.data.settings?.inviteCode || code;
+      this.data.settings = { ...remote.settings, workspaceId, inviteCode };
+    } else if (remote.settings) {
+      this.data.settings = { ...remote.settings, ...this.data.settings };
+      this.data.settings.workspaceId = this.workspaceId;
+      this.data.settings.inviteCode = code;
+    }
+
+    this.data.revision = Math.max(Number(this.data.revision) || 1, Number(remote.revision) || 1);
+    if (new Date(remote.updatedAt || 0) > new Date(this.data.updatedAt || 0)) {
+      this.data.updatedAt = remote.updatedAt;
+    }
+    this.data.schemaVersion = APP.schemaVersion;
 
     // The remote snapshot may use different user ids. Re-bind the signed-in
     // user (and the stored session) so a background sync can never drop the
@@ -1704,9 +1774,12 @@ class Store {
       }
     }
 
-    this.persist();
-    this.emit({ source: 'remote', reason: 'family:sync' });
-    return { changed: true };
+    const changed = before !== JSON.stringify(this.data);
+    if (changed) {
+      this.persist();
+      this.emit({ source: 'remote', reason: 'family:sync' });
+    }
+    return { changed };
   }
 }
 

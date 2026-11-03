@@ -2444,7 +2444,7 @@ async function handleAction(action, element) {
         } else {
           const uploaded = await store.uploadFamilyWorkspace();
           if (uploaded) toast('Ruang tersimpan ke cloud.', 'success');
-          else toast('Sudah tersinkron.', 'info');
+          else toast('Gagal menyimpan ke cloud. Periksa key/bin JSONBin.', 'error');
         }
       } catch (error) {
         toast(error.message || 'Gagal menyinkronkan.', 'error');
@@ -3362,7 +3362,17 @@ function bindEvents() {
         }
       }).catch(() => {});
     }
-  }, 60_000);
+  }, 20_000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && store.currentUser) {
+      store.syncFamilyWorkspace().then((result) => {
+        if (result?.changed) {
+          ui.appMounted = false;
+          renderApplication();
+        }
+      }).catch(() => {});
+    }
+  });
 }
 
 const debounceSearch = debounce((callback) => callback(), 280);
