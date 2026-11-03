@@ -83,27 +83,55 @@ export function needsSetup(users) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Session — cookies for PWA Safari iPhone persistence                  */
+/*  Session — cookie + localStorage so the PWA survives iOS restarts         */
 /* -------------------------------------------------------------------------- */
+
+function isSecureContext() {
+  return location.protocol === 'https:'
+    || location.hostname === 'localhost'
+    || location.hostname === '127.0.0.1';
+}
 
 function setCookie(name, value, days = 30) {
   const expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toUTCString();
-  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; SameSite=None; Secure; expires=${expires}`;
+  const flags = isSecureContext() ? 'SameSite=None; Secure' : 'SameSite=Lax';
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; expires=${expires}; ${flags}`;
 }
 
 function getCookie(name) {
-  const pair = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith(name + '='));
-  if (!pair) return null;
-  return decodeURIComponent(pair.slice(name.length + 1));
+  try {
+    const pair = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith(name + '='));
+    if (!pair) return null;
+    return decodeURIComponent(pair.slice(name.length + 1));
+  } catch {
+    return null;
+  }
 }
 
 function deleteCookie(name) {
-  document.cookie = `${name}=; path=/; SameSite=None; Secure; expires=Thu, 01 Jan 1970 00:00:00 UTC`;
+  document.cookie = `${name}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 UTC`;
+  document.cookie = `${name}=; path=/; SameSite=None; Secure; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 UTC`;
+}
+
+function writeSession(value) {
+  try { localStorage.setItem(APP.sessionKey, value); } catch { /* storage may be full */ }
+  try { setCookie(APP.sessionKey, value, 30); } catch { /* cookies may be blocked */ }
+}
+
+function readSessionRaw() {
+  const cookie = getCookie(APP.sessionKey);
+  if (cookie) return cookie;
+  try { return localStorage.getItem(APP.sessionKey); } catch { return null; }
+}
+
+function removeSession() {
+  try { deleteCookie(APP.sessionKey); } catch { /* noop */ }
+  try { localStorage.removeItem(APP.sessionKey); } catch { /* noop */ }
 }
 
 export function getSession() {
   try {
-    const raw = getCookie(APP.sessionKey);
+    const raw = readSessionRaw();
     if (!raw) return null;
     const session = JSON.parse(raw);
     if (!session?.userId || !session?.lastActivity) return null;
@@ -120,7 +148,7 @@ export function createSession(userId, workspaceId = null) {
     issuedAt: Date.now(),
     lastActivity: Date.now(),
   };
-  setCookie(APP.sessionKey, JSON.stringify(session), 30);
+  writeSession(JSON.stringify(session));
   return session;
 }
 
@@ -128,12 +156,12 @@ export function updateSessionActivity() {
   const session = getSession();
   if (!session) return null;
   session.lastActivity = Date.now();
-  setCookie(APP.sessionKey, JSON.stringify(session), 30);
+  writeSession(JSON.stringify(session));
   return session;
 }
 
 export function clearSession() {
-  deleteCookie(APP.sessionKey);
+  removeSession();
 }
 
 export function isSessionExpired(session, autoLockMinutes) {

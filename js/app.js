@@ -330,7 +330,7 @@ function enterApplication(user, { fresh = false } = {}) {
   // Sync family workspace from cloud in background
   if (store.workspaceId) {
     store.syncFamilyWorkspace().then((result) => {
-      if (result?.changed) {
+      if (result?.changed && store.currentUser) {
         ui.appMounted = false;
         renderApplication();
         toast('Data ruang diperbarui dari cloud.', 'info');
@@ -3135,13 +3135,21 @@ function boot() {
   const session = getSession();
   if (session?.workspaceId) {
     const opened = store.openWorkspace(session.workspaceId, { account: store.accountForWorkspace(session.workspaceId) });
-    const user = opened ? store.getUser(session.userId) : null;
+    let user = opened ? store.getUser(session.userId) : null;
+    if (opened && !user) {
+      // The stored session can point at a user id that changed after a cloud
+      // sync or an app update. Recover by account e-mail instead of sending
+      // the user back to the login screen.
+      const account = store.account;
+      if (account?.email) user = store.ensureMember(account);
+    }
     const expired = isSessionExpired(session, store.data.settings.autoLockMinutes);
     if (!expired && user) {
       store.setCurrentUser(user.id);
       ui.currentUser = user;
       ui.selectedUser = user.id;
-      updateSessionActivity();
+      if (session.userId !== user.id) createSession(user.id, session.workspaceId);
+      else updateSessionActivity();
     } else if (user) {
       clearSession();
       store.setCurrentUser(user.id);

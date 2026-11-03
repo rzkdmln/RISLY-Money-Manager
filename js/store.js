@@ -1,4 +1,5 @@
 import { APP } from './config.js';
+import { createSession, getSession } from './auth.js';
 import {
   createDefaultData,
   createSampleData,
@@ -1662,6 +1663,24 @@ class Store {
     merged.settings.workspaceId = this.workspaceId;
     merged.settings.inviteCode = code;
     this.data = merged;
+
+    // The remote snapshot may use different user ids. Re-bind the signed-in
+    // user (and the stored session) so a background sync can never drop the
+    // user back to the login screen right after signing in.
+    if (this.account?.email) {
+      const member = this.ensureMember(this.account);
+      this.currentUserId = member?.id || this.data.users?.[0]?.id || null;
+    } else if (!this.currentUserId
+      || !(this.data.users || []).some((user) => user.id === this.currentUserId)) {
+      this.currentUserId = this.data.users?.[0]?.id || null;
+    }
+    if (this.currentUserId) {
+      const session = getSession();
+      if (!session || session.userId !== this.currentUserId || session.workspaceId !== this.workspaceId) {
+        createSession(this.currentUserId, this.workspaceId);
+      }
+    }
+
     this.persist();
     this.emit({ source: 'remote', reason: 'family:sync' });
     return { changed: true };

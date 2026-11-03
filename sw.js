@@ -9,7 +9,7 @@
  *  - Cloud/API traffic is never cached.
  */
 
-const VERSION = 'risly-1.2.8';
+const VERSION = 'risly-1.2.9';
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 
@@ -79,7 +79,14 @@ const isApiRequest = (url) => API_HOSTS.some((host) => url.hostname === host || 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(SHELL_CACHE);
-    await cache.addAll(APP_SHELL);
+    // `cache: 'reload'` bypasses the browser HTTP cache so a new app version
+    // is never precached with stale files from the previous version.
+    await Promise.allSettled(APP_SHELL.map(async (url) => {
+      try {
+        const response = await fetch(url, { cache: 'reload' });
+        if (response && response.ok) await cache.put(url, response);
+      } catch { /* optional asset */ }
+    }));
     // CDN libraries are best-effort: a failing CDN must not break installation.
     await Promise.allSettled(CDN_ASSETS.map(async (url) => {
       try {
@@ -108,7 +115,7 @@ self.addEventListener('message', (event) => {
 async function networkFirstNavigation(request) {
   const cache = await caches.open(SHELL_CACHE);
   try {
-    const response = await fetch(request);
+    const response = await fetch(request, { cache: 'no-cache' });
     if (response && response.ok) {
       cache.put('./index.html', response.clone());
       return response;
@@ -129,7 +136,7 @@ const offlineResponse = () => new Response('', { status: 504, statusText: 'Offli
 async function staleWhileRevalidate(request) {
   const cache = await caches.open(RUNTIME_CACHE);
   const cached = await cache.match(request);
-  const network = fetch(request).then((response) => {
+  const network = fetch(request, { cache: 'no-cache' }).then((response) => {
     if (response && (response.ok || response.type === 'opaque')) {
       cache.put(request, response.clone()).catch(() => {});
     }
