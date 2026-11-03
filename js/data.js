@@ -5,8 +5,10 @@ import {
   deepClone,
   localDateISO,
   monthKey,
+  normalizeTime,
   nowISO,
   shiftMonthKey,
+  timeFromISO,
   todayISO,
   uid,
 } from './utils.js';
@@ -323,6 +325,7 @@ export function migrateData(raw) {
   data.transactions = data.transactions.map((tx) => ({
     id: tx.id || uid('tx'),
     date: tx.date || todayISO(),
+    time: normalizeTime(tx.time, timeFromISO(tx.createdAt) || '00:00'),
     type: ['income', 'expense', 'transfer'].includes(tx.type) ? tx.type : 'expense',
     amount: Math.max(0, Number(tx.amount) || 0),
     accountId: tx.accountId || null,
@@ -429,6 +432,7 @@ export function createSampleData(base, actor = {}) {
   const tx = (date, type, amount, accountId, categoryId, subcategoryId, note, extra = {}) => ({
     id: uid('demo_tx'),
     date,
+    time: extra.time || '09:00',
     type,
     amount,
     accountId,

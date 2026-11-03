@@ -15,6 +15,12 @@ import {
 import { store } from './store.js';
 import { Cloud } from './cloud.js';
 import { GoogleDrive, googleAccountBadge } from './gdrive.js';
+import {
+  clearPendingGoogleLogin,
+  resumeGoogleRelayLogin,
+  shouldUseAuthRelay,
+  startGoogleRelayLogin,
+} from './google-auth-relay.js';
 import { initPullToRefresh } from './pull-to-refresh.js';
 import {
   changePin,
@@ -47,6 +53,7 @@ import {
 import {
   addDaysISO,
   advanceDate,
+  currentTimeHHMM,
   debounce,
   downloadBlob,
   downloadJSON,
@@ -54,9 +61,11 @@ import {
   escapeHTML,
   expressionResult,
   fileSafe,
+  formatAmountExpression,
   formatBytes,
   formatCurrency,
   formatDate,
+  formatDateDMY,
   formatDateTime,
   formatMonth,
   getInitials,
@@ -64,7 +73,9 @@ import {
   isStandalone,
   localDateISO,
   monthKey,
+  normalizeTime,
   nowISO,
+  parseDateDMY,
   parseDateTimeLocal,
   readFileAsText,
   sanitizeNoteHTML,
@@ -339,6 +350,108 @@ function enterApplication(user, { fresh = false } = {}) {
   }
 }
 
+/**
+ * Google sign-in for installed iOS PWAs.
+ *
+ * The Google window is a separate Safari sheet there, so it cannot hand a
+ * session back through cookies/localStorage. The relay callback writes the
+ * result to a tiny cloud relay and this helper polls it while the app stays
+ * open. Must be called directly from the click so iOS allows the new window.
+ */
+function showGoogleWaitingModal({ onCancel }) {
+  let done = false;
+  const finish = (callback) => {
+    if (done) return;
+    done = true;
+    callback?.();
+  };
+  openModal({
+    size: 'sm',
+    onClose: () => finish(onCancel),
+    html: `<div class="p-5 sm:p-6 text-center">
+      <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
+        ${icon('smartphone', 'w-6 h-6')}
+      </span>
+      <h2 class="mt-4 text-[17px] font-bold text-slate-900 dark:text-white">Menyelesaikan masuk</h2>
+      <p class="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+        Jendela Google sudah dibuka. Pilih akun Anda, lalu kembali ke aplikasi ini.
+        Proses akan selesai otomatis.
+      </p>
+      <button type="button" class="btn btn-secondary mt-5 w-full" data-google-cancel>Batalkan</button>
+    </div>`,
+  });
+  document.querySelector('[data-google-cancel]')?.addEventListener('click', () => {
+    finish(onCancel);
+    closeModal({ silent: true });
+  });
+  return {
+    close() {
+      finish(null);
+      closeModal({ silent: true });
+    },
+  };
+}
+
+async function signInWithGoogleFlow() {
+  if (!shouldUseAuthRelay()) {
+    return GoogleDrive.signIn({ prompt: 'select_account' });
+  }
+
+  const controller = new AbortController();
+  let waiting = null;
+  const session = await new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      waiting?.close();
+      fn(value);
+    };
+
+    waiting = showGoogleWaitingModal({
+      onCancel: () => {
+        controller.abort();
+        clearPendingGoogleLogin();
+        finish(reject, new Error('Masuk dengan Google dibatalkan.'));
+      },
+    });
+
+    startGoogleRelayLogin({ signal: controller.signal }).then(
+      (value) => finish(resolve, value),
+      (error) => finish(reject, error),
+    );
+  });
+
+  GoogleDrive.adoptSession(session);
+  return session.account;
+}
+
+function resumeGoogleLoginOnBoot() {
+  const controller = new AbortController();
+  const pending = resumeGoogleRelayLogin({ signal: controller.signal });
+  if (!pending) return;
+
+  const waiting = showGoogleWaitingModal({
+    onCancel: () => {
+      controller.abort();
+      clearPendingGoogleLogin();
+    },
+  });
+
+  pending.then(async (session) => {
+    waiting.close();
+    GoogleDrive.adoptSession(session);
+    const result = await store.signInWithGoogle(session.account);
+    enterApplication(result.user, { fresh: result.created });
+    toast(`Masuk sebagai ${result.user.name}.`, 'success');
+  }).catch((error) => {
+    waiting.close();
+    if (error?.name === 'AbortError') return;
+    console.error(error);
+    toast(error.message || 'Gagal menyelesaikan masuk dengan Google.', 'error');
+  });
+}
+
 function lockApplication({ expired = false } = {}) {
   if (!store.currentUser?.pinHash) {
     leaveApplication();
@@ -428,6 +541,7 @@ function checkReminders() {
 /* -------------------------------------------------------------------------- */
 
 function openTransactionModal(tx = null, defaults = {}) {
+  if (defaults.calcOpen === undefined) ui.calcOpen = false;
   openModal({
     size: 'lg',
     className: 'form-modal',
@@ -578,6 +692,50 @@ function updateCalculator(form) {
   }
 }
 
+function formatCalculatorInput(input) {
+  const raw = input.value;
+  if (!raw) return;
+  const caret = input.selectionStart ?? raw.length;
+  const meaningful = raw.slice(0, caret).replace(/[^\d,+×÷−]/g, '').length;
+  const formatted = formatAmountExpression(raw);
+  if (formatted === raw) return;
+  input.value = formatted;
+  let position = 0;
+  let seen = 0;
+  while (position < formatted.length && seen < meaningful) {
+    if (/[\d,+×÷−]/.test(formatted[position])) seen += 1;
+    position += 1;
+  }
+  try { input.setSelectionRange(position, position); } catch { /* noop */ }
+}
+
+function maskDateInput(input) {
+  const digits = input.value.replace(/\D/g, '').slice(0, 8);
+  let display = digits.slice(0, 2);
+  if (digits.length > 2) display += `/${digits.slice(2, 4)}`;
+  if (digits.length > 4) display += `/${digits.slice(4, 8)}`;
+  input.value = display;
+  const form = input.closest('form');
+  const hidden = form?.querySelector('input[name="date"][type="date"]');
+  if (hidden) hidden.value = parseDateDMY(display) || '';
+}
+
+function toggleCalculator(button) {
+  const form = button.closest('form');
+  const panel = form?.querySelector('[data-calc-keypad]');
+  if (!panel) return;
+  const open = panel.hasAttribute('hidden');
+  panel.toggleAttribute('hidden', !open);
+  button.classList.toggle('is-open', open);
+  button.setAttribute('aria-expanded', String(open));
+  button.setAttribute('aria-label', open ? 'Sembunyikan kalkulator' : 'Tampilkan kalkulator');
+  ui.calcOpen = open;
+  if (open) {
+    const input = form.querySelector('[name="amountExpression"]');
+    input?.focus({ preventScroll: true });
+  }
+}
+
 function handleCalculatorKey(button) {
   const form = button.closest('form');
   const input = form?.querySelector('[name="amountExpression"]');
@@ -585,31 +743,33 @@ function handleCalculatorKey(button) {
   const key = button.dataset.calcKey;
   let value = input.value;
 
-  if (key === 'clear') value = '';
-  else if (key === 'back') value = value.slice(0, -1);
-  else if (key === '=') {
+  if (key === 'clear') {
+    value = '';
+  } else if (key === '=') {
     const result = expressionResult(value);
     if (result === null) {
       toast('Ekspresi belum valid.', 'error');
       input.focus();
       return;
     }
-    value = String(Math.round(result * 100) / 100);
-  } else if (key === '000') {
-    if (!value || /[+\-*/×÷]$/.test(value)) value += '0';
-    else value += '000';
+    value = String(Math.round(result * 100) / 100).replace('.', ',');
+  } else if (key === ',') {
+    const segment = value.split(/[+−×÷]/).pop();
+    if (!segment) value += '0,';
+    else if (!segment.includes(',')) value += ',';
   } else if (['+', '−', '×', '÷'].includes(key)) {
     if (!value) value = '0';
-    if (/[+\-*/×÷]$/.test(value)) value = value.slice(0, -1);
+    if (/[+−×÷]$/.test(value)) value = value.slice(0, -1);
+    if (value.endsWith(',')) value = value.slice(0, -1);
     value += key;
   } else {
     value += key;
   }
 
-  input.value = value;
+  input.value = formatAmountExpression(value);
   updateCalculator(form);
   input.focus({ preventScroll: true });
-  try { input.setSelectionRange(value.length, value.length); } catch { /* noop */ }
+  try { input.setSelectionRange(input.value.length, input.value.length); } catch { /* noop */ }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1185,7 +1345,7 @@ async function submitJoinWorkspace(form) {
   const submit = form.querySelector('[type="submit"]');
   if (submit) submit.disabled = true;
   try {
-    const account = await GoogleDrive.signIn({ prompt: 'select_account' });
+    const account = await signInWithGoogleFlow();
     const result = await store.joinWorkspaceByCode(code, account);
     closeModal({ silent: true });
     enterApplication(result.user);
@@ -1285,13 +1445,13 @@ function refreshDriveUi() {
 /** Make sure we have a Drive token, signing in again when the old session expired. */
 async function ensureDriveAccess() {
   if (!GoogleDrive.isConnected()) {
-    await GoogleDrive.signIn({ prompt: 'select_account' });
+    await signInWithGoogleFlow();
     return;
   }
   try {
     await GoogleDrive.token();
   } catch {
-    await GoogleDrive.signIn({ prompt: 'select_account' });
+    await signInWithGoogleFlow();
   }
 }
 
@@ -1653,6 +1813,23 @@ async function handleAction(action, element) {
       openTransactionModal(tx);
       break;
     }
+    case 'toggle-calc':
+      toggleCalculator(element);
+      break;
+    case 'pick-date': {
+      const wrap = element.closest('.date-input-wrap');
+      const display = wrap?.querySelector('[name="dateDisplay"]');
+      const native = wrap?.querySelector('input[type="date"]');
+      if (!native) break;
+      native.value = parseDateDMY(display?.value || '') || native.value || todayISO();
+      try {
+        if (typeof native.showPicker === 'function') native.showPicker();
+        else native.click();
+      } catch {
+        try { native.click(); } catch { /* noop */ }
+      }
+      break;
+    }
     case 'delete-tx': {
       const tx = store.transactionById(id);
       if (!tx) break;
@@ -1676,9 +1853,11 @@ async function handleAction(action, element) {
       const amount = expressionResult(fd.get('amountExpression'));
       const values = {
         type: element.dataset.type,
-        date: fd.get('date') || todayISO(),
+        date: fd.get('date') || parseDateDMY(fd.get('dateDisplay')) || todayISO(),
+        time: normalizeTime(fd.get('time'), currentTimeHHMM()),
         amount: amount === null ? '' : String(Math.round(amount * 100) / 100),
         accountId: fd.get('accountId') || '',
+        accountOwner: fd.get('accountOwner') || 'all',
         toAccountId: fd.get('toAccountId') || '',
         categoryId: fd.get('categoryId') || '',
         subcategoryId: fd.get('subcategoryId') || '',
@@ -1686,6 +1865,7 @@ async function handleAction(action, element) {
         recurring: Boolean(fd.get('makeRecurring')),
         recurringTitle: fd.get('recurringTitle') || '',
         frequency: fd.get('recurringFrequency') || 'monthly',
+        calcOpen: ui.calcOpen,
       };
       closeModal({ silent: true });
       if (original) openTransactionModal({ ...original, ...values }, values);
@@ -1787,6 +1967,19 @@ async function handleAction(action, element) {
       renderApplication();
       break;
     }
+    case 'delete-account': {
+      const account = store.accountById(id);
+      if (!account) break;
+      const ok = await confirmDialog({
+        title: 'Hapus akun?',
+        message: `Akun "${account.name}" akan dihapus permanen. Transaksi lama tetap menyimpan referensi akun ini.`,
+      });
+      if (!ok) return;
+      store.deleteAccount(id);
+      toast('Akun dihapus.', 'success');
+      renderApplication();
+      break;
+    }
     case 'restore-account': {
       const account = store.accountById(id);
       if (!account) break;
@@ -1802,7 +1995,7 @@ async function handleAction(action, element) {
       ui.txType = 'all';
       ui.txCategory = 'all';
       ui.txUser = 'all';
-      ui.txLimit = 40;
+      ui.txPage = 1;
       navigate('transactions');
       break;
 
@@ -1909,22 +2102,24 @@ async function handleAction(action, element) {
 
     /* Transactions filters */
     case 'tx-all-months':
+      ui.txYear = 'all';
       ui.txMonth = 'all';
-      ui.txLimit = 40;
+      ui.txPage = 1;
       renderApplication();
       break;
     case 'reset-tx-filter':
-      ui.txMonth = monthKey();
+      ui.txYear = 'all';
+      ui.txMonth = 'all';
       ui.txType = 'all';
       ui.txAccount = 'all';
       ui.txCategory = 'all';
       ui.txUser = 'all';
       ui.txQuery = '';
-      ui.txLimit = 40;
+      ui.txPage = 1;
       renderApplication();
       break;
-    case 'tx-load-more':
-      ui.txLimit += 40;
+    case 'tx-page':
+      ui.txPage = Math.max(1, Number(element.dataset.page) || 1);
       renderApplication();
       break;
 
@@ -2172,7 +2367,7 @@ async function handleAction(action, element) {
       element.disabled = true;
       element.textContent = 'Menghubungkan…';
       try {
-        const account = await GoogleDrive.signIn({ prompt: 'select_account' });
+        const account = await signInWithGoogleFlow();
         refreshDriveUi();
         if (store.currentUser) {
           ui.appMounted = false;
@@ -2195,7 +2390,7 @@ async function handleAction(action, element) {
       element.disabled = true;
       element.textContent = 'Menghubungkan…';
       try {
-        const account = await GoogleDrive.signIn({ prompt: 'select_account' });
+        const account = await signInWithGoogleFlow();
         const result = await store.signInWithGoogle(account);
         closeModal({ silent: true });
         enterApplication(result.user);
@@ -2267,7 +2462,7 @@ async function handleAction(action, element) {
       element.disabled = true;
       element.textContent = 'Menghubungkan…';
       try {
-        const account = await GoogleDrive.signIn({ prompt: 'select_account' });
+        const account = await signInWithGoogleFlow();
         if (!store.hasWorkspace) await store.signInWithGoogle(account);
         await openDriveRestoreModal();
       } catch (error) {
@@ -2386,7 +2581,8 @@ function submitTransaction(form) {
   const editingId = form.dataset.id;
   const type = String(fd.get('type') || 'expense');
   const amount = expressionResult(fd.get('amountExpression'));
-  const date = String(fd.get('date') || todayISO());
+  const date = String(fd.get('date') || '') || parseDateDMY(fd.get('dateDisplay'));
+  const time = normalizeTime(fd.get('time'), currentTimeHHMM());
   const accountId = String(fd.get('accountId') || '');
   const toAccountId = String(fd.get('toAccountId') || '');
   const categoryId = String(fd.get('categoryId') || '');
@@ -2397,7 +2593,11 @@ function submitTransaction(form) {
     return;
   }
   if (!date) {
-    showFormError(form, 'Tanggal transaksi wajib diisi.');
+    showFormError(form, 'Tanggal tidak valid. Gunakan format dd/mm/yyyy.');
+    return;
+  }
+  if (!time) {
+    showFormError(form, 'Jam transaksi wajib diisi.');
     return;
   }
   if (!accountId) {
@@ -2415,6 +2615,7 @@ function submitTransaction(form) {
 
   const payload = {
     date,
+    time,
     type,
     amount: Math.round(amount),
     accountId,
@@ -2926,14 +3127,32 @@ function bindEvents() {
     });
   });
 
+  document.addEventListener('focusin', (event) => {
+    const target = event.target;
+    if (target?.matches?.('[name="amountExpression"]')) {
+      target.placeholder = '';
+    }
+  });
+  document.addEventListener('focusout', (event) => {
+    const target = event.target;
+    if (target?.matches?.('[name="amountExpression"]') && !String(target.value || '').trim()) {
+      target.placeholder = '0';
+    }
+  });
   document.addEventListener('input', (event) => {
     const target = event.target;
     if (target.matches('[name="amountExpression"]')) {
+      formatCalculatorInput(target);
       updateCalculator(target.closest('form'));
+      return;
+    }
+    if (target.matches('[name="dateDisplay"]')) {
+      maskDateInput(target);
       return;
     }
     if (target.id === 'tx-search') {
       ui.txQuery = target.value;
+      ui.txPage = 1;
       const snapshot = rememberFocus();
       debounceSearch(() => renderApplication({ focus: snapshot }))();
       return;
@@ -2950,6 +3169,12 @@ function bindEvents() {
 
   document.addEventListener('change', (event) => {
     const target = event.target;
+    if (target.matches('input[name="date"][type="date"]')) {
+      const form = target.closest('form');
+      const display = form?.querySelector('[name="dateDisplay"]');
+      if (display) display.value = target.value ? formatDateDMY(target.value) : '';
+      return;
+    }
     if (target.dataset?.action) {
       Promise.resolve(handleAction(target.dataset.action, target)).catch((error) => {
         console.error('Change action failed:', error);
@@ -2962,27 +3187,27 @@ function bindEvents() {
       switch (filter) {
         case 'tx-year':
           ui.txYear = target.value || new Date().getFullYear().toString();
-          ui.txLimit = 40;
+          ui.txPage = 1;
           break;
         case 'tx-month':
           ui.txMonth = target.value || 'all';
-          ui.txLimit = 40;
+          ui.txPage = 1;
           break;
         case 'tx-type':
           ui.txType = target.value || 'all';
-          ui.txLimit = 40;
+          ui.txPage = 1;
           break;
         case 'tx-account':
           ui.txAccount = target.value || 'all';
-          ui.txLimit = 40;
+          ui.txPage = 1;
           break;
         case 'tx-category':
           ui.txCategory = target.value || 'all';
-          ui.txLimit = 40;
+          ui.txPage = 1;
           break;
         case 'tx-user':
           ui.txUser = target.value || 'all';
-          ui.txLimit = 40;
+          ui.txPage = 1;
           break;
         case 'calendar-month':
           if (target.value) ui.calendarMonth = target.value;
@@ -3013,6 +3238,26 @@ function bindEvents() {
       const form = target.closest('form[data-form="transaction"], form[data-form="recurring"]');
       const subcategory = form?.querySelector('select[name="subcategoryId"]');
       if (subcategory) subcategory.innerHTML = subcategoryOptions(target.value);
+      return;
+    }
+
+    if (target.matches('select[name="accountOwner"]')) {
+      const form = target.closest('form[data-form="transaction"]');
+      const accountSelect = form?.querySelector('select[name="accountId"]');
+      if (accountSelect) {
+        const selected = accountSelect.value;
+        const owner = target.value || 'all';
+        const options = store.data.accounts
+          .filter((account) => !account.deletedAt)
+          .filter((account) => !account.archived || account.id === selected)
+          .filter((account) => owner === 'all' || account.owner === owner)
+          .map((account) => `<option value="${escapeAttr(account.id)}" ${selected === account.id ? 'selected' : ''}>${escapeHTML(account.name)}${account.archived ? ' (arsip)' : ''}</option>`)
+          .join('');
+        accountSelect.innerHTML = options || '<option value="">Tidak ada akun</option>';
+        if (selected && ![...accountSelect.options].some((option) => option.value === selected)) {
+          accountSelect.selectedIndex = 0;
+        }
+      }
       return;
     }
 
@@ -3128,6 +3373,9 @@ function boot() {
   bindStore();
   bindEvents();
   initPullToRefresh();
+  // Warm up Google Identity Services so the sign-in window can be opened
+  // synchronously from the button tap (required by Safari/iOS).
+  GoogleDrive.prepare().catch(() => {});
 
   if (!location.hash) history.replaceState(null, '', '#/dashboard');
 
@@ -3166,6 +3414,7 @@ function boot() {
 
   if (!store.currentUser) {
     renderAuth();
+    resumeGoogleLoginOnBoot();
   } else {
     renderApplication();
     runRecurring({ notify: true });

@@ -26,6 +26,62 @@ export function todayISO() {
   return localDateISO(new Date());
 }
 
+/** dd/mm/yyyy for compact date inputs (always 10 characters). */
+export function formatDateDMY(value) {
+  const d = parseLocalDate(value);
+  if (!d) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+
+/** Parse dd/mm/yyyy (or yyyy-mm-dd) into a valid YYYY-MM-DD string. */
+export function parseDateDMY(value) {
+  const raw = String(value || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return parseLocalDate(raw) ? raw : '';
+  }
+  const match = raw.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
+  if (!match) return '';
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  if (year < 1900 || year > 2200 || month < 1 || month > 12 || day < 1 || day > 31) return '';
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${year}-${pad(month)}-${pad(day)}`;
+}
+
+export function currentTimeHHMM(date = new Date()) {
+  const d = date instanceof Date ? date : new Date(date);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Normalise HH:MM values coming from forms or older data. */
+export function normalizeTime(value, fallback = '00:00') {
+  const match = String(value || '').match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return fallback;
+  const hours = Math.min(23, Math.max(0, Number(match[1])));
+  const minutes = Math.min(59, Math.max(0, Number(match[2])));
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(hours)}:${pad(minutes)}`;
+}
+
+/** Local HH:MM from a timestamp, used as a fallback for older transactions. */
+export function timeFromISO(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return currentTimeHHMM(d);
+}
+
+export function formatTimeLabel(value, fallback = '') {
+  const raw = String(value || '').trim();
+  if (!raw) return fallback;
+  return normalizeTime(raw, fallback);
+}
+
 export function parseLocalDate(value) {
   if (!value) return null;
   if (value instanceof Date) return new Date(value.getTime());
@@ -305,13 +361,21 @@ export function roundAmount(value) {
 /*  Safe expression calculator                                                */
 /* -------------------------------------------------------------------------- */
 
-function tokenizeExpression(input) {
-  const source = String(input || '')
+function normalizeExpressionSource(input) {
+  return String(input || '')
     .replace(/×/g, '*')
     .replace(/÷/g, '/')
     .replace(/−/g, '-')
-    .replace(/,/g, '.')
-    .replace(/\s+/g, '');
+    .replace(/\s+/g, '')
+    // Indonesian thousands separators: 1.000.000 -> 1000000.
+    // Dots followed by exactly three digits are grouping dots, not decimals.
+    .replace(/(\d)\.(?=\d{3}(?!\d))/g, '$1')
+    // Indonesian decimal comma.
+    .replace(/,/g, '.');
+}
+
+function tokenizeExpression(input) {
+  const source = normalizeExpressionSource(input);
   if (!source) return [];
   if (!/^[0-9+\-*/().]+$/.test(source)) throw new Error('Invalid character');
   const tokens = [];
@@ -418,6 +482,50 @@ export function expressionResult(input) {
   } catch {
     return null;
   }
+}
+
+/**
+ * Format a live calculator expression using Indonesian notation:
+ * thousands use ".", decimals use ",". Operators are kept as-is so
+ * expressions such as 1.500.000+250.000 still work.
+ */
+export function formatAmountExpression(value) {
+  const source = String(value ?? '');
+  let output = '';
+  let numberBuffer = '';
+
+  const flushNumber = () => {
+    if (!numberBuffer) return;
+    const normalized = numberBuffer.replace(/\./g, '');
+    const [rawInteger, rawDecimal] = normalized.split(',');
+    let integer = rawInteger.replace(/^0+(?=\d)/, '');
+    if (!integer) integer = rawDecimal !== undefined ? '0' : '';
+    output += integer.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    if (rawDecimal !== undefined) output += `,${rawDecimal.slice(0, 2)}`;
+    numberBuffer = '';
+  };
+
+  for (const char of source) {
+    if (char >= '0' && char <= '9') {
+      numberBuffer += char;
+      continue;
+    }
+    if (char === ',') {
+      if (!numberBuffer) numberBuffer = '0';
+      if (!numberBuffer.includes(',')) numberBuffer += ',';
+      continue;
+    }
+    if (char === '.') continue;
+    flushNumber();
+    if ('+-×÷−*/()'.includes(char)) {
+      if (char === '-') output += '−';
+      else if (char === '*') output += '×';
+      else if (char === '/') output += '÷';
+      else output += char;
+    }
+  }
+  flushNumber();
+  return output;
 }
 
 /* -------------------------------------------------------------------------- */

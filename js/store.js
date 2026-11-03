@@ -9,15 +9,18 @@ import {
 } from './data.js';
 import {
   advanceDate,
+  currentTimeHHMM,
   deepClone,
   formatDate,
   localDateISO,
   monthKey,
   monthRange,
+  normalizeTime,
   nowISO,
   safeNumber,
   sortBy,
   sum,
+  timeFromISO,
   todayISO,
   uid,
 } from './utils.js';
@@ -27,6 +30,10 @@ function recordStamp(record) {
   const raw = record.updatedAt || record.createdAt;
   const stamp = raw ? new Date(raw).getTime() : 0;
   return Number.isFinite(stamp) ? stamp : 0;
+}
+
+function transactionTime(tx) {
+  return normalizeTime(tx?.time, timeFromISO(tx?.createdAt) || '00:00');
 }
 
 function pickNewest(localRecord, remoteRecord) {
@@ -426,6 +433,7 @@ class Store {
       const tx = {
         id: uid('tx'),
         date: payload.date || todayISO(),
+        time: normalizeTime(payload.time, currentTimeHHMM()),
         type: ['income', 'expense', 'transfer'].includes(payload.type) ? payload.type : 'expense',
         amount: Math.max(0, Math.round(safeNumber(payload.amount))),
         accountId: payload.accountId || null,
@@ -453,6 +461,7 @@ class Store {
       const type = ['income', 'expense', 'transfer'].includes(payload.type) ? payload.type : tx.type;
       Object.assign(tx, {
         date: payload.date || tx.date,
+        time: normalizeTime(payload.time, tx.time || timeFromISO(tx.createdAt) || currentTimeHHMM()),
         type,
         amount: Math.max(0, Math.round(safeNumber(payload.amount))),
         accountId: payload.accountId || tx.accountId,
@@ -498,8 +507,11 @@ class Store {
       .filter((tx) => includeDeleted || !tx.deletedAt)
       .slice()
       .sort((a, b) => {
-        if (a.date === b.date) return recordStamp(b) - recordStamp(a);
-        return a.date < b.date ? 1 : -1;
+        if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+        const timeA = transactionTime(a);
+        const timeB = transactionTime(b);
+        if (timeA !== timeB) return timeA < timeB ? 1 : -1;
+        return recordStamp(b) - recordStamp(a);
       });
   }
 
@@ -690,6 +702,16 @@ class Store {
     });
   }
 
+  deleteAccount(id) {
+    return this.commit('account:delete', (data, now) => {
+      const account = data.accounts.find((item) => item.id === id);
+      if (!account) throw new Error('Akun tidak ditemukan.');
+      account.deletedAt = now;
+      account.archived = true;
+      account.updatedAt = now;
+      return account;
+    });
+  }
   setAccountArchived(id, archived) {
     return this.commit('account:archive', (data, now) => {
       const account = data.accounts.find((item) => item.id === id);
@@ -1014,6 +1036,7 @@ class Store {
     data.transactions.push({
       id: transactionId,
       date,
+      time: currentTimeHHMM(),
       type: rule.type,
       amount: Math.max(0, Math.round(safeNumber(rule.amount))),
       accountId: rule.accountId,

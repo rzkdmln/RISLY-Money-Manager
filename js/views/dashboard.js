@@ -70,20 +70,6 @@ export function dashboardView(user) {
       </div>`;
     }).join('');
 
-  const quickActions = [
-    { type: 'expense', label: 'Pengeluaran', icon: 'arrow-up-right', tone: 'rose' },
-    { type: 'income', label: 'Pemasukan', icon: 'arrow-down-left', tone: 'emerald' },
-    { type: 'transfer', label: 'Transfer', icon: 'arrow-left-right', tone: 'blue' },
-    { type: 'note', label: 'Catatan', icon: 'sticky-note', tone: 'amber' },
-  ].map((item) => `
-    <button type="button" class="flex flex-col items-center justify-center p-3 gap-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-700/50 transition-all active:scale-95 w-full" data-action="${item.type === 'note' ? 'add-note' : 'add-tx'}" ${item.type !== 'note' ? `data-type="${item.type}"` : ''}>
-      <div class="p-2.5 rounded-xl bg-${item.tone}-100 text-${item.tone}-600 dark:bg-${item.tone}-900/30 dark:text-${item.tone}-400">
-        ${icon(item.icon, 'w-5 h-5')}
-      </div>
-      <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate">${item.label}</span>
-    </button>
-  `).join('');
-
   const upcomingHtml = upcoming.length
     ? upcoming.map((rule) => {
       const category = store.categoryById(rule.categoryId);
@@ -113,7 +99,6 @@ export function dashboardView(user) {
     ${pageHeader({
       eyebrow: `Ringkasan ${escapeHTML(formatMonth(month))}`,
       title: `${escapeHTML(greeting())}, ${escapeHTML(user?.name || '')} <span class="wave">👋</span>`,
-      subtitle: 'Pencatatan keuangan keluarga dalam satu tempat.',
       actions: ``,
     })}
 
@@ -239,7 +224,7 @@ export function dashboardView(user) {
            <h2 class="text-lg font-bold text-slate-900 dark:text-white">Transaksi terbaru</h2>
            <button type="button" class="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center gap-1" data-action="nav" data-route="transactions">Lihat semua ${icon('arrow-right', 'w-3 h-3')}</button>
         </div>
-        ${recent.length ? `<div class="tx-list space-y-1 min-w-0 w-full">${recent.map((tx) => txRow(tx, { compact: false })).join('')}</div>` : emptyState('receipt', 'Belum ada transaksi', 'Catat pengeluaran atau pemasukan pertama.', `<button type="button" class="btn btn-primary btn-sm rounded-lg" data-action="add-tx" data-type="expense">${icon('plus', 'w-3.5 h-3.5')} Catat transaksi</button>`)}
+        ${recent.length ? `<div class="tx-list space-y-1 min-w-0 w-full">${recent.map((tx) => txRow(tx, { compact: false, showDate: true })).join('')}</div>` : emptyState('receipt', 'Belum ada transaksi', 'Catat pengeluaran atau pemasukan pertama.', `<button type="button" class="btn btn-primary btn-sm rounded-lg" data-action="add-tx" data-type="expense">${icon('plus', 'w-3.5 h-3.5')} Catat transaksi</button>`)}
 
         ${dueRecurring > 0 || dueTasks > 0 ? `<div class="mt-6 flex flex-col gap-2 min-w-0">
           ${dueRecurring > 0 ? `<button type="button" class="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-xl text-xs font-bold transition-colors hover:bg-amber-100" data-action="nav" data-route="recurring">${icon('repeat', 'w-4 h-4')} ${dueRecurring} transaksi berulang jatuh tempo</button>` : ''}
@@ -248,12 +233,6 @@ export function dashboardView(user) {
       </section>
 
       <div class="space-y-4 lg:space-y-6 min-w-0 w-full">
-        <!-- Aksi Cepat Redesigned (2x2 Grid) -->
-        <section class="card min-w-0 w-full overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-5 shadow-sm border border-slate-200 dark:border-slate-800">
-          <h2 class="text-sm font-bold text-slate-900 dark:text-white mb-4">Aksi Cepat</h2>
-          <div class="grid grid-cols-2 gap-3 min-w-0 w-full">${quickActions}</div>
-        </section>
-
         <section class="card min-w-0 w-full overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-5 shadow-sm border border-slate-200 dark:border-slate-800">
           <div class="flex items-center justify-between mb-4">
              <h2 class="text-sm font-bold text-slate-900 dark:text-white">Jadwal Mendatang</h2>

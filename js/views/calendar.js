@@ -60,32 +60,8 @@ export function calendarView() {
     ${pageHeader({
       eyebrow: 'Pola belanja harian',
       title: 'Kalender',
-      subtitle: 'Lihat pemasukan dan pengeluaran pada setiap tanggal.',
       actions: `<button type="button" class="btn btn-primary" data-action="add-tx" data-type="expense">${icon('plus', 'w-4 h-4')} Transaksi</button>`,
     })}
-
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-      <div class="stat-card stat-green">
-        <div class="stat-top"><span>Pemasukan</span><span class="stat-icon">${icon('arrow-down-left', 'w-4 h-4')}</span></div>
-        <div class="stat-value text-base sm:text-xl">${money(summary.income)}</div>
-        <div class="stat-hint">${summary.count} transaksi</div>
-      </div>
-      <div class="stat-card stat-red">
-        <div class="stat-top"><span>Pengeluaran</span><span class="stat-icon">${icon('arrow-up-right', 'w-4 h-4')}</span></div>
-        <div class="stat-value text-base sm:text-xl">${money(summary.expense)}</div>
-        <div class="stat-hint">${formatPercent(summary.income > 0 ? (summary.expense / summary.income) * 100 : 0)} dari pemasukan</div>
-      </div>
-      <div class="stat-card stat-blue">
-        <div class="stat-top"><span>Arus kas</span><span class="stat-icon">${icon('trending-up', 'w-4 h-4')}</span></div>
-        <div class="stat-value text-base sm:text-xl ${summary.net < 0 ? 'amount-expense' : ''}">${summary.net > 0 ? '+' : ''}${money(summary.net)}</div>
-        <div class="stat-hint">Bulan ${escapeHTML(formatMonth(month, { month: 'long' }))}</div>
-      </div>
-      <div class="stat-card stat-amber">
-        <div class="stat-top"><span>Rata-rata harian</span><span class="stat-icon">${icon('calendar', 'w-4 h-4')}</span></div>
-        <div class="stat-value text-base sm:text-xl">${money(averageExpense)}</div>
-        <div class="stat-hint">${highest ? `Tertinggi ${money(highest[1].expense, { compact: true })}` : 'Belum ada pengeluaran'}</div>
-      </div>
-    </div>
 
     <section class="card calendar-card">
       <div class="calendar-toolbar">
@@ -112,35 +88,5 @@ export function calendarView() {
         <span class="ml-auto hidden sm:inline">${badge('Ketuk tanggal untuk rincian', 'slate', 'badge-soft')}</span>
       </div>
     </section>
-
-    <div class="grid md:grid-cols-2 gap-4">
-      <section class="card">
-        <div class="card-heading">
-          <div>
-            <p class="card-kicker">Insight</p>
-            <h2 class="section-title">Hari paling aktif</h2>
-          </div>
-          ${icon('sparkles', 'w-5 h-5 text-amber-500')}
-        </div>
-        ${highest ? `<div class="insight-hero">
-          <div>
-            <p class="text-xs text-slate-500 dark:text-slate-400">Pengeluaran terbesar</p>
-            <p class="text-lg font-bold text-slate-900 dark:text-white mt-1">${escapeHTML(formatDateLong(highest[0], { weekday: 'long', day: 'numeric', month: 'long' }))}</p>
-          </div>
-          <p class="text-xl font-bold amount-expense">${money(highest[1].expense)}</p>
-        </div>` : '<p class="text-sm text-slate-500 dark:text-slate-400">Belum ada data pengeluaran bulan ini.</p>'}
-      </section>
-      <section class="card">
-        <div class="card-heading">
-          <div>
-            <p class="card-kicker">Ritme keluarga</p>
-            <h2 class="section-title">Catatan kalender</h2>
-          </div>
-          ${icon('calendar', 'w-5 h-5 text-blue-500')}
-        </div>
-        <p class="text-sm leading-6 text-slate-500 dark:text-slate-400">Total harian dihitung dari transaksi pemasukan dan pengeluaran. Transfer antar akun tidak dihitung sebagai arus kas, tetapi tetap mengubah saldo akun.</p>
-        <button type="button" class="link-button mt-3" data-action="nav" data-route="reports">Buka laporan bulanan ${icon('arrow-right', 'w-3 h-3')}</button>
-      </section>
-    </div>
   </div>`;
 }

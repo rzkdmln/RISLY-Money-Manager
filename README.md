@@ -71,6 +71,7 @@ RISLY-Money-Manager/
 │   ├── config.js             # Konfigurasi konstanta global aplikasi
 │   ├── data.js               # Pengelolaan skema data dasar & migrasi
 │   ├── gdrive.js             # Google Sign-In & Google Drive (OAuth + REST, backup manual)
+│   ├── google-auth-relay.js   # Relay login Google untuk PWA iOS (callback lintas Safari)
 │   ├── icons.js              # Komponen pustaka ikon SVG dinamis
 │   ├── store.js              # State management & pemrosesan query data
 │   ├── ui.js                 # Helper UI (Modal, Toast, Money Formatter)
@@ -97,6 +98,7 @@ RISLY-Money-Manager/
 ├── index.html                # Entry point HTML utama
 ├── manifest.json             # Manifest Web App untuk installability PWA
 ├── netlify.toml              # Konfigurasi deployment Netlify
+├── oauth-callback.html       # Halaman callback OAuth untuk PWA iOS (dibuka di jendela Safari)
 └── sw.js                     # Service worker untuk dukungan offline & cache PWA
 ```
 
@@ -146,8 +148,11 @@ Google Drive dipakai **hanya untuk login dan backup/pemulihan manual**. Aplikasi
 3. **APIs & Services → OAuth consent screen** → pilih *External*, isi nama aplikasi, lalu tambahkan diri Anda sebagai *test user*.
 4. **APIs & Services → Credentials → Create credentials → OAuth client ID**:
    - Application type: **Web application**
-   - *Authorized JavaScript origins*: `http://localhost:8080` (lokal) dan domain produksi Anda (mis. `https://risly.netlify.app`)
+   - *Authorized JavaScript origins*: `http://localhost:8080` (lokal) dan domain produksi Anda (mis. `https://risly.pages.dev`)
+   - *Authorized redirect URIs*: `http://localhost:8080/oauth-callback.html` dan `https://risly.pages.dev/oauth-callback.html` (sesuaikan dengan domain produksi)
 5. Salin **Client ID** (`…apps.googleusercontent.com`).
+
+> **Penting untuk iPhone:** PWA yang dipasang di Home Screen memakai penyimpanan terpisah dari Safari. Karena itu login Google di iOS memakai halaman `oauth-callback.html` dan relay kecil, bukan popup biasa. Tanpa *Authorized redirect URI* di atas, Google akan menampilkan **Error 400: redirect_uri_mismatch** dan login tidak akan selesai.
 
 ### Menautkan akun Google (sekali per anggota)
 
@@ -161,6 +166,7 @@ Google Drive dipakai **hanya untuk login dan backup/pemulihan manual**. Aplikasi
 - Tombol **Masuk dengan Google** mencocokkan email Google dengan profil yang sudah tertaut.
 - Jika akun belum tertaut, masukkan PIN sekali; akun Google otomatis ditautkan ke profil yang dipakai.
 - PIN tetap menjadi cadangan saat offline atau jika Google tidak tersedia.
+- **iPhone / PWA Home Screen:** jendela Google terbuka sebagai lembar Safari. Setelah memilih akun, kembali ke aplikasi RISLY — hasil login diambil otomatis lewat relay. Jika aplikasi sempat ditutup, buka lagi dan proses akan dilanjutkan.
 
 ### Backup & pemulihan (manual)
 
@@ -178,6 +184,8 @@ Google Drive dipakai **hanya untuk login dan backup/pemulihan manual**. Aplikasi
 ### Troubleshooting
 
 **Error 403: access_denied** — aplikasi OAuth masih berstatus *Testing* dan akun Google yang dipakai belum terdaftar sebagai penguji. Buka **OAuth consent screen → Test users → Add users**, masukkan alamat Gmail yang dipakai, lalu coba lagi. Alternatifnya klik **Publish app** (scope `drive.appdata`, `openid`, `email`, `profile` tergolong non-sensitif sehingga umumnya tidak butuh verifikasi).
+
+**Error 400: redirect_uri_mismatch** — URL `oauth-callback.html` belum didaftarkan. Buka **Credentials → OAuth client → Authorized redirect URIs**, tambahkan `https://<domain-anda>/oauth-callback.html` persis seperti yang dipakai aplikasi (tanpa garis miring di akhir), simpan, tunggu ±5 menit.
 
 **Google Drive API belum diaktifkan** — pesan seperti *"Google Drive API has not been used in project … before or it is disabled"* berarti API-nya belum dinyalakan. Buka **APIs & Services → Library → Google Drive API → Enable** (atau [tautan langsung](https://console.developers.google.com/apis/api/drive.googleapis.com/overview)), tunggu ±2 menit, lalu coba lagi.
 

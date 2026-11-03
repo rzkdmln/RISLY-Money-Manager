@@ -165,6 +165,10 @@ class GoogleDriveClient {
     this.accessToken = '';
     this.expiresAt = 0;
     this.listeners = new Set();
+    this.tokenClient = null;
+    this.tokenClientId = '';
+    this.preparePromise = null;
+    this.tokenWaiter = null;
   }
 
   getAccount() {
@@ -202,6 +206,9 @@ class GoogleDriveClient {
     this.clientId = next;
     this.accessToken = '';
     this.expiresAt = 0;
+    this.tokenClient = null;
+    this.tokenClientId = '';
+    this.preparePromise = null;
     if (this.account && this.account.clientId !== next) {
       this.account = null;
       gdriveStore(ACCOUNT_KEY, null);
@@ -209,52 +216,100 @@ class GoogleDriveClient {
     }
   }
 
-  async requestToken(prompt = 'select_account') {
-      const validPrompt = typeof prompt === 'string' ? prompt : 'select_account';
-      const validClientId = typeof this.clientId === 'string' ? this.clientId.trim() : String(this.clientId || '').trim();
-      if (!validClientId) {
-        throw new DriveAuthError('Client ID Google belum diisi atau tidak valid.');
-      }
+  /**
+   * Loads Google Identity Services and creates the token client ahead of time.
+   * Doing this before the click lets requestAccessToken() run inside the user
+   * gesture, which Safari/iOS requires for the sign-in window to keep talking
+   * back to the page.
+   */
+  async prepare() {
+    const clientId = typeof this.clientId === 'string' ? this.clientId.trim() : String(this.clientId || '').trim();
+    if (!clientId) throw new DriveAuthError('Client ID Google belum diisi atau tidak valid.');
+    if (this.tokenClient && this.tokenClientId === clientId) return this.tokenClient;
+    if (this.preparePromise) return this.preparePromise;
 
-      const google = await loadGis();
-      return new Promise((resolve, reject) => {
-        let settled = false;
-        const finish = (fn, value) => {
-          if (settled) return;
-          settled = true;
-          fn(value);
-        };
-
-        const client = google.accounts.oauth2.initTokenClient({
-          client_id: validClientId,
-          scope: DRIVE_SCOPE,
-          callback: (response) => {
-            if (response?.error) {
-              finish(reject, new DriveAuthError(authErrorMessage(response)));
-              return;
-            }
-            this.accessToken = response.access_token;
-            this.expiresAt = Date.now() + (Number(response.expires_in) || 3600) * 1000;
-
-            gdriveStore('risly_access_token', response.access_token, 1);
-            gdriveStore('risly_token_expires_at', String(this.expiresAt), 1);
-
-            finish(resolve, response);
-          },
-          error_callback: (error) => {
-            // Tangkap error object agar tidak crash pada .trim()
-            const msg = error?.message || (typeof error === 'string' ? error : 'Gagal membuka Google Sign-In.');
-            finish(reject, new DriveAuthError(msg));
-          },
-        });
-
-        try {
-          client.requestAccessToken({ prompt: validPrompt });
-        } catch (error) {
-          finish(reject, new DriveAuthError(error?.message || 'Google Sign-In gagal dibuka.'));
-        }
+    this.preparePromise = loadGis().then((google) => {
+      this.tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: DRIVE_SCOPE,
+        callback: (response) => this.settleToken(response),
+        error_callback: (error) => this.failToken(error),
       });
+      this.tokenClientId = clientId;
+      return this.tokenClient;
+    }).catch((error) => {
+      this.preparePromise = null;
+      throw error;
+    });
+    return this.preparePromise;
+  }
+
+  settleToken(response) {
+    if (response?.error) {
+      this.failToken(response);
+      return;
     }
+    this.accessToken = response.access_token;
+    this.expiresAt = Date.now() + (Number(response.expires_in) || 3600) * 1000;
+    gdriveStore('risly_access_token', response.access_token, 1);
+    gdriveStore('risly_token_expires_at', String(this.expiresAt), 1);
+    const waiter = this.tokenWaiter;
+    this.tokenWaiter = null;
+    waiter?.resolve(response);
+  }
+
+  failToken(error) {
+    const message = error?.message || authErrorMessage(error);
+    const waiter = this.tokenWaiter;
+    this.tokenWaiter = null;
+    waiter?.reject(new DriveAuthError(message));
+  }
+
+  openTokenClient(client, prompt) {
+    return new Promise((resolve, reject) => {
+      this.tokenWaiter = { resolve, reject };
+      try {
+        // Synchronous on purpose: Safari/iOS only keeps the sign-in window
+        // connected to this page when it opens inside the click gesture.
+        client.requestAccessToken({ prompt });
+      } catch (error) {
+        this.tokenWaiter = null;
+        reject(new DriveAuthError(error?.message || 'Google Sign-In gagal dibuka.'));
+      }
+    });
+  }
+
+  requestToken(prompt = 'select_account') {
+    const validPrompt = typeof prompt === 'string' ? prompt : 'select_account';
+    const clientId = typeof this.clientId === 'string' ? this.clientId.trim() : String(this.clientId || '').trim();
+    if (!clientId) {
+      return Promise.reject(new DriveAuthError('Client ID Google belum diisi atau tidak valid.'));
+    }
+    if (this.tokenClient && this.tokenClientId === clientId) {
+      return this.openTokenClient(this.tokenClient, validPrompt);
+    }
+    return this.prepare().then((client) => this.openTokenClient(client, validPrompt));
+  }
+
+  /** Adopts a session produced by the iOS relay callback. */
+  adoptSession({ account, accessToken, expiresAt } = {}) {
+    if (!account?.email || !accessToken) {
+      throw new DriveAuthError('Sesi Google dari callback tidak lengkap.');
+    }
+    this.account = {
+      email: String(account.email),
+      name: String(account.name || account.email),
+      picture: String(account.picture || ''),
+      clientId: this.clientId,
+    };
+    this.accessToken = accessToken;
+    this.expiresAt = Number(expiresAt) || (Date.now() + 3600 * 1000);
+    gdriveStore(ACCOUNT_KEY, JSON.stringify(this.account), 30);
+    gdriveStore('risly_access_token', this.accessToken, 1);
+    gdriveStore('risly_token_expires_at', String(this.expiresAt), 1);
+    this.emit();
+    return this.getAccount();
+  }
 
   /**
    * Signs in with Google and returns account information.

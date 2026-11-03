@@ -39,6 +39,11 @@ function installTip() {
   return `<p class="auth-install-tip">${icon('info', 'w-3.5 h-3.5')} Buka di Safari, lalu pilih <strong>Bagikan → Tambahkan ke Layar Utama</strong>.</p>`;
 }
 
+function iosLoginTip() {
+  if (!isIos()) return '';
+  return `<p class="auth-install-tip">${icon('info', 'w-3.5 h-3.5')} Jendela Google akan terbuka. Setelah memilih akun, kembali ke aplikasi ini — proses masuk selesai otomatis.</p>`;
+}
+
 function welcomeView() {
   const last = lastAccount();
   return `<div class="auth-screen">
@@ -56,6 +61,7 @@ function welcomeView() {
         </div>
 
         ${googleButton('Masuk dengan Google')}
+        ${iosLoginTip()}
         <div class="auth-divider"><span>atau</span></div>
 
         <div class="auth-stack">

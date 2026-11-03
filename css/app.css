@@ -441,7 +441,19 @@ input[type="date"].field, input[type="month"].field, input[type="datetime-local"
   min-width: 0 !important;
   overflow: hidden !important;
 }
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 13px; }
+.date-input-wrap { position: relative; display: flex; align-items: center; width: 100%; min-width: 0; }
+.date-display { min-width: 0; padding-right: 42px; }
+.date-pick-btn {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: 34px; height: 34px; border-radius: 8px; border: 0;
+  background: transparent; color: var(--muted); display: inline-flex;
+  align-items: center; justify-content: center; transition: color .15s ease, background .15s ease;
+}
+.date-pick-btn:hover { color: var(--brand); background: var(--brand-soft); }
+.date-native {
+  position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0;
+  border: 0; padding: 0; margin: 0;
+}
 .modal-body > .field-label, .modal-body > .form-grid + .field-label { margin-top: 13px; }
 .form-error {
   margin: 14px 0 0; padding: 9px 12px; border-radius: 9px;
@@ -1336,7 +1348,25 @@ body.is-auth { background: var(--bg); }
 .dark .type-segment-btn.type-expense.is-active { color: #fb7185; }
 .dark .type-segment-btn.type-income.is-active { color: #34d399; }
 .note-kind-segment { grid-template-columns: 1fr 1fr; }
-.calculator-card { padding: 13px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-2); }
+.amount-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 2px; }
+.amount-label-row .field-label { margin: 0; }
+.calc-toggle {
+  width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--muted); display: inline-flex;
+  align-items: center; justify-content: center; transition: color .15s ease, background .15s ease, border-color .15s ease;
+}
+.calc-toggle:hover { color: var(--brand); border-color: var(--brand); }
+.calc-toggle.is-open { color: #fff; background: var(--brand); border-color: var(--brand); }
+.calc-key-zero { grid-column: span 2; }
+.pagination-btn {
+  min-width: 34px; height: 34px; padding: 0 9px; border-radius: 9px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  font-size: 12px; font-weight: 700; transition: background .12s ease, color .12s ease, border-color .12s ease;
+}
+.pagination-btn:hover:not(:disabled) { background: var(--surface-3); border-color: var(--brand); color: var(--brand); }
+.pagination-btn.is-active { background: var(--brand); border-color: var(--brand); color: #fff; }
+.pagination-btn:disabled { opacity: .45; cursor: not-allowed; }
+.pagination-ellipsis { padding: 0 6px; color: var(--muted-2); font-size: 12px; font-weight: 700; }
 .calc-display {
   width: 100%; margin-top: 5px; padding: 7px 4px;
   border: 0; border-bottom: 1px dashed var(--border-strong);

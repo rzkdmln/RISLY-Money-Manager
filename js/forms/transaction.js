@@ -1,21 +1,27 @@
 import { FREQUENCIES, TX_TYPES } from '../config.js';
 import { icon } from '../icons.js';
 import { store } from '../store.js';
-import { progressBar } from '../ui.js';
+import { progressBar, ui } from '../ui.js';
 import {
+  currentTimeHHMM,
   escapeAttr,
   escapeHTML,
   expressionResult,
+  formatAmountExpression,
   formatCurrency,
+  formatDateDMY,
   formatMonth,
   monthKey,
+  normalizeTime,
+  timeFromISO,
   todayISO,
 } from '../utils.js';
 
-function accountOptions(selectedId, includeId = null) {
+function accountOptions(selectedId, includeId = null, ownerId = null) {
   return store.data.accounts
     .filter((account) => !account.deletedAt)
     .filter((account) => !account.archived || account.id === selectedId || account.id === includeId)
+    .filter((account) => !ownerId || ownerId === 'all' || account.owner === ownerId)
     .map((account) => `<option value="${escapeAttr(account.id)}" ${selectedId === account.id ? 'selected' : ''}>${escapeHTML(account.name)}${account.archived ? ' (arsip)' : ''}</option>`)
     .join('');
 }
@@ -41,8 +47,16 @@ export function transactionForm(tx = null, defaults = {}) {
   const type = tx?.type || defaults.type || 'expense';
   const typeData = TX_TYPES[type] || TX_TYPES.expense;
   const date = tx?.date || defaults.date || todayISO();
+  const time = normalizeTime(
+    tx?.time || defaults.time,
+    timeFromISO(tx?.createdAt) || currentTimeHHMM(),
+  );
   const amountExpression = tx?.amount ? String(tx.amount) : (defaults.amount || '');
+  const displayAmount = formatAmountExpression(amountExpression);
+  const calcOpen = Boolean(defaults.calcOpen ?? ui.calcOpen);
   const accountId = tx?.accountId || defaults.accountId || store.activeAccounts()[0]?.id || '';
+  const selectedAccount = store.accountById(accountId);
+  const accountOwner = defaults.accountOwner || selectedAccount?.owner || store.currentUser?.id || 'all';
   const toAccountId = tx?.toAccountId || defaults.toAccountId || store.activeAccounts().find((account) => account.id !== accountId)?.id || '';
   const isTransfer = type === 'transfer';
   const categoryType = type === 'income' ? 'income' : 'expense';
@@ -58,7 +72,7 @@ export function transactionForm(tx = null, defaults = {}) {
   }
   const note = tx?.note || defaults.note || '';
   const editing = Boolean(tx?.id);
-  const result = expressionResult(amountExpression);
+  const result = expressionResult(displayAmount);
   const currentUser = store.currentUser;
   const recurring = Boolean(defaults.recurring) || Boolean(tx?.makeRecurring);
   const defaultFrequency = defaults.frequency || 'monthly';
@@ -83,37 +97,52 @@ export function transactionForm(tx = null, defaults = {}) {
       </div>
 
       <div class="calculator-card">
-        <label class="field-label" for="tx-amount-expression">Nominal</label>
-        <input id="tx-amount-expression" class="calc-display" name="amountExpression" inputmode="decimal" autocomplete="off" value="${escapeAttr(amountExpression)}" placeholder="0" aria-label="Nominal atau ekspresi matematika">
+        <div class="amount-label-row">
+          <label class="field-label" for="tx-amount-expression">Nominal</label>
+          <button type="button" class="calc-toggle ${calcOpen ? 'is-open' : ''}" data-action="toggle-calc" aria-expanded="${calcOpen}" aria-controls="tx-calc-keypad" aria-label="${calcOpen ? 'Sembunyikan kalkulator' : 'Tampilkan kalkulator'}">${icon('calculator', 'w-4 h-4')}</button>
+        </div>
+        <input id="tx-amount-expression" class="calc-display" name="amountExpression" inputmode="decimal" autocomplete="off" value="${escapeAttr(displayAmount)}" placeholder="0" aria-label="Nominal atau ekspresi matematika">
         <div class="calc-result">
           <span>${icon('calculator', 'w-3.5 h-3.5')} Hasil</span>
           <strong id="tx-amount-result" class="${result === null ? 'text-slate-400' : ''}">${result === null ? 'Masukkan nominal' : formatCurrency(result, { hide: false })}</strong>
         </div>
-        <div class="calc-keypad">
+        <div class="calc-keypad" id="tx-calc-keypad" data-calc-keypad ${calcOpen ? '' : 'hidden'}>
           <button type="button" class="calc-key calc-key-muted" data-calc-key="clear">C</button>
-          <button type="button" class="calc-key calc-key-muted" data-calc-key="back" aria-label="Hapus">${icon('delete', 'w-4 h-4')}</button>
           <button type="button" class="calc-key calc-key-op" data-calc-key="÷">÷</button>
           <button type="button" class="calc-key calc-key-op" data-calc-key="×">×</button>
-          ${[7, 8, 9].map((n) => `<button type="button" class="calc-key" data-calc-key="${n}">${n}</button>`).join('')}
           <button type="button" class="calc-key calc-key-op" data-calc-key="−">−</button>
-          ${[4, 5, 6].map((n) => `<button type="button" class="calc-key" data-calc-key="${n}">${n}</button>`).join('')}
+          ${[7, 8, 9].map((n) => `<button type="button" class="calc-key" data-calc-key="${n}">${n}</button>`).join('')}
           <button type="button" class="calc-key calc-key-op" data-calc-key="+">+</button>
-          ${[1, 2, 3].map((n) => `<button type="button" class="calc-key" data-calc-key="${n}">${n}</button>`).join('')}
+          ${[4, 5, 6].map((n) => `<button type="button" class="calc-key" data-calc-key="${n}">${n}</button>`).join('')}
           <button type="button" class="calc-key calc-key-equal" data-calc-key="=" aria-label="Hitung">=</button>
-          <button type="button" class="calc-key calc-key-muted" data-calc-key="000">000</button>
-          <button type="button" class="calc-key" data-calc-key="0">0</button>
-          <button type="button" class="calc-key" data-calc-key=".">.</button>
+          ${[1, 2, 3].map((n) => `<button type="button" class="calc-key" data-calc-key="${n}">${n}</button>`).join('')}
+          <button type="button" class="calc-key calc-key-zero" data-calc-key="0">0</button>
+          <button type="button" class="calc-key" data-calc-key="," aria-label="Koma">,</button>
         </div>
       </div>
 
       <div class="form-grid">
         <label class="field-label">Tanggal
-          <input class="field mt-1.5" type="date" name="date" value="${escapeAttr(date)}" required>
+          <div class="date-input-wrap mt-1.5">
+            <input class="field date-display" type="text" name="dateDisplay" inputmode="numeric" autocomplete="off" placeholder="dd/mm/yyyy" maxlength="10" value="${escapeAttr(formatDateDMY(date))}" aria-label="Tanggal (dd/mm/yyyy)" required>
+            <button type="button" class="date-pick-btn" data-action="pick-date" aria-label="Buka kalender">${icon('calendar', 'w-4 h-4')}</button>
+            <input class="date-native" type="date" name="date" value="${escapeAttr(date)}" tabindex="-1" aria-hidden="true">
+          </div>
         </label>
-        <p class="text-[10px] text-slate-400 mt-1">Pilih tanggal dari kalender browser. Nilai disimpan sebagai ISO (YYYY-MM-DD).</p>
+        <label class="field-label">Jam
+          <input class="field mt-1.5" type="time" name="time" value="${escapeAttr(time)}" required>
+        </label>
+      </div>
+      <div class="form-grid">
+        <label class="field-label">Pengguna
+          <select class="field mt-1.5" name="accountOwner" data-account-owner>
+            <option value="all" ${accountOwner === 'all' ? 'selected' : ''}>Semua pengguna</option>
+            ${store.activeUsers().map((user) => `<option value="${escapeAttr(user.id)}" ${accountOwner === user.id ? 'selected' : ''}>${escapeHTML(user.name)}</option>`).join('')}
+          </select>
+        </label>
         <label class="field-label">${isTransfer ? 'Dari akun' : 'Akun'}
           <select class="field mt-1.5" name="accountId" required>
-            ${accountOptions(accountId)}
+            ${accountOptions(accountId, null, accountOwner)}
           </select>
         </label>
       </div>
@@ -140,10 +169,6 @@ export function transactionForm(tx = null, defaults = {}) {
         <textarea class="field textarea mt-1.5" name="note" rows="2" maxlength="280" placeholder="Contoh: belanja mingguan, gaji, transfer tabungan…">${escapeHTML(note)}</textarea>
       </label>
 
-      <div class="tx-form-meta">
-        <span class="creator-chip" style="--creator-color:${escapeAttr(currentUser?.color || '#64748B')}">${escapeHTML(currentUser?.name || '—')}</span>
-        <span>dicatat oleh ${escapeHTML(currentUser?.name || '—')}${editing ? ` · pembuat awal ${escapeHTML(tx?.createdByName || '—')}` : ''}</span>
-      </div>
 
       ${editing ? `<div class="tx-edit-note">${icon('info', 'w-3.5 h-3.5')} Perubahan nominal akan langsung menyesuaikan saldo akun terkait.</div>` : ''}
 

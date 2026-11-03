@@ -29,7 +29,8 @@ function accountCard(account, archived = false) {
     <div class="account-actions min-w-0 flex items-center gap-2">
       <button type="button" class="link-button truncate" data-action="filter-account" data-id="${escapeAttr(account.id)}">Lihat transaksi</button>
       ${archived
-        ? `<button type="button" class="link-button shrink-0" data-action="restore-account" data-id="${escapeAttr(account.id)}">Aktifkan</button>`
+        ? `<button type="button" class="link-button shrink-0" data-action="restore-account" data-id="${escapeAttr(account.id)}">Aktifkan</button>
+           <button type="button" class="link-button text-red-500 shrink-0" data-action="delete-account" data-id="${escapeAttr(account.id)}">Hapus</button>`
         : `<button type="button" class="link-button text-slate-400 shrink-0" data-action="archive-account" data-id="${escapeAttr(account.id)}">Arsipkan</button>`}
     </div>
   </article>`;
@@ -50,7 +51,6 @@ export function accountsView() {
     ${pageHeader({
       eyebrow: 'Dompet & rekening',
       title: 'Akun',
-      subtitle: 'Saldo terhitung otomatis dari setiap transaksi dan transfer.',
       actions: `<button type="button" class="btn btn-secondary" data-action="add-tx" data-type="transfer">${icon('arrow-left-right', 'w-4 h-4')} Transfer</button>
         <button type="button" class="btn btn-primary" data-action="add-account">${icon('plus', 'w-4 h-4')} Akun</button>`,
     })}
@@ -76,22 +76,7 @@ export function accountsView() {
 
     ${accounts.length ? `<div class="accounts-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0 w-full">${accounts.map((account) => accountCard(account)).join('')}</div>` : emptyState('wallet', 'Belum ada akun', 'Tambahkan dompet, rekening, atau dompet digital.', `<button type="button" class="btn btn-primary btn-sm" data-action="add-account">${icon('plus', 'w-3.5 h-3.5')} Tambah akun</button>`)}
 
-    <div class="grid lg:grid-cols-3 gap-4 min-w-0 w-full">
-      <section class="card lg:col-span-2 min-w-0 w-full overflow-hidden">
-        <div class="card-heading min-w-0">
-          <div class="min-w-0 flex-1">
-            <p class="card-kicker">Cara kerja saldo</p>
-            <h2 class="section-title truncate">Double-entry sederhana</h2>
-          </div>
-          ${icon('shield', 'w-5 h-5 text-emerald-500 shrink-0')}
-        </div>
-        <div class="grid sm:grid-cols-3 gap-3 min-w-0 w-full">
-          <div class="info-tile min-w-0"><span>${icon('arrow-down-left', 'w-4 h-4')}</span><strong>Pemasukan</strong><p>Menambah saldo akun tujuan.</p></div>
-          <div class="info-tile min-w-0"><span>${icon('arrow-up-right', 'w-4 h-4')}</span><strong>Pengeluaran</strong><p>Mengurangi saldo akun sumber.</p></div>
-          <div class="info-tile min-w-0"><span>${icon('arrow-left-right', 'w-4 h-4')}</span><strong>Transfer</strong><p>Mengurangi satu akun dan menambah akun lain.</p></div>
-        </div>
-        <p class="text-xs leading-5 text-slate-500 dark:text-slate-400 mt-4">Transfer tidak dihitung sebagai pemasukan atau pengeluaran bulanan. Inilah yang membuat laporan arus kas tetap bersih.</p>
-      </section>
+    <div class="grid lg:grid-cols-1 gap-4 min-w-0 w-full">
       <section class="card min-w-0 w-full overflow-hidden">
         <div class="card-heading min-w-0">
           <div class="min-w-0 flex-1">

@@ -1,8 +1,24 @@
 import { store } from '../store.js';
 import { icon } from '../icons.js';
 import { badge, emptyState, money, pageHeader, ui } from '../ui.js';
-import { escapeAttr, escapeHTML, formatDateLong, normalizeSearch } from '../utils.js';
+import { escapeAttr, escapeHTML, formatDateLong, formatPercent, normalizeSearch } from '../utils.js';
 import { dayGroupHeader, transactionDayGroups, txRow } from './common.js';
+
+const TX_PAGE_SIZE = 20;
+
+function paginationPages(current, total) {
+  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1);
+  const pages = new Set([1, total, current, current - 1, current + 1]);
+  if (current <= 4) [2, 3, 4, 5].forEach((page) => pages.add(page));
+  if (current >= total - 3) [total - 1, total - 2, total - 3, total - 4].forEach((page) => pages.add(page));
+  const sorted = [...pages].filter((page) => page >= 1 && page <= total).sort((a, b) => a - b);
+  const result = [];
+  sorted.forEach((page, index) => {
+    if (index > 0 && page - sorted[index - 1] > 1) result.push('…');
+    result.push(page);
+  });
+  return result;
+}
 
 function filterTransactions() {
   let list = store.transactions();
@@ -46,6 +62,7 @@ function filterTransactions() {
         tx.createdByName,
         tx.amount,
         tx.date,
+        tx.time,
       ].join(' '));
       return haystack.includes(query);
     });
@@ -55,21 +72,38 @@ function filterTransactions() {
 }
 
 export function transactionsView() {
-  const currentYear = new Date().getFullYear();
-  const currentMonthStr = String(new Date().getMonth() + 1).padStart(2, '0');
-
-  // Inisialisasi default jika belum ada
-  if (!ui.txYear) ui.txYear = currentYear.toString();
-  if (!ui.txMonth || ui.txMonth.length > 2) ui.txMonth = currentMonthStr;
+  // Inisialisasi default jika belum ada: tampilkan semua waktu, lalu paginate.
+  if (!ui.txYear) ui.txYear = 'all';
+  if (!ui.txMonth || ui.txMonth.length > 2) ui.txMonth = 'all';
 
   const all = filterTransactions();
   const summary = store.summaryForTransactions(all);
-  const groups = transactionDayGroups(all.slice(0, ui.txLimit));
+  const daily = new Map();
+  all.forEach((tx) => {
+    if (!daily.has(tx.date)) daily.set(tx.date, { income: 0, expense: 0, count: 0 });
+    const entry = daily.get(tx.date);
+    if (tx.type === 'income') entry.income += Number(tx.amount || 0);
+    if (tx.type === 'expense') entry.expense += Number(tx.amount || 0);
+    entry.count += 1;
+  });
+  const daysWithSpend = [...daily.entries()].filter(([, value]) => value.expense > 0);
+  const highestSpendDay = daysWithSpend.sort((a, b) => b[1].expense - a[1].expense)[0];
+  const averageExpense = daysWithSpend.length
+    ? daysWithSpend.reduce((total, [, value]) => total + value.expense, 0) / daysWithSpend.length
+    : 0;
+  const totalPages = Math.max(1, Math.ceil(all.length / TX_PAGE_SIZE));
+  if (!Number.isFinite(Number(ui.txPage)) || ui.txPage < 1) ui.txPage = 1;
+  if (ui.txPage > totalPages) ui.txPage = totalPages;
+  const pageStart = (ui.txPage - 1) * TX_PAGE_SIZE;
+  const pageItems = all.slice(pageStart, pageStart + TX_PAGE_SIZE);
+  const groups = transactionDayGroups(pageItems);
+  const pageNumbers = paginationPages(ui.txPage, totalPages);
   const categories = store.categories();
   const accounts = store.data.accounts.filter((account) => !account.deletedAt);
   const users = store.activeUsers();
 
   // Buat opsi tahun otomatis dinamis
+  const currentYear = new Date().getFullYear();
   const startYear = 2026;
   let yearOptions = `<option value="all" ${ui.txYear === 'all' ? 'selected' : ''}>Semua tahun</option>`;
   for (let y = currentYear; y >= startYear; y--) {
@@ -87,12 +121,11 @@ export function transactionsView() {
     ${pageHeader({
       eyebrow: 'Buku kas',
       title: 'Transaksi',
-      subtitle: 'Catat, cari, dan rapikan setiap aliran uang keluarga.',
       actions: `<button type="button" class="btn btn-secondary hidden sm:inline-flex" data-action="nav" data-route="recurring">${icon('repeat', 'w-4 h-4')} Berulang</button>
         <button type="button" class="btn btn-primary" data-action="add-tx" data-type="expense">${icon('plus', 'w-4 h-4')} Tambah</button>`,
     })}
 
-    <div class="grid grid-cols-3 gap-2.5 sm:gap-4 min-w-0 w-full">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 min-w-0 w-full">
       <div class="stat-card stat-green min-w-0 overflow-hidden">
         <div class="stat-top min-w-0"><span class="truncate">Pemasukan</span><span class="stat-icon shrink-0">${icon('arrow-down-left', 'w-4 h-4')}</span></div>
         <div class="stat-value text-base sm:text-xl truncate">${money(summary.income)}</div>
@@ -101,12 +134,17 @@ export function transactionsView() {
       <div class="stat-card stat-red min-w-0 overflow-hidden">
         <div class="stat-top min-w-0"><span class="truncate">Pengeluaran</span><span class="stat-icon shrink-0">${icon('arrow-up-right', 'w-4 h-4')}</span></div>
         <div class="stat-value text-base sm:text-xl truncate">${money(summary.expense)}</div>
-        <div class="stat-hint truncate">${summary.transfers ? `${money(summary.transfers, { compact: true })} transfer` : 'di luar transfer'}</div>
+        <div class="stat-hint truncate">${formatPercent(summary.income > 0 ? (summary.expense / summary.income) * 100 : 0)} dari pemasukan</div>
       </div>
       <div class="stat-card stat-blue min-w-0 overflow-hidden">
         <div class="stat-top min-w-0"><span class="truncate">Arus kas</span><span class="stat-icon shrink-0">${icon('trending-up', 'w-4 h-4')}</span></div>
         <div class="stat-value text-base sm:text-xl truncate ${summary.net < 0 ? 'amount-expense' : ''}">${summary.net > 0 ? '+' : ''}${money(summary.net)}</div>
-        <div class="stat-hint truncate">${summary.income > 0 ? `${Math.round(summary.savingsRate)}% tersimpan` : 'pemasukan − pengeluaran'}</div>
+        <div class="stat-hint truncate">${ui.txMonth === 'all' && ui.txYear === 'all' ? 'Semua waktu' : `${ui.txMonth === 'all' ? 'Tahun ' + ui.txYear : ''}`.trim() || 'Periode terpilih'}</div>
+      </div>
+      <div class="stat-card stat-amber min-w-0 overflow-hidden">
+        <div class="stat-top min-w-0"><span class="truncate">Rata-rata harian</span><span class="stat-icon shrink-0">${icon('calendar', 'w-4 h-4')}</span></div>
+        <div class="stat-value text-base sm:text-xl truncate">${money(averageExpense)}</div>
+        <div class="stat-hint truncate">${highestSpendDay ? `Tertinggi ${money(highestSpendDay[1].expense, { compact: true })}` : 'Belum ada pengeluaran'}</div>
       </div>
     </div>
 
@@ -189,8 +227,15 @@ export function transactionsView() {
 
     <div class="space-y-5 min-w-0 w-full">${groupHtml}</div>
 
-    ${all.length > ui.txLimit ? `<div class="flex justify-center pt-2 min-w-0">
-      <button type="button" class="btn btn-secondary" data-action="tx-load-more">Muat ${Math.min(40, all.length - ui.txLimit)} transaksi lagi</button>
+    ${totalPages > 1 ? `<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 min-w-0 w-full">
+      <p class="text-xs text-slate-500 dark:text-slate-400 text-center sm:text-left">Menampilkan ${pageStart + 1}–${Math.min(pageStart + TX_PAGE_SIZE, all.length)} dari ${all.length} transaksi</p>
+      <div class="flex items-center justify-center gap-1 flex-wrap min-w-0">
+        <button type="button" class="pagination-btn" data-action="tx-page" data-page="${ui.txPage - 1}" ${ui.txPage <= 1 ? 'disabled' : ''} aria-label="Halaman sebelumnya">${icon('chevron-left', 'w-4 h-4')}</button>
+        ${pageNumbers.map((page) => (page === '…'
+          ? `<span class="pagination-ellipsis">…</span>`
+          : `<button type="button" class="pagination-btn ${page === ui.txPage ? 'is-active' : ''}" data-action="tx-page" data-page="${page}" ${page === ui.txPage ? 'aria-current="page"' : ''}>${page}</button>`)).join('')}
+        <button type="button" class="pagination-btn" data-action="tx-page" data-page="${ui.txPage + 1}" ${ui.txPage >= totalPages ? 'disabled' : ''} aria-label="Halaman berikutnya">${icon('chevron-right', 'w-4 h-4')}</button>
+      </div>
     </div>` : ''}
   </div>`;
 }

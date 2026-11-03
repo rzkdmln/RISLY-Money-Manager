@@ -8,9 +8,11 @@ import {
   formatDate,
   formatMonth,
   formatPercent,
+  normalizeTime,
   plainTextPreview,
   relativeDay,
   timeAgo,
+  timeFromISO,
   todayISO,
 } from '../utils.js';
 
@@ -65,6 +67,7 @@ export function txRow(tx, { showDate = false, showCreator = true, compact = fals
   const iconName = tx.type === 'transfer' ? 'arrow-left-right' : category?.icon || type.icon;
   const amountClass = tx.type === 'income' ? 'amount-income' : tx.type === 'expense' ? 'amount-expense' : 'amount-transfer';
   const sign = tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : '';
+  const time = normalizeTime(tx.time, timeFromISO(tx.createdAt) || '');
   return `<button type="button" class="tx-row ${compact ? 'tx-row-compact' : ''}" data-action="edit-tx" data-id="${escapeAttr(tx.id)}">
     <span class="tx-icon" style="--tx-color:${escapeAttr(color)}">${icon(iconName, 'w-4.5 h-4.5')}</span>
     <span class="tx-main">
@@ -74,6 +77,7 @@ export function txRow(tx, { showDate = false, showCreator = true, compact = fals
       </span>
       <span class="tx-meta">
         ${showDate ? `<span>${escapeHTML(formatDate(tx.date))}</span>` : ''}
+        ${time ? `<span class="tx-time">${escapeHTML(time)}</span>` : ''}
         <span>${escapeHTML(txSubtitle(tx))}</span>
         ${showCreator ? `<span class="tx-creator" style="--creator-color:${escapeAttr(creator?.color || '#64748B')}">${escapeHTML(tx.createdByName || creator?.name || '—')}</span>` : ''}
       </span>

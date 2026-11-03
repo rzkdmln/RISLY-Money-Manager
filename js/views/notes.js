@@ -93,9 +93,7 @@ export function notesView() {
         <div class="min-w-0 flex-1">${icon('trash', 'w-5 h-5 shrink-0')}<span><strong>Sampah</strong> — catatan di sini dapat dipulihkan. Hapus permanen akan menghilangkannya dari semua perangkat.</span></div>
         ${counts.trashed ? `<button type="button" class="btn btn-danger-soft btn-sm shrink-0" data-action="empty-trash">Kosongkan sampah</button>` : ''}
       </div>`
-    : ui.notesTab === 'archived'
-      ? `<div class="notes-banner min-w-0 w-full">${icon('archive', 'w-5 h-5 shrink-0')}<span>Catatan yang diarsipkan tidak muncul di daftar utama. Pulihkan kapan saja tanpa kehilangan isi.</span></div>`
-      : '';
+    : '';
 
   const emptyCopy = {
     all: ['sticky-note', 'Belum ada catatan', 'Simpan ide, rencana, dan hal kecil yang ingin diingat berdua.'],
@@ -108,36 +106,30 @@ export function notesView() {
   const filtered = ui.notesQuery || ui.notesTag;
   const actions = ui.notesTab === 'trashed'
     ? ''
-    : `<button type="button" class="btn btn-secondary" data-action="add-note">${icon('sticky-note', 'w-4 h-4')} Catatan</button>
-       <button type="button" class="btn btn-primary" data-action="add-todo">${icon('plus', 'w-4 h-4')} Tugas</button>`;
+    : `<div class="flex items-center gap-2">
+        <div class="view-toggle shrink-0" role="group" aria-label="Tampilan">
+          <button type="button" class="${ui.notesView === 'grid' ? 'is-active' : ''}" data-action="notes-view" data-view="grid" aria-label="Tampilan kartu">${icon('layout-grid', 'w-4 h-4')}</button>
+          <button type="button" class="${ui.notesView === 'list' ? 'is-active' : ''}" data-action="notes-view" data-view="list" aria-label="Tampilan daftar">${icon('layout-list', 'w-4 h-4')}</button>
+        </div>
+        <button type="button" class="btn btn-secondary" data-action="add-note">${icon('sticky-note', 'w-4 h-4')} Catatan</button>
+        <button type="button" class="btn btn-primary" data-action="add-todo">${icon('plus', 'w-4 h-4')} Tugas</button>
+      </div>`;
 
   return `<div class="page-stack min-w-0 w-full overflow-hidden">
     ${pageHeader({
       eyebrow: 'Papan keluarga',
       title: 'Catatan & Tugas',
-      subtitle: 'Sticky notes, checklist, pengingat, dan to-do list dalam satu papan.',
       actions,
     })}
 
-    <div class="notes-overview min-w-0 w-full">
-      <div class="notes-overview-copy min-w-0 flex-1">
-        <span class="notes-overview-icon shrink-0">${icon('sparkles', 'w-5 h-5')}</span>
-        <div class="min-w-0 flex-1">
-          <p class="font-semibold text-slate-900 dark:text-white truncate">${dueCount > 0 ? `${dueCount} tugas perlu perhatian` : 'Papan kalian tertata rapi'}</p>
-          <p class="text-xs text-slate-500 dark:text-slate-400 truncate">${counts.all} catatan aktif · ${counts.todo} tugas · ${counts.favorite} favorit</p>
-        </div>
-      </div>
-      ${dueCount > 0 ? badge(`${dueCount} jatuh tempo`, 'red', 'badge-soft') : badge('Semua terkendali', 'green', 'badge-soft')}
-    </div>
-
     <div class="notes-toolbar card min-w-0 w-full overflow-hidden">
       <div class="notes-tabs min-w-0 w-full overflow-x-auto" role="tablist" aria-label="Jenis catatan">${tabHtml}</div>
-      <div class="notes-controls min-w-0 w-full flex flex-wrap gap-2">
-        <label class="search-field notes-search-field min-w-0 flex-1">
+      <div class="notes-controls min-w-0 w-full grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+        <label class="search-field notes-search-field min-w-0">
           ${icon('search', 'w-4 h-4')}
           <input class="field min-w-0 w-full" id="notes-search" type="search" placeholder="Cari catatan, tugas, tag…" value="${escapeAttr(ui.notesQuery)}">
         </label>
-        <select class="field field-compact shrink-0" id="notes-sort" data-filter="notes-sort" aria-label="Urutkan catatan">
+        <select class="field field-compact min-w-0 w-full" id="notes-sort" data-filter="notes-sort" aria-label="Urutkan catatan">
           <option value="updated" ${ui.notesSort === 'updated' ? 'selected' : ''}>Terakhir diubah</option>
           <option value="created" ${ui.notesSort === 'created' ? 'selected' : ''}>Terbaru</option>
           <option value="due" ${ui.notesSort === 'due' ? 'selected' : ''}>Tenggat</option>
@@ -145,10 +137,6 @@ export function notesView() {
           <option value="title" ${ui.notesSort === 'title' ? 'selected' : ''}>Judul A–Z</option>
           <option value="manual" ${ui.notesSort === 'manual' ? 'selected' : ''}>Urutan manual</option>
         </select>
-        <div class="view-toggle shrink-0" role="group" aria-label="Tampilan">
-          <button type="button" class="${ui.notesView === 'grid' ? 'is-active' : ''}" data-action="notes-view" data-view="grid" aria-label="Tampilan kartu">${icon('layout-grid', 'w-4 h-4')}</button>
-          <button type="button" class="${ui.notesView === 'list' ? 'is-active' : ''}" data-action="notes-view" data-view="list" aria-label="Tampilan daftar">${icon('layout-list', 'w-4 h-4')}</button>
-        </div>
       </div>
       ${tagsHtml}
     </div>

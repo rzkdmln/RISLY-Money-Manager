@@ -9,7 +9,7 @@
  *  - Cloud/API traffic is never cached.
  */
 
-const VERSION = 'risly-1.2.9';
+const VERSION = 'risly-1.2.10';
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 
@@ -25,6 +25,7 @@ const APP_SHELL = [
   './js/config.js',
   './js/data.js',
   './js/gdrive.js',
+  './js/google-auth-relay.js',
   './js/icons.js',
   './js/pull-to-refresh.js',
   './js/store.js',
@@ -47,6 +48,7 @@ const APP_SHELL = [
   './js/views/settings.js',
   './js/views/shell.js',
   './js/views/transactions.js',
+  './oauth-callback.html',
   './icons/favicon-32.png',
   './icons/icon-96.png',
   './icons/icon-192.png',
@@ -117,11 +119,25 @@ async function networkFirstNavigation(request) {
   try {
     const response = await fetch(request, { cache: 'no-cache' });
     if (response && response.ok) {
-      cache.put('./index.html', response.clone());
+      // Only app-shell navigations may refresh the cached index.html.
+      // Other pages (e.g. oauth-callback.html) must not overwrite it.
+      let pathname = '';
+      try { pathname = new URL(request.url).pathname; } catch { pathname = ''; }
+      if (pathname.endsWith('/') || pathname.endsWith('/index.html')) {
+        cache.put('./index.html', response.clone());
+      }
       return response;
     }
     throw new Error(`Navigation response ${response?.status}`);
   } catch {
+    let pathname = '';
+    try { pathname = new URL(request.url).pathname; } catch { pathname = ''; }
+    if (pathname.endsWith('/oauth-callback.html')) {
+      return new Response('Halaman login Google tidak tersedia saat offline.', {
+        status: 503,
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      });
+    }
     return (await cache.match('./index.html')) ||
       (await cache.match('./')) ||
       new Response('RISLY sedang offline.', {
