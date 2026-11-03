@@ -1630,10 +1630,15 @@ function openNativeDatePicker(wrap) {
     }
   } catch { /* fall through to a regular click for older browsers */ }
   try {
+    // On mobile browsers the transparent native input is pointer-events:none,
+    // so temporarily enable it before asking it to open.
+    native.style.pointerEvents = 'auto';
     native.focus();
     native.click();
+    setTimeout(() => { native.style.pointerEvents = 'none'; }, 500);
     return true;
   } catch {
+    native.style.pointerEvents = 'none';
     return false;
   }
 }
@@ -1658,13 +1663,13 @@ async function handleAction(action, element) {
       const container = element.parentElement;
       const buttons = container.querySelectorAll('button');
       buttons.forEach(b => {
-        b.classList.remove('bg-white', 'dark:bg-slate-700/80', 'text-slate-800', 'dark:text-white', 'shadow-sm');
-        b.classList.add('text-slate-500', 'dark:text-slate-400');
+        b.classList.remove('bg-white/20', 'text-white', 'shadow-sm');
+        b.classList.add('text-white/70');
       });
 
       // 4. Beri gaya aktif pada tombol yang sedang diklik
-      element.classList.remove('text-slate-500', 'dark:text-slate-400');
-      element.classList.add('bg-white', 'dark:bg-slate-700/80', 'text-slate-800', 'dark:text-white', 'shadow-sm');
+      element.classList.remove('text-white/70');
+      element.classList.add('bg-white/20', 'text-white', 'shadow-sm');
       break;
     }
 
@@ -1830,6 +1835,11 @@ async function handleAction(action, element) {
       renderApplication();
       break;
     }
+    case 'set-categories-view': {
+      savePrefs({ categoriesView: element.dataset.view === 'list' ? 'list' : 'grid' });
+      renderApplication();
+      break;
+    }
     case 'theme-set':
       setTheme(element.dataset.theme);
       renderApplication();
@@ -1878,7 +1888,6 @@ async function handleAction(action, element) {
         toast('Transaksi sudah tidak tersedia.', 'error');
         break;
       }
-      closeModal({ silent: true });
       openTransactionModal(tx);
       break;
     }
@@ -2102,6 +2111,61 @@ async function handleAction(action, element) {
       store.deleteSubcategory(categoryId, subId);
       toast('Subkategori dihapus.', 'success');
       renderApplication();
+      break;
+    }
+    case 'add-subcategory': {
+      const categoryId = element.dataset.category;
+      const category = store.categoryById(categoryId);
+      if (!category) break;
+      const input = document.querySelector(`[data-subcategory-manager="${CSS.escape(categoryId)}"] [data-subcategory-name]`)
+        || element.closest('.subcategory-manager')?.querySelector('[data-subcategory-name]');
+      const name = String(input?.value || '').trim();
+      if (!name) {
+        toast('Nama subkategori wajib diisi.', 'error');
+        break;
+      }
+      store.addSubcategory(categoryId, name);
+      if (input) input.value = '';
+      toast('Subkategori ditambahkan.', 'success');
+      const updated = store.categoryById(categoryId);
+      closeModal({ silent: true });
+      openCategoryModal(updated);
+      break;
+    }
+    case 'rename-subcategory': {
+      const categoryId = element.dataset.category;
+      const subId = element.dataset.subcategory;
+      const sub = store.subcategoryById(categoryId, subId);
+      if (!sub) break;
+      const name = window.prompt('Nama subkategori baru', sub.name);
+      if (name === null) break;
+      const trimmed = String(name).trim();
+      if (!trimmed) {
+        toast('Nama subkategori tidak boleh kosong.', 'error');
+        break;
+      }
+      store.renameSubcategory(categoryId, subId, trimmed);
+      toast('Subkategori diperbarui.', 'success');
+      const updated = store.categoryById(categoryId);
+      closeModal({ silent: true });
+      openCategoryModal(updated);
+      break;
+    }
+    case 'delete-subcategory': {
+      const categoryId = element.dataset.category;
+      const subId = element.dataset.subcategory;
+      const sub = store.subcategoryById(categoryId, subId);
+      if (!sub) break;
+      const ok = await confirmDialog({
+        title: 'Hapus subkategori?',
+        message: `"${sub.name}" tidak akan muncul lagi pada transaksi baru.`,
+      });
+      if (!ok) return;
+      store.deleteSubcategory(categoryId, subId);
+      toast('Subkategori dihapus.', 'success');
+      const updated = store.categoryById(categoryId);
+      closeModal({ silent: true });
+      openCategoryModal(updated);
       break;
     }
     case 'category-tab':
@@ -3025,7 +3089,9 @@ function submitHousehold(form) {
   store.updateSettings({
     householdName,
     workspaceName: householdName,
-    defaultMonthlyBudget: Number(formValue(form, 'defaultMonthlyBudget')) || 0,
+    defaultMonthlyBudget: formValue(form, 'defaultMonthlyBudget') === null
+      ? store.data.settings.defaultMonthlyBudget
+      : (Number(formValue(form, 'defaultMonthlyBudget')) || 0),
   });
   toast('Identitas ruang disimpan.', 'success');
   renderApplication();
@@ -3369,7 +3435,10 @@ function bindEvents() {
     if (target.matches('select[name="categoryId"]')) {
       const form = target.closest('form[data-form="transaction"], form[data-form="recurring"]');
       const subcategory = form?.querySelector('select[name="subcategoryId"]');
-      if (subcategory) subcategory.innerHTML = subcategoryOptions(target.value);
+      if (subcategory) {
+        subcategory.innerHTML = subcategoryOptions(target.value);
+        subcategory.disabled = !target.value || !(store.categoryById(target.value)?.subcategories?.length);
+      }
       return;
     }
 

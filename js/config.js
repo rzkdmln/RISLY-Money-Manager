@@ -7,7 +7,7 @@ export const APP = Object.freeze({
   name: 'RISLY',
   fullName: 'RISLY Money Manager',
   tagline: 'Keuangan pribadi dan keluarga, rapi dalam satu tempat.',
-  version: '1.2.20',
+  version: '1.2.21',
   schemaVersion: 4,
   storageKey: 'risly.mm.data.v3',
   workspaceRegistryKey: 'risly.mm.workspaces.v1',

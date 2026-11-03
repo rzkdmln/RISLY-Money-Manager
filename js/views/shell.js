@@ -4,6 +4,14 @@ import { icon } from '../icons.js';
 import { avatar, prefs, syncPill } from '../ui.js';
 import { escapeAttr, escapeHTML, formatDate, parseLocalDate, todayISO } from '../utils.js';
 
+function cloudColorClass(status) {
+  if (!status || status.provider === 'local') return 'text-slate-400';
+  if (status.online === false) return 'text-amber-500';
+  if (status.connected) return 'text-emerald-500';
+  if (status.state === 'error') return 'text-red-500';
+  return 'text-slate-400';
+}
+
 function navItem(route, active) {
   const item = ROUTES[route];
   return `<a href="#/${route}" class="nav-item ${active === route ? 'is-active' : ''}" data-nav="${route}" aria-current="${active === route ? 'page' : 'false'}">
@@ -15,6 +23,7 @@ function navItem(route, active) {
 export function shellView(user, dueCount = 0) {
   const active = 'dashboard';
   const status = Cloud.getStatus();
+  const cloudColor = cloudColorClass(status);
   const today = todayISO();
   const weekdayLabel = new Intl.DateTimeFormat(APP.locale, { weekday: 'long' }).format(parseLocalDate(today));
   const dateLabel = formatDate(today, { day: 'numeric', month: 'long', year: 'numeric' });
@@ -66,7 +75,7 @@ export function shellView(user, dueCount = 0) {
         </div>
         <div class="topbar-right">
           <div class="js-sync-slot desktop-sync-slot">${status.provider !== 'local' ? syncPill(status) : ''}</div>
-          <button type="button" class="icon-btn topbar-cloud" data-action="sync-family-header" aria-label="Sinkronisasi cloud">
+          <button type="button" class="icon-btn topbar-cloud ${cloudColor}" data-action="sync-family-header" aria-label="Sinkronisasi cloud">
             ${icon('cloud', 'w-[18px] h-[18px]')}
           </button>
           <button type="button" class="icon-btn topbar-bell" data-action="open-tasks" aria-label="Tugas dan pengingat">
@@ -112,6 +121,11 @@ export function updateChrome(route) {
 export function updateSyncSlots(status) {
   document.querySelectorAll('.js-sync-slot').forEach((slot) => {
     slot.innerHTML = status?.provider !== 'local' ? syncPill(status) : '';
+  });
+  const color = cloudColorClass(status);
+  document.querySelectorAll('.topbar-cloud').forEach((button) => {
+    button.classList.remove('text-slate-400', 'text-amber-500', 'text-emerald-500', 'text-red-500');
+    button.classList.add(color);
   });
 }
 

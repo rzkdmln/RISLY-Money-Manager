@@ -14,6 +14,7 @@ const DEFAULT_PREFS = {
   hideAmounts: false,
   notesView: 'grid',
   accountsView: 'grid',
+  categoriesView: 'grid',
   calendarMode: 'month',
   lastUser: null,
   installDismissed: false,
@@ -117,7 +118,12 @@ export function avatar(user, size = 'md', extra = '') {
   };
   const name = user?.name || '?';
   const color = user?.color || '#2563EB';
-  return `<span class="avatar ${sizes[size] || sizes.md} ${extra}" style="--avatar-color:${escapeAttr(color)}" aria-label="${escapeAttr(name)}">${escapeHTML(getInitials(name))}</span>`;
+  const picture = user?.picture || user?.photoURL || user?.avatar || user?.photo;
+  const sizeClass = sizes[size] || sizes.md;
+  if (picture) {
+    return `<img src="${escapeAttr(picture)}" alt="${escapeAttr(name)}" class="avatar ${sizeClass} ${extra} object-cover" loading="lazy" aria-label="${escapeAttr(name)}">`;
+  }
+  return `<span class="avatar ${sizeClass} ${extra}" style="--avatar-color:${escapeAttr(color)}" aria-label="${escapeAttr(name)}">${escapeHTML(getInitials(name))}</span>`;
 }
 
 export function badge(text, tone = 'slate', extra = '') {
@@ -203,6 +209,7 @@ export function syncPill(status) {
 
 let modalOnClose = null;
 let lastFocused = null;
+const modalStack = [];
 
 const MODAL_SIZES = {
   sm: 'modal-sm',
@@ -221,8 +228,16 @@ export function openModal({
 }) {
   const root = document.getElementById('modal-root');
   if (!root) return;
-  if (!root.classList.contains('hidden') && modalOnClose) {
-    try { modalOnClose(); } catch { /* noop */ }
+  // Stack the currently open modal so it can be restored later instead of
+  // being destroyed (used by daily-detail -> edit-transaction flows).
+  if (!root.classList.contains('hidden')) {
+    modalStack.push({
+      html: root.innerHTML,
+      onClose: modalOnClose,
+      lastFocused,
+    });
+    modalOnClose = null;
+    lastFocused = null;
   }
   lastFocused = document.activeElement;
   modalOnClose = onClose;
@@ -250,6 +265,27 @@ export function closeModal({ silent = false } = {}) {
   if (!root || root.classList.contains('hidden')) return;
   const callback = modalOnClose;
   modalOnClose = null;
+
+  if (modalStack.length) {
+    const previous = modalStack.pop();
+    // Close the top modal, then restore the one underneath.
+    if (!silent && callback) {
+      try { callback(); } catch (error) { console.error(error); }
+    } else if (silent && callback) {
+      try { callback(); } catch { /* noop */ }
+    }
+    root.innerHTML = previous.html;
+    root.classList.remove('hidden');
+    root.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+    modalOnClose = previous.onClose;
+    lastFocused = previous.lastFocused;
+    if (lastFocused && typeof lastFocused.focus === 'function') {
+      try { lastFocused.focus({ preventScroll: true }); } catch { /* noop */ }
+    }
+    return;
+  }
+
   root.classList.add('hidden');
   root.setAttribute('aria-hidden', 'true');
   root.innerHTML = '';

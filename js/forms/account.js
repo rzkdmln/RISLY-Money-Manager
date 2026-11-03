@@ -130,6 +130,16 @@ export function categoryForm(category = null, type = 'expense') {
         <span>${icon(iconName, 'w-5 h-5')}</span>
         <div><strong>${escapeHTML(category?.name || 'Pratinjau kategori')}</strong><small>${currentType === 'income' ? 'Pemasukan' : 'Pengeluaran'}</small></div>
       </div>
+      ${editing ? `<div class="subcategory-manager mt-4" data-subcategory-manager="${escapeAttr(category.id)}">
+        <p class="field-label">Subkategori</p>
+        <div class="subcategory-list mt-2">
+          ${(category.subcategories || []).filter((sub) => !sub.deletedAt).map((sub) => `<span class="subcategory-chip">${escapeHTML(sub.name)}<button type="button" class="ml-1" data-action="rename-subcategory" data-category="${escapeAttr(category.id)}" data-subcategory="${escapeAttr(sub.id)}" aria-label="Ubah subkategori ${escapeAttr(sub.name)}">${icon('edit', 'w-2.5 h-2.5')}</button><button type="button" class="ml-1" data-action="delete-subcategory" data-category="${escapeAttr(category.id)}" data-subcategory="${escapeAttr(sub.id)}" aria-label="Hapus subkategori ${escapeAttr(sub.name)}">${icon('x', 'w-2.5 h-2.5')}</button></span>`).join('') || '<p class="text-xs text-slate-500 dark:text-slate-400">Belum ada subkategori.</p>'}
+        </div>
+        <div class="flex gap-2 mt-3">
+          <input class="field min-w-0" type="text" data-subcategory-name placeholder="Nama subkategori baru" maxlength="60">
+          <button type="button" class="btn btn-secondary btn-sm shrink-0" data-action="add-subcategory" data-category="${escapeAttr(category.id)}">${icon('plus', 'w-3.5 h-3.5')} Tambah</button>
+        </div>
+      </div>` : '<p class="text-[11px] text-slate-400 mt-4">Simpan kategori terlebih dahulu untuk menambah subkategori.</p>'}
       <p class="form-error hidden" data-form-error role="alert"></p>
     </div>
     <footer class="modal-footer">

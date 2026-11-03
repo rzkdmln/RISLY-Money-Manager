@@ -104,13 +104,13 @@ export function dashboardView(user) {
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 min-w-0 w-full items-stretch">
       <!-- KARTU KEKAYAAN (CLEAN & SWITCHABLE) -->
-      <section class="networth-card lg:col-span-2 min-w-0 w-full overflow-hidden relative rounded-2xl bg-white dark:bg-[#132347] p-6 shadow-sm border border-slate-200 dark:border-slate-800/50 flex flex-col justify-between">
+      <section class="accounts-hero lg:col-span-2 min-w-0 w-full overflow-hidden relative rounded-2xl p-6 shadow-sm flex flex-col justify-between">
 
         <!-- Switcher Header -->
         <div class="flex items-center justify-between min-w-0 mb-6">
-          <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl w-fit">
-            <button type="button" data-action="switch-networth" data-target="personal" class="px-4 py-1.5 text-xs font-bold bg-white dark:bg-slate-700/80 text-slate-800 dark:text-white shadow-sm rounded-lg transition-all">Saya</button>
-            <button type="button" data-action="switch-networth" data-target="family" class="px-4 py-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all">Keluarga</button>
+          <div class="flex items-center gap-1 bg-white/10 p-1 rounded-xl w-fit">
+            <button type="button" data-action="switch-networth" data-target="personal" class="px-4 py-1.5 text-xs font-bold bg-white/20 text-white shadow-sm rounded-lg transition-all">Saya</button>
+            <button type="button" data-action="switch-networth" data-target="family" class="px-4 py-1.5 text-xs font-bold text-white/70 hover:text-white transition-all">Keluarga</button>
           </div>
           <button type="button" class="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-lg transition-colors shrink-0" data-action="toggle-privacy" aria-label="Sembunyikan nominal">
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>
@@ -130,7 +130,7 @@ export function dashboardView(user) {
         </div>
 
         <!-- Arus Kas -->
-        <div class="pt-5 border-t border-slate-100 dark:border-slate-800/60">
+        <div class="pt-5 border-t border-white/10">
           <div class="grid grid-cols-2 gap-2 sm:gap-4 min-w-0">
             <div class="min-w-0">
               <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 truncate">Masuk</span>

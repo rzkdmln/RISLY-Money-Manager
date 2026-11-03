@@ -121,7 +121,6 @@ export function settingsView(user) {
             </select>
           </div>
           <button type="button" class="settings-row" data-action="notifications"><span class="settings-row-icon">${icon('bell', 'w-4 h-4')}</span><span class="flex-1"><strong>Notifikasi</strong><small>Pengingat tugas dan catatan</small></span>${badge(notification.label, notification.tone, 'badge-soft')}</button>
-          <button type="button" class="settings-row" data-action="logout"><span class="settings-row-icon text-red-500">${icon('log-out', 'w-4 h-4')}</span><span class="flex-1"><strong class="text-red-500">Keluar</strong><small>Kembali ke layar masuk</small></span></button>
         </div>
       </section>
 
@@ -156,9 +155,6 @@ export function settingsView(user) {
         <label class="field-label">Nama ruang
           <input class="field mt-1.5" name="householdName" maxlength="60" value="${escapeAttr(store.data.settings.householdName)}" required>
         </label>
-        <label class="field-label mt-3">Anggaran default bulanan
-          <div class="input-with-prefix mt-1.5"><span>Rp</span><input class="field" type="number" name="defaultMonthlyBudget" min="0" step="1000" inputmode="numeric" value="${Math.round(store.data.settings.defaultMonthlyBudget)}"></div>
-        </label>
         <button type="submit" class="btn btn-primary w-full mt-4">${icon('save', 'w-4 h-4')} Simpan</button>
       </form>
 
@@ -184,7 +180,7 @@ export function settingsView(user) {
       </div>
       <div class="settings-list">
         ${store.activeUsers().map((member) => `<div class="settings-row">
-          <span class="settings-row-icon">${icon('user', 'w-4 h-4')}</span>
+          <span class="settings-row-icon">${avatar(member, 'xs')}</span>
           <span class="flex-1">
             <strong>${escapeHTML(member.name)}</strong>
             <small>${escapeHTML(member.googleEmail || 'Belum terhubung Google')}${member.id === user?.id ? ' · Anda' : ''}</small>
@@ -227,13 +223,9 @@ export function settingsView(user) {
       </section>
     </div>
 
-    <section class="about-card">
-      <span class="brand-mark">R</span>
-      <div class="min-w-0">
-        <p class="font-bold text-slate-900 dark:text-white">${APP.name} <span class="font-normal text-slate-400">v${APP.version}</span></p>
-        <p class="text-xs text-slate-500 dark:text-slate-400">${APP.tagline}</p>
-      </div>
-      <span class="text-[10px] text-slate-400 text-right">PWA · Offline-first<br><a href="./privacy.html" style="color:inherit;text-decoration:underline;">Kebijakan Privasi</a></span>
-    </section>
+    <footer class="settings-footer">
+      <p>${APP.name} <span>v${APP.version}</span></p>
+      <a href="./privacy.html">Kebijakan Privasi</a>
+    </footer>
   </div>`;
 }

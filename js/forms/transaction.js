@@ -116,18 +116,13 @@ export function transactionForm(tx = null, defaults = {}) {
           <span>${icon('calculator', 'w-3.5 h-3.5')} Hasil</span>
           <strong id="tx-amount-result" class="${result === null ? 'text-slate-400' : ''}">${result === null ? 'Masukkan nominal' : formatCurrency(result, { hide: false })}</strong>
         </div>
-        <div class="calc-keypad" id="tx-calc-keypad" data-calc-keypad ${calcOpen ? '' : 'hidden'}>
+        <div class="calc-keypad calc-keypad-compact" id="tx-calc-keypad" data-calc-keypad ${calcOpen ? '' : 'hidden'}>
           <button type="button" class="calc-key calc-key-muted" data-calc-key="clear">C</button>
           <button type="button" class="calc-key calc-key-op" data-calc-key="÷">÷</button>
           <button type="button" class="calc-key calc-key-op" data-calc-key="×">×</button>
           <button type="button" class="calc-key calc-key-op" data-calc-key="−">−</button>
-          ${[7, 8, 9].map((n) => `<button type="button" class="calc-key" data-calc-key="${n}">${n}</button>`).join('')}
           <button type="button" class="calc-key calc-key-op" data-calc-key="+">+</button>
-          ${[4, 5, 6].map((n) => `<button type="button" class="calc-key" data-calc-key="${n}">${n}</button>`).join('')}
           <button type="button" class="calc-key calc-key-equal" data-calc-key="=" aria-label="Hitung">=</button>
-          ${[1, 2, 3].map((n) => `<button type="button" class="calc-key" data-calc-key="${n}">${n}</button>`).join('')}
-          <button type="button" class="calc-key calc-key-zero" data-calc-key="0">0</button>
-          <button type="button" class="calc-key" data-calc-key="," aria-label="Koma">,</button>
         </div>
       </div>
 
@@ -161,7 +156,7 @@ export function transactionForm(tx = null, defaults = {}) {
             </select>
           </label>
           <label class="field-label">Subkategori
-            <select class="field mt-1.5" name="subcategoryId" id="tx-subcategory">
+            <select class="field mt-1.5" name="subcategoryId" id="tx-subcategory" ${!categoryId || !store.categoryById(categoryId)?.subcategories?.length ? 'disabled' : ''}>
               ${subcategoryOptions(categoryId, subcategoryId)}
             </select>
           </label>

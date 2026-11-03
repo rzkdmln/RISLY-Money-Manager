@@ -255,7 +255,7 @@ export function dayDetailView(date) {
       <button type="button" class="icon-btn shrink-0" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
     </div>
     <div class="mt-5 min-w-0 w-full">
-      ${list.length ? `<div class="tx-list min-w-0 w-full">${list.map((tx) => txRow(tx, { showCreator: true })).join('')}</div>` : emptyState('calendar', 'Hari ini masih tenang', 'Tidak ada transaksi pada tanggal ini.')}
+      ${list.length ? `<div class="tx-list min-w-0 w-full max-h-[55vh] overflow-y-auto pr-1">${list.map((tx) => txRow(tx, { showCreator: true })).join('')}</div>` : emptyState('calendar', 'Hari ini masih tenang', 'Tidak ada transaksi pada tanggal ini.')}
     </div>
     <div class="mt-5 grid grid-cols-2 gap-2.5 min-w-0 w-full">
       <button type="button" class="btn btn-secondary truncate" data-action="add-tx" data-type="income" data-date="${escapeAttr(date)}">${icon('arrow-down-left', 'w-4 h-4')} Pemasukan</button>
