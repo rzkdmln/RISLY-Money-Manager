@@ -15,6 +15,7 @@ import {
 import { store } from './store.js';
 import { Cloud } from './cloud.js';
 import { GoogleDrive, googleAccountBadge } from './gdrive.js';
+import { initPullToRefresh } from './pull-to-refresh.js';
 import {
   changePin,
   clearSession,
@@ -1418,14 +1419,16 @@ async function handleAction(action, element) {
   switch (action) {
     /* Custom UI Actions */
     case 'switch-networth': {
-      const targetId = element.dataset.target; // 'personal' atau 'family'
+      const targetId = element.dataset.target === 'family' ? 'family' : 'personal';
 
-      // 1. Sembunyikan semua nominal
-      document.getElementById('networth-personal')?.classList.replace('block', 'hidden');
-      document.getElementById('networth-family')?.classList.replace('block', 'hidden');
-
-      // 2. Tampilkan nominal yang dipilih
-      document.getElementById(`networth-${targetId}`)?.classList.replace('hidden', 'block');
+      // Tampilkan hanya panel yang dipilih (jangan bergantung pada class awal).
+      ['personal', 'family'].forEach((key) => {
+        const node = document.getElementById(`networth-${key}`);
+        if (!node) return;
+        const active = key === targetId;
+        node.classList.toggle('hidden', !active);
+        node.classList.toggle('block', active);
+      });
 
       // 3. Ambil kontainer tombol dan reset gaya semua tombol di dalamnya
       const container = element.parentElement;
@@ -3124,6 +3127,7 @@ function boot() {
   Cloud.init(store);
   bindStore();
   bindEvents();
+  initPullToRefresh();
 
   if (!location.hash) history.replaceState(null, '', '#/dashboard');
 
