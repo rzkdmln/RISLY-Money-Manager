@@ -265,7 +265,19 @@ img, svg { display: block; }
   .topbar { background: var(--bg); }
 }
 .topbar-left, .topbar-right { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.topbar-date { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 600; color: var(--muted); }
+.topbar-date {
+  display: flex; align-items: center; gap: 9px;
+  padding: 5px 11px 5px 6px; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface); box-shadow: var(--shadow-sm);
+}
+.topbar-date-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; flex: 0 0 auto; border-radius: 9px;
+  background: var(--brand-soft); color: var(--brand);
+}
+.topbar-date-copy { display: flex; flex-direction: column; line-height: 1.15; }
+.topbar-date-day { font-size: 8.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--muted-2); }
+.topbar-date-full { margin-top: 2px; font-size: 11px; font-weight: 700; color: var(--text); }
 .mobile-brand { display: none; align-items: center; gap: 9px; }
 .topbar-avatar { border: 0; background: transparent; padding: 0; border-radius: 999px; }
 .topbar-avatar:hover { transform: translateY(-1px); }
@@ -441,6 +453,9 @@ input[type="date"].field, input[type="month"].field, input[type="datetime-local"
   min-width: 0 !important;
   overflow: hidden !important;
 }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 13px; }
+.form-grid > * { min-width: 0; }
+.form-grid .field { min-width: 0; }
 .date-input-wrap { position: relative; display: flex; align-items: center; width: 100%; min-width: 0; }
 .date-display { min-width: 0; padding-right: 42px; }
 .date-pick-btn {
@@ -451,7 +466,8 @@ input[type="date"].field, input[type="month"].field, input[type="datetime-local"
 }
 .date-pick-btn:hover { color: var(--brand); background: var(--brand-soft); }
 .date-native {
-  position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0;
+  position: absolute; inset: 0; opacity: 0; pointer-events: none;
+  width: 100%; height: 100%;
   border: 0; padding: 0; margin: 0;
 }
 .modal-body > .field-label, .modal-body > .form-grid + .field-label { margin-top: 13px; }
@@ -1117,8 +1133,41 @@ body.is-auth { background: var(--bg); }
 .info-tile span { display: inline-flex; color: var(--brand); }
 .info-tile strong { display: block; margin-top: 6px; font-size: 10.5px; color: var(--text); }
 .info-tile p { margin: 2px 0 0; font-size: 9px; line-height: 1.5; color: var(--muted); }
-.account-form-balance { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 13px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); font-size: 10px; color: var(--muted); }
-.account-form-balance strong { font-size: 14px; color: var(--text); }
+.accounts-list-view { display: flex; flex-direction: column; gap: 8px; }
+.accounts-list-view .account-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(100px, auto) auto;
+  grid-template-areas:
+    "top balance actions"
+    "meta meta actions"
+    "bar bar bar";
+  align-items: center;
+  column-gap: 14px; row-gap: 4px;
+  padding: 12px 14px;
+}
+.accounts-list-view .account-card-top { grid-area: top; }
+.accounts-list-view .account-balance { grid-area: balance; margin-top: 0; font-size: 17px; text-align: right; }
+.accounts-list-view .account-meta { grid-area: meta; margin-top: 0; font-size: 8.5px; }
+.accounts-list-view .account-bar { grid-area: bar; margin-top: 6px; }
+.accounts-list-view .account-actions {
+  grid-area: actions; flex-direction: column; align-items: flex-end; justify-content: center;
+  gap: 2px; margin-top: 0; padding-top: 0; border-top: 0;
+}
+@media (max-width: 640px) {
+  .accounts-list-view .account-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "top balance"
+      "meta meta"
+      "bar bar"
+      "actions actions";
+  }
+  .accounts-list-view .account-balance { text-align: left; }
+  .accounts-list-view .account-actions {
+    flex-direction: row; align-items: center; justify-content: flex-start;
+    padding-top: 8px; border-top: 1px solid var(--border);
+  }
+}
 
 /* ==========================================================================
    Budgets
@@ -1201,6 +1250,41 @@ body.is-auth { background: var(--bg); }
 .color-dot { width: 25px; height: 25px; border: 2px solid transparent; border-radius: 8px; background: var(--pick-color, var(--brand)); transition: transform .15s ease, box-shadow .15s ease; }
 .color-dot:hover { transform: scale(1.08); }
 .color-dot.is-active { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text); }
+.color-field { display: flex; flex-direction: column; gap: 8px; }
+.color-trigger {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 8px 10px; border: 1px solid var(--border); border-radius: 11px;
+  background: var(--surface-2); text-align: left; color: var(--muted-2);
+}
+.color-trigger:hover { border-color: var(--border-strong); }
+.color-trigger-chip {
+  width: 30px; height: 30px; flex: 0 0 auto; border-radius: 9px;
+  background: var(--pick-color, var(--brand));
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, .1);
+}
+.color-trigger-label { display: block; font-size: 8px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-2); }
+.color-trigger-value { display: block; margin-top: 1px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; font-weight: 700; color: var(--text); }
+.color-panel { padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
+.color-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.color-panel-kicker { margin: 0; font-size: 8px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--brand); }
+.color-panel-copy { margin: 3px 0 0; font-size: 9px; line-height: 1.5; color: var(--muted); }
+.color-custom { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: 0 0 auto; font-size: 8px; font-weight: 700; color: var(--muted-2); }
+.color-custom input { width: 38px; height: 30px; padding: 2px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); cursor: pointer; }
+.color-harmony-modes { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 10px; }
+.color-harmony-modes button {
+  padding: 5px 8px; border: 1px solid var(--border); border-radius: 7px;
+  background: var(--surface); color: var(--muted); font-size: 8.5px; font-weight: 700;
+}
+.color-harmony-modes button:hover { color: var(--text); border-color: var(--border-strong); }
+.color-harmony-modes button.is-active { background: var(--brand-soft); border-color: color-mix(in srgb, var(--brand) 24%, transparent); color: var(--brand); }
+.color-swatches { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 5px; margin-top: 10px; }
+.color-swatch { aspect-ratio: 1; border: 2px solid transparent; border-radius: 7px; background: var(--pick-color, var(--brand)); transition: transform .15s ease, box-shadow .15s ease; }
+.color-swatch:hover { transform: scale(1.08); }
+.color-swatch.is-active { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text); }
+.color-quick { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--border); }
+.color-quick > span { display: block; margin-bottom: 6px; font-size: 8px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-2); }
+.color-quick .color-picker { gap: 5px; }
+.color-quick .color-dot { width: 21px; height: 21px; border-radius: 6px; }
 
 /* ==========================================================================
    Reports
@@ -1533,6 +1617,7 @@ body.is-auth { background: var(--bg); }
   input[type="date"].field,
   input[type="month"].field,
   input[type="datetime-local"].field,
+  input[type="time"].field,
   select.field,
   .filter-grid .field,
   .filter-grid select,

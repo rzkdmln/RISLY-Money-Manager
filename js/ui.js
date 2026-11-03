@@ -13,6 +13,7 @@ const DEFAULT_PREFS = {
   theme: 'system',
   hideAmounts: false,
   notesView: 'grid',
+  accountsView: 'grid',
   calendarMode: 'month',
   lastUser: null,
   installDismissed: false,

@@ -17,30 +17,40 @@ import {
   todayISO,
 } from '../utils.js';
 
-function accountOptions(selectedId, includeId = null, ownerId = null) {
-  return store.data.accounts
+export function accountOptions(selectedId, includeId = null, ownerId = null, placeholder = 'Pilih Akun') {
+  const accounts = store.data.accounts
     .filter((account) => !account.deletedAt)
     .filter((account) => !account.archived || account.id === selectedId || account.id === includeId)
-    .filter((account) => !ownerId || ownerId === 'all' || account.owner === ownerId)
-    .map((account) => `<option value="${escapeAttr(account.id)}" ${selectedId === account.id ? 'selected' : ''}>${escapeHTML(account.name)}${account.archived ? ' (arsip)' : ''}</option>`)
-    .join('');
+    .filter((account) => !ownerId || ownerId === 'all' || account.owner === ownerId);
+  const hasSelected = Boolean(selectedId) && accounts.some((account) => account.id === selectedId);
+  return `<option value="" ${!hasSelected ? 'selected' : ''}>${escapeHTML(placeholder)}</option>` +
+    accounts
+      .map((account) => `<option value="${escapeAttr(account.id)}" ${selectedId === account.id ? 'selected' : ''}>${escapeHTML(account.name)}${account.archived ? ' (arsip)' : ''}</option>`)
+      .join('');
 }
 
 function categoryOptions(type, selectedId = null) {
-  return store.data.categories
+  const categories = store.data.categories
     .filter((category) => !category.deletedAt || category.id === selectedId)
-    .filter((category) => category.type === type)
-    .map((category) => `<option value="${escapeAttr(category.id)}" ${selectedId === category.id ? 'selected' : ''}>${escapeHTML(category.name)}${category.deletedAt ? ' (arsip)' : ''}</option>`)
-    .join('');
+    .filter((category) => category.type === type);
+  const hasSelected = Boolean(selectedId) && categories.some((category) => category.id === selectedId);
+  return `<option value="" ${!hasSelected ? 'selected' : ''}>Pilih Kategori</option>` +
+    categories
+      .map((category) => `<option value="${escapeAttr(category.id)}" ${selectedId === category.id ? 'selected' : ''}>${escapeHTML(category.name)}${category.deletedAt ? ' (arsip)' : ''}</option>`)
+      .join('');
 }
 
 export function subcategoryOptions(categoryId, selectedId = null) {
   const category = store.categoryById(categoryId);
-  if (!category?.subcategories?.length) return '<option value="">Tanpa subkategori</option>';
-  return `<option value="">Tanpa subkategori</option>${category.subcategories
-    .filter((sub) => !sub.deletedAt || sub.id === selectedId)
-    .map((sub) => `<option value="${escapeAttr(sub.id)}" ${selectedId === sub.id ? 'selected' : ''}>${escapeHTML(sub.name)}</option>`)
-    .join('')}`;
+  const subcategories = category?.subcategories?.filter((sub) => !sub.deletedAt || sub.id === selectedId) || [];
+  const hasSelected = Boolean(selectedId) && subcategories.some((sub) => sub.id === selectedId);
+  let placeholder = 'Pilih Subkategori';
+  if (!category) placeholder = 'Pilih Kategori dahulu';
+  else if (!subcategories.length) placeholder = 'Tanpa subkategori';
+  return `<option value="" ${!hasSelected ? 'selected' : ''}>${escapeHTML(placeholder)}</option>` +
+    subcategories
+      .map((sub) => `<option value="${escapeAttr(sub.id)}" ${selectedId === sub.id ? 'selected' : ''}>${escapeHTML(sub.name)}</option>`)
+      .join('');
 }
 
 export function transactionForm(tx = null, defaults = {}) {
@@ -54,16 +64,16 @@ export function transactionForm(tx = null, defaults = {}) {
   const amountExpression = tx?.amount ? String(tx.amount) : (defaults.amount || '');
   const displayAmount = formatAmountExpression(amountExpression);
   const calcOpen = Boolean(defaults.calcOpen ?? ui.calcOpen);
-  const accountId = tx?.accountId || defaults.accountId || store.activeAccounts()[0]?.id || '';
+  const accountId = tx?.accountId || defaults.accountId || '';
   const selectedAccount = store.accountById(accountId);
   const accountOwner = defaults.accountOwner || selectedAccount?.owner || store.currentUser?.id || 'all';
-  const toAccountId = tx?.toAccountId || defaults.toAccountId || store.activeAccounts().find((account) => account.id !== accountId)?.id || '';
+  const toAccountId = tx?.toAccountId || defaults.toAccountId || '';
   const isTransfer = type === 'transfer';
   const categoryType = type === 'income' ? 'income' : 'expense';
   const categoryList = store.categories(categoryType);
   let categoryId = !isTransfer ? (tx?.categoryId || defaults.categoryId || '') : '';
-  if (!categoryList.some((category) => category.id === categoryId)) {
-    categoryId = categoryList[0]?.id || '';
+  if (categoryId && !categoryList.some((category) => category.id === categoryId)) {
+    categoryId = '';
   }
   let subcategoryId = !isTransfer ? (tx?.subcategoryId || defaults.subcategoryId || '') : '';
   const selectedCategory = store.categoryById(categoryId);
@@ -101,7 +111,7 @@ export function transactionForm(tx = null, defaults = {}) {
           <label class="field-label" for="tx-amount-expression">Nominal</label>
           <button type="button" class="calc-toggle ${calcOpen ? 'is-open' : ''}" data-action="toggle-calc" aria-expanded="${calcOpen}" aria-controls="tx-calc-keypad" aria-label="${calcOpen ? 'Sembunyikan kalkulator' : 'Tampilkan kalkulator'}">${icon('calculator', 'w-4 h-4')}</button>
         </div>
-        <input id="tx-amount-expression" class="calc-display" name="amountExpression" inputmode="decimal" autocomplete="off" value="${escapeAttr(displayAmount)}" placeholder="" aria-label="Nominal atau ekspresi matematika">
+        <input id="tx-amount-expression" class="calc-display" name="amountExpression" inputmode="decimal" autocomplete="off" value="${escapeAttr(displayAmount)}" placeholder="0" aria-label="Nominal atau ekspresi matematika">
         <div class="calc-result">
           <span>${icon('calculator', 'w-3.5 h-3.5')} Hasil</span>
           <strong id="tx-amount-result" class="${result === null ? 'text-slate-400' : ''}">${result === null ? 'Masukkan nominal' : formatCurrency(result, { hide: false })}</strong>
@@ -133,23 +143,15 @@ export function transactionForm(tx = null, defaults = {}) {
           <input class="field mt-1.5" type="time" name="time" value="${escapeAttr(time)}" required>
         </label>
       </div>
-      <div class="form-grid">
-        <label class="field-label">Pengguna
-          <select class="field mt-1.5" name="accountOwner" data-account-owner>
-            <option value="all" ${accountOwner === 'all' ? 'selected' : ''}>Semua pengguna</option>
-            ${store.activeUsers().map((user) => `<option value="${escapeAttr(user.id)}" ${accountOwner === user.id ? 'selected' : ''}>${escapeHTML(user.name)}</option>`).join('')}
-          </select>
-        </label>
-        <label class="field-label">${isTransfer ? 'Dari akun' : 'Akun'}
-          <select class="field mt-1.5" name="accountId" required>
-            ${accountOptions(accountId, null, accountOwner)}
-          </select>
-        </label>
-      </div>
+      <label class="field-label">${isTransfer ? 'Dari akun' : 'Akun'}
+        <select class="field mt-1.5" name="accountId" required>
+          ${accountOptions(accountId, null, accountOwner)}
+        </select>
+      </label>
 
       ${isTransfer ? `<label class="field-label">Ke akun
         <select class="field mt-1.5" name="toAccountId" required>
-          ${accountOptions(toAccountId, accountId)}
+          ${accountOptions(toAccountId, accountId, 'all', 'Pilih Akun Tujuan')}
         </select>
       </label>` : `
         <div class="form-grid">

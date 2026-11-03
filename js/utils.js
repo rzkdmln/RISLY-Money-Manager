@@ -476,6 +476,7 @@ export function evaluateExpression(input) {
 }
 
 export function expressionResult(input) {
+  if (String(input ?? '').trim() === '') return null;
   try {
     const value = evaluateExpression(input);
     return Number.isFinite(value) ? value : null;

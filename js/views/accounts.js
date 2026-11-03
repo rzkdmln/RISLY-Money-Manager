@@ -10,6 +10,7 @@ function accountCard(account, archived = false) {
   const txCount = store.accountTransactions(account.id).length;
   const type = ACCOUNT_TYPES[account.type] || ACCOUNT_TYPES.cash;
   const percent = store.totalBalance() !== 0 ? Math.abs(balance / store.totalBalance()) * 100 : 0;
+  const ownerName = store.resolveUser?.(account.owner)?.name || store.getUser(account.owner)?.name || 'Tanpa pemilik';
   return `<article class="account-card ${archived ? 'is-archived' : ''} min-w-0 w-full overflow-hidden" style="--account-color:${escapeAttr(account.color || type.color)}">
     <div class="account-card-top min-w-0 flex items-center gap-2">
       <span class="account-icon shrink-0">${icon(accountIcon(account), 'w-5 h-5')}</span>
@@ -22,7 +23,7 @@ function accountCard(account, archived = false) {
     </div>
     <div class="account-balance truncate ${balance < 0 ? 'is-negative' : ''}">${money(balance)}</div>
     <div class="account-meta min-w-0 flex justify-between gap-2 text-xs">
-      <span class="truncate">Saldo awal ${money(account.openingBalance, { compact: Math.abs(account.openingBalance) >= 1_000_000 })}</span>
+      <span class="truncate">${escapeHTML(ownerName)}</span>
       <span class="shrink-0">${txCount} transaksi</span>
     </div>
     <div class="account-bar min-w-0 w-full"><span style="width:${Math.min(100, percent)}%"></span></div>
@@ -31,7 +32,7 @@ function accountCard(account, archived = false) {
       ${archived
         ? `<button type="button" class="link-button shrink-0" data-action="restore-account" data-id="${escapeAttr(account.id)}">Aktifkan</button>
            <button type="button" class="link-button text-red-500 shrink-0" data-action="delete-account" data-id="${escapeAttr(account.id)}">Hapus</button>`
-        : `<button type="button" class="link-button text-slate-400 shrink-0" data-action="archive-account" data-id="${escapeAttr(account.id)}">Arsipkan</button>`}
+        : ''}
     </div>
   </article>`;
 }
@@ -44,15 +45,22 @@ export function accountsView() {
   const isMine = accountsFilter === 'mine';
   const archived = store.archivedAccounts();
   const netWorth = store.totalBalance();
-  const totalOpening = accounts.reduce((sum, account) => sum + Number(account.openingBalance || 0), 0);
   const totalTx = store.transactions().length;
+  const view = prefs.accountsView === 'list' ? 'list' : 'grid';
+  const gridClass = `accounts-grid ${view === 'list' ? 'accounts-list-view' : ''} grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0 w-full`;
 
   return `<div class="page-stack min-w-0 w-full overflow-hidden">
     ${pageHeader({
       eyebrow: 'Dompet & rekening',
       title: 'Akun',
-      actions: `<button type="button" class="btn btn-secondary" data-action="add-tx" data-type="transfer">${icon('arrow-left-right', 'w-4 h-4')} Transfer</button>
-        <button type="button" class="btn btn-primary" data-action="add-account">${icon('plus', 'w-4 h-4')} Akun</button>`,
+      actions: `<div class="flex items-center gap-2 flex-wrap justify-end">
+        <div class="view-toggle shrink-0" role="group" aria-label="Tampilan akun">
+          <button type="button" class="${view === 'grid' ? 'is-active' : ''}" data-action="set-accounts-view" data-view="grid" aria-label="Tampilan kartu">${icon('layout-grid', 'w-4 h-4')}</button>
+          <button type="button" class="${view === 'list' ? 'is-active' : ''}" data-action="set-accounts-view" data-view="list" aria-label="Tampilan daftar">${icon('layout-list', 'w-4 h-4')}</button>
+        </div>
+        <button type="button" class="btn btn-secondary" data-action="add-tx" data-type="transfer">${icon('arrow-left-right', 'w-4 h-4')} Transfer</button>
+        <button type="button" class="btn btn-primary" data-action="add-account">${icon('plus', 'w-4 h-4')} Akun</button>
+      </div>`,
     })}
 
     <section class="accounts-hero min-w-0 w-full overflow-hidden">
@@ -67,14 +75,14 @@ export function accountsView() {
         <div class="accounts-hero-meta min-w-0 flex flex-wrap gap-x-4 gap-y-1 mt-4">
           <span class="truncate">${icon('wallet', 'w-3.5 h-3.5')} ${accounts.length} akun</span>
           <span class="truncate">${icon('receipt', 'w-3.5 h-3.5')} ${totalTx} transaksi</span>
-          <span class="truncate">${icon('trending-up', 'w-3.5 h-3.5')} ${money(totalOpening, { compact: true })} saldo awal</span>
+          ${archived.length ? `<span class="truncate">${icon('archive', 'w-3.5 h-3.5')} ${archived.length} diarsipkan</span>` : ''}
         </div>
       </div>
       <div class="accounts-hero-ring"></div>
       <div class="accounts-hero-ring accounts-hero-ring-two"></div>
     </section>
 
-    ${accounts.length ? `<div class="accounts-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0 w-full">${accounts.map((account) => accountCard(account)).join('')}</div>` : emptyState('wallet', 'Belum ada akun', 'Tambahkan dompet, rekening, atau dompet digital.', `<button type="button" class="btn btn-primary btn-sm" data-action="add-account">${icon('plus', 'w-3.5 h-3.5')} Tambah akun</button>`)}
+    ${accounts.length ? `<div class="${gridClass}">${accounts.map((account) => accountCard(account)).join('')}</div>` : emptyState('wallet', 'Belum ada akun', 'Tambahkan dompet, rekening, atau dompet digital.', `<button type="button" class="btn btn-primary btn-sm" data-action="add-account">${icon('plus', 'w-3.5 h-3.5')} Tambah akun</button>`)}
 
     <div class="grid lg:grid-cols-1 gap-4 min-w-0 w-full">
       <section class="card min-w-0 w-full overflow-hidden">
@@ -105,7 +113,7 @@ export function accountsView() {
         </div>
         ${badge(`${archived.length} akun`, 'slate', 'badge-soft')}
       </div>
-      <div class="accounts-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0 w-full">${archived.map((account) => accountCard(account, true)).join('')}</div>
+      <div class="${gridClass}">${archived.map((account) => accountCard(account, true)).join('')}</div>
     </section>` : ''}
   </div>`;
 }

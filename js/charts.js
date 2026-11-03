@@ -48,7 +48,10 @@ const emptyTextPlugin = {
 
 const centerTextPlugin = {
   id: 'rislyCenterText',
-  afterDraw(chart, args, options) {
+  // `afterDatasetsDraw` runs on every frame (unlike `beforeTooltipDraw`, which
+  // only runs while a tooltip is active) and still happens before the tooltip
+  // is painted, so hovered slices stay above the center label.
+  afterDatasetsDraw(chart, args, options) {
     if (!options?.line1) return;
     const { ctx, chartArea } = chart;
     if (!chartArea) return;

@@ -2,7 +2,7 @@ import { APP, BOTTOM_NAV, DESKTOP_NAV, MORE_NAV, ROUTES } from '../config.js';
 import { Cloud } from '../cloud.js';
 import { icon } from '../icons.js';
 import { avatar, prefs, syncPill } from '../ui.js';
-import { escapeAttr, escapeHTML, formatDate, todayISO } from '../utils.js';
+import { escapeAttr, escapeHTML, formatDate, parseLocalDate, todayISO } from '../utils.js';
 
 function navItem(route, active) {
   const item = ROUTES[route];
@@ -15,6 +15,9 @@ function navItem(route, active) {
 export function shellView(user, dueCount = 0) {
   const active = 'dashboard';
   const status = Cloud.getStatus();
+  const today = todayISO();
+  const weekdayLabel = new Intl.DateTimeFormat(APP.locale, { weekday: 'long' }).format(parseLocalDate(today));
+  const dateLabel = formatDate(today, { day: 'numeric', month: 'long', year: 'numeric' });
   return `<div class="app-shell">
     <aside class="sidebar">
       <div class="sidebar-brand">
@@ -53,9 +56,12 @@ export function shellView(user, dueCount = 0) {
             <img src="icons/icon-192.png" alt="RISLY Logo" class="w-7 h-7 rounded-lg shadow-sm object-cover">
             <span class="brand-name">${APP.name}</span>
           </a>
-          <div class="topbar-date hidden lg:block">
-            <span>${icon('calendar', 'w-3.5 h-3.5')}</span>
-            <span>${escapeHTML(formatDate(todayISO(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}</span>
+          <div class="topbar-date hidden lg:flex">
+            <span class="topbar-date-icon">${icon('calendar', 'w-4 h-4')}</span>
+            <span class="topbar-date-copy">
+              <span class="topbar-date-day">${escapeHTML(weekdayLabel)}</span>
+              <span class="topbar-date-full">${escapeHTML(dateLabel)}</span>
+            </span>
           </div>
         </div>
         <div class="topbar-right">

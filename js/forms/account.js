@@ -1,14 +1,42 @@
 import { ACCOUNT_TYPES, DEFAULT_CATEGORY_COLORS, ICON_CHOICES } from '../config.js';
+import { COLOR_HARMONY_MODES, harmonySwatchMarkup, quickSwatchMarkup } from '../colors.js';
 import { icon } from '../icons.js';
 import { store } from '../store.js';
-import { money } from '../ui.js';
 import { escapeAttr, escapeHTML } from '../utils.js';
 
 function colorPicker(selected, inputName = 'color') {
-  const colors = [...new Set([selected, ...DEFAULT_CATEGORY_COLORS].filter(Boolean))];
-  return `<div class="color-picker" role="group" aria-label="Pilih warna">
+  const base = selected || '#3B82F6';
+  const quick = [...new Set([selected, ...DEFAULT_CATEGORY_COLORS].filter(Boolean))];
+  return `<div class="color-field" data-color-field data-color-base="${escapeAttr(base)}" data-color-harmony="analogous">
     <input type="hidden" name="${escapeAttr(inputName)}" value="${escapeAttr(selected)}">
-    ${colors.map((color) => `<button type="button" class="color-dot ${color === selected ? 'is-active' : ''}" style="--pick-color:${escapeAttr(color)}" data-action="pick-color" data-color="${escapeAttr(color)}" aria-label="Warna ${escapeAttr(color)}"></button>`).join('')}
+    <button type="button" class="color-trigger" data-action="toggle-color-picker" aria-expanded="false">
+      <span class="color-trigger-chip" style="--pick-color:${escapeAttr(selected)}"></span>
+      <span class="min-w-0 flex-1 text-left">
+        <span class="color-trigger-label">Warna terpilih</span>
+        <span class="color-trigger-value" data-color-label>${escapeAttr(selected)}</span>
+      </span>
+      ${icon('palette', 'w-4 h-4')}
+    </button>
+    <div class="color-panel" data-color-panel hidden>
+      <div class="color-panel-head">
+        <div class="min-w-0">
+          <p class="color-panel-kicker">Harmoni warna</p>
+          <p class="color-panel-copy">Pilih warna dasar, lalu ambil variasi dari aturan harmoni.</p>
+        </div>
+        <label class="color-custom">
+          <span>Dasar</span>
+          <input type="color" data-color-custom value="${escapeAttr(base)}" aria-label="Warna dasar">
+        </label>
+      </div>
+      <div class="color-harmony-modes" role="group" aria-label="Aturan harmoni warna">
+        ${COLOR_HARMONY_MODES.map((mode) => `<button type="button" class="${mode.id === 'analogous' ? 'is-active' : ''}" data-action="color-harmony" data-harmony="${mode.id}">${escapeHTML(mode.label)}</button>`).join('')}
+      </div>
+      <div class="color-swatches" data-color-swatches>${harmonySwatchMarkup(base, 'analogous', selected)}</div>
+      <div class="color-quick">
+        <span>Warna cepat</span>
+        <div class="color-picker">${quickSwatchMarkup(quick, selected)}</div>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -37,20 +65,16 @@ export function accountForm(account = null) {
             ${Object.entries(ACCOUNT_TYPES).map(([id, item]) => `<option value="${id}" ${type === id ? 'selected' : ''}>${escapeHTML(item.label)}</option>`).join('')}
           </select>
         </label>
-        <label class="field-label">Saldo awal
-          <div class="input-with-prefix mt-1.5"><span>Rp</span><input class="field" type="number" name="openingBalance" step="1" inputmode="numeric" value="${Number(account?.openingBalance || 0)}"></div>
-        </label>
+        ${editing ? `<label class="field-label">Saldo akun ini
+          <div class="input-with-prefix mt-1.5"><span>Rp</span><input class="field" type="number" name="balanceTarget" step="1" inputmode="numeric" value="${Math.round(balance)}"></div>
+        </label>` : ''}
       ${users.length > 1 ? `<label class="field-label">Pemilik akun
         <select class="field mt-1.5" name="owner">
           ${users.map((u) => `<option value="${escapeAttr(u.id)}" ${ownerValue === u.id ? 'selected' : ''}>${escapeHTML(u.name)}</option>`).join('')}
         </select>
       </label>` : ''}
       </div>
-      <p class="text-[11px] text-slate-400">Saldo saat ini dihitung dari saldo awal + seluruh pemasukan - pengeluaran + transfer. Untuk kartu kredit, saldo awal boleh negatif.</p>
-      ${editing ? `<div class="account-form-balance">
-        <span>Saldo terhitung saat ini</span>
-        <strong class="${balance < 0 ? 'amount-expense' : ''}">${money(balance)}</strong>
-      </div>` : ''}
+      ${editing ? '<p class="text-[11px] text-slate-400">Perubahan saldo akan dicatat sebagai transaksi penyesuaian.</p>' : ''}
       <div>
         <p class="field-label">Warna akun</p>
         <div class="mt-2">${colorPicker(color)}</div>

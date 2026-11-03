@@ -121,8 +121,6 @@ export function transactionsView() {
     ${pageHeader({
       eyebrow: 'Buku kas',
       title: 'Transaksi',
-      actions: `<button type="button" class="btn btn-secondary hidden sm:inline-flex" data-action="nav" data-route="recurring">${icon('repeat', 'w-4 h-4')} Berulang</button>
-        <button type="button" class="btn btn-primary" data-action="add-tx" data-type="expense">${icon('plus', 'w-4 h-4')} Tambah</button>`,
     })}
 
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 min-w-0 w-full">

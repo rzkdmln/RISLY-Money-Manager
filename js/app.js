@@ -36,6 +36,7 @@ import {
   verifyPin,
 } from './auth.js';
 import { destroyCharts, renderDashboardCharts, resizeCharts } from './charts.js';
+import { harmonySwatchMarkup } from './colors.js';
 import { icon } from './icons.js';
 import {
   applyTheme,
@@ -111,6 +112,7 @@ import {
   subcategoryForm,
 } from './forms/account.js';
 import {
+  accountOptions,
   recurringForm,
   subcategoryOptions,
   transactionForm,
@@ -190,6 +192,47 @@ function clearFormError(form) {
     node.textContent = '';
     node.classList.add('hidden');
   }
+}
+
+function sameColor(first, second) {
+  return String(first || '').toLowerCase() === String(second || '').toLowerCase();
+}
+
+function applyColorFieldValue(field, color) {
+  if (!field || !color) return;
+  const hidden = field.querySelector('input[name="color"]');
+  if (hidden) hidden.value = color;
+  const chip = field.querySelector('.color-trigger-chip');
+  if (chip) chip.style.setProperty('--pick-color', color);
+  const label = field.querySelector('[data-color-label]');
+  if (label) label.textContent = color;
+  field.querySelectorAll('.color-swatch, .color-dot').forEach((dot) => {
+    dot.classList.toggle('is-active', sameColor(dot.dataset.color, color));
+  });
+  const preview = field.closest('form')?.querySelector('.category-preview');
+  if (preview) preview.style.setProperty('--preview-color', color);
+}
+
+function refreshColorField(field) {
+  if (!field) return;
+  const custom = field.querySelector('[data-color-custom]');
+  const hidden = field.querySelector('input[name="color"]');
+  const base = field.dataset.colorBase || custom?.value || hidden?.value || '#3B82F6';
+  const selected = hidden?.value || base;
+  const mode = field.dataset.colorHarmony || 'analogous';
+  const swatches = field.querySelector('[data-color-swatches]');
+  if (swatches) swatches.innerHTML = harmonySwatchMarkup(base, mode, selected);
+  applyColorFieldValue(field, selected);
+}
+
+function setColorFieldBase(field, color) {
+  if (!field || !color) return;
+  field.dataset.colorBase = color;
+  const custom = field.querySelector('[data-color-custom]');
+  if (custom && !sameColor(custom.value, color)) custom.value = color;
+  const hidden = field.querySelector('input[name="color"]');
+  if (hidden) hidden.value = color;
+  refreshColorField(field);
 }
 
 function formValue(form, name) {
@@ -1574,6 +1617,27 @@ async function driveRestoreFile(fileId) {
 /*  Actions                                                                  */
 /* -------------------------------------------------------------------------- */
 
+function openNativeDatePicker(wrap) {
+  if (!wrap) return false;
+  const display = wrap.querySelector('[name="dateDisplay"]');
+  const native = wrap.querySelector('input[type="date"]');
+  if (!native) return false;
+  native.value = parseDateDMY(display?.value || '') || native.value || todayISO();
+  try {
+    if (typeof native.showPicker === 'function') {
+      native.showPicker();
+      return true;
+    }
+  } catch { /* fall through to a regular click for older browsers */ }
+  try {
+    native.focus();
+    native.click();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function handleAction(action, element) {
   const id = element.dataset.id;
   switch (action) {
@@ -1761,6 +1825,11 @@ async function handleAction(action, element) {
       renderApplication();
       break;
     }
+    case 'set-accounts-view': {
+      savePrefs({ accountsView: element.dataset.view === 'list' ? 'list' : 'grid' });
+      renderApplication();
+      break;
+    }
     case 'theme-set':
       setTheme(element.dataset.theme);
       renderApplication();
@@ -1816,20 +1885,9 @@ async function handleAction(action, element) {
     case 'toggle-calc':
       toggleCalculator(element);
       break;
-    case 'pick-date': {
-      const wrap = element.closest('.date-input-wrap');
-      const display = wrap?.querySelector('[name="dateDisplay"]');
-      const native = wrap?.querySelector('input[type="date"]');
-      if (!native) break;
-      native.value = parseDateDMY(display?.value || '') || native.value || todayISO();
-      try {
-        if (typeof native.showPicker === 'function') native.showPicker();
-        else native.click();
-      } catch {
-        try { native.click(); } catch { /* noop */ }
-      }
+    case 'pick-date':
+      openNativeDatePicker(element.closest('.date-input-wrap'));
       break;
-    }
     case 'delete-tx': {
       const tx = store.transactionById(id);
       if (!tx) break;
@@ -1857,7 +1915,7 @@ async function handleAction(action, element) {
         time: normalizeTime(fd.get('time'), currentTimeHHMM()),
         amount: amount === null ? '' : String(Math.round(amount * 100) / 100),
         accountId: fd.get('accountId') || '',
-        accountOwner: fd.get('accountOwner') || 'all',
+        accountOwner: fd.get('accountOwner') || store.accountById(String(fd.get('accountId') || ''))?.owner || store.currentUser?.id || 'all',
         toAccountId: fd.get('toAccountId') || '',
         categoryId: fd.get('categoryId') || '',
         subcategoryId: fd.get('subcategoryId') || '',
@@ -2293,15 +2351,42 @@ async function handleAction(action, element) {
     }
 
     /* Colors */
+    case 'toggle-color-picker': {
+      const field = element.closest('[data-color-field]');
+      const panel = field?.querySelector('[data-color-panel]');
+      if (!panel) break;
+      const open = panel.hasAttribute('hidden');
+      if (open) panel.removeAttribute('hidden');
+      else panel.setAttribute('hidden', '');
+      element.setAttribute('aria-expanded', String(open));
+      break;
+    }
+    case 'color-harmony': {
+      const field = element.closest('[data-color-field]');
+      if (!field) break;
+      field.dataset.colorHarmony = element.dataset.harmony || 'analogous';
+      field.querySelectorAll('[data-action="color-harmony"]').forEach((button) => {
+        button.classList.toggle('is-active', button === element);
+      });
+      refreshColorField(field);
+      break;
+    }
     case 'pick-color': {
       const form = element.closest('form');
       if (!form) break;
       const color = element.dataset.color;
-      const hidden = form.querySelector('input[name="color"]');
-      if (hidden) hidden.value = color;
-      form.querySelectorAll('.color-dot').forEach((dot) => dot.classList.toggle('is-active', dot === element));
-      const preview = form.querySelector('.category-preview');
-      if (preview) preview.style.setProperty('--preview-color', color);
+      const field = element.closest('[data-color-field]');
+      if (field) {
+        applyColorFieldValue(field, color);
+      } else {
+        const hidden = form.querySelector('input[name="color"]');
+        if (hidden) hidden.value = color;
+        form.querySelectorAll('.color-dot, .color-swatch').forEach((dot) => {
+          dot.classList.toggle('is-active', dot === element);
+        });
+        const preview = form.querySelector('.category-preview');
+        if (preview) preview.style.setProperty('--preview-color', color);
+      }
       break;
     }
 
@@ -2599,6 +2684,7 @@ async function submitLogin(form) {
 function submitTransaction(form) {
   const fd = new FormData(form);
   const editingId = form.dataset.id;
+  const originalTransaction = editingId ? store.transactionById(editingId) : null;
   const type = String(fd.get('type') || 'expense');
   const amount = expressionResult(fd.get('amountExpression'));
   const date = String(fd.get('date') || '') || parseDateDMY(fd.get('dateDisplay'));
@@ -2628,7 +2714,7 @@ function submitTransaction(form) {
     showFormError(form, 'Pilih akun tujuan yang berbeda dari akun sumber.');
     return;
   }
-  if (type !== 'transfer' && !categoryId) {
+  if (type !== 'transfer' && !categoryId && !originalTransaction?.adjustment) {
     showFormError(form, 'Pilih kategori transaksi.');
     return;
   }
@@ -2751,20 +2837,38 @@ function submitRecurring(form) {
 
 function submitAccount(form) {
   const fd = new FormData(form);
+  const editingId = form.dataset.id || null;
   const name = String(fd.get('name') || '').trim();
   if (!name) {
     showFormError(form, 'Nama akun wajib diisi.');
     return;
   }
+
+  let balanceTarget;
+  if (editingId) {
+    const rawTarget = String(fd.get('balanceTarget') ?? '').trim();
+    if (rawTarget !== '') {
+      const parsedTarget = Number(rawTarget);
+      if (!Number.isFinite(parsedTarget)) {
+        showFormError(form, 'Saldo akun harus berupa angka.');
+        return;
+      }
+      balanceTarget = Math.round(parsedTarget);
+    }
+  }
+
   try {
+    const currentBalance = editingId ? store.accountBalance(editingId) : 0;
     store.saveAccount({
       name,
       type: String(fd.get('type') || 'cash'),
       color: String(fd.get('color') || '#3B82F6'),
-      openingBalance: Number(fd.get('openingBalance')) || 0,
-    }, form.dataset.id || null);
+      owner: String(fd.get('owner') || ''),
+      ...(balanceTarget !== undefined ? { balanceTarget } : {}),
+    }, editingId);
+    const adjusted = balanceTarget !== undefined && balanceTarget !== Math.round(currentBalance);
     closeModal({ silent: true });
-    toast('Akun disimpan.', 'success');
+    toast(adjusted ? 'Akun disimpan dan penyesuaian saldo dicatat.' : 'Akun disimpan.', 'success');
     renderApplication();
   } catch (error) {
     showFormError(form, error.message || 'Gagal menyimpan akun.');
@@ -3127,6 +3231,13 @@ function bindEvents() {
       return;
     }
 
+    // Clicking the visible date field opens the native calendar directly.
+    const dateDisplay = event.target.closest('input[name="dateDisplay"]');
+    if (dateDisplay) {
+      openNativeDatePicker(dateDisplay.closest('.date-input-wrap'));
+      return;
+    }
+
     const actionNode = event.target.closest('[data-action]');
     if (actionNode) {
       if (['SELECT', 'INPUT', 'TEXTAREA'].includes(actionNode.tagName)) return;
@@ -3185,6 +3296,11 @@ function bindEvents() {
 
   document.addEventListener('change', (event) => {
     const target = event.target;
+    if (target.matches('[data-color-custom]')) {
+      const field = target.closest('[data-color-field]');
+      if (field) setColorFieldBase(field, target.value);
+      return;
+    }
     if (target.matches('input[name="date"][type="date"]')) {
       const form = target.closest('form');
       const display = form?.querySelector('[name="dateDisplay"]');
@@ -3263,15 +3379,9 @@ function bindEvents() {
       if (accountSelect) {
         const selected = accountSelect.value;
         const owner = target.value || 'all';
-        const options = store.data.accounts
-          .filter((account) => !account.deletedAt)
-          .filter((account) => !account.archived || account.id === selected)
-          .filter((account) => owner === 'all' || account.owner === owner)
-          .map((account) => `<option value="${escapeAttr(account.id)}" ${selected === account.id ? 'selected' : ''}>${escapeHTML(account.name)}${account.archived ? ' (arsip)' : ''}</option>`)
-          .join('');
-        accountSelect.innerHTML = options || '<option value="">Tidak ada akun</option>';
+        accountSelect.innerHTML = accountOptions(selected, null, owner, 'Pilih Akun');
         if (selected && ![...accountSelect.options].some((option) => option.value === selected)) {
-          accountSelect.selectedIndex = 0;
+          accountSelect.value = '';
         }
       }
       return;
@@ -3417,13 +3527,14 @@ function boot() {
   const session = getSession();
   if (session?.workspaceId) {
     const opened = store.openWorkspace(session.workspaceId, { account: store.accountForWorkspace(session.workspaceId) });
-    let user = opened ? store.getUser(session.userId) : null;
+    let user = opened ? store.resolveUser(session.userId) : null;
     if (opened && !user) {
       // The stored session can point at a user id that changed after a cloud
       // sync or an app update. Recover by account e-mail instead of sending
       // the user back to the login screen.
       const account = store.account;
       if (account?.email) user = store.ensureMember(account);
+      else user = store.activeUsers()[0] || null;
     }
     const expired = isSessionExpired(session, store.data.settings.autoLockMinutes);
     if (!expired && user) {

@@ -31,8 +31,7 @@ export function budgetsView() {
       eyebrow: 'Rencana belanja',
       title: 'Anggaran',
       subtitle: 'Tetapkan batas bulanan dan pantau sisa anggaran keluarga.',
-      actions: '<button type="button" class="btn btn-secondary" data-action="copy-budget" title="Salin anggaran bulan sebelumnya">' + icon('copy', 'w-4 h-4') + ' Salin bulan lalu</button>' +
-        '<button type="button" class="btn btn-primary" data-action="add-tx" data-type="expense">' + icon('plus', 'w-4 h-4') + ' Pengeluaran</button>',
+      actions: '<button type="button" class="btn btn-secondary" data-action="copy-budget" title="Salin anggaran bulan sebelumnya">' + icon('copy', 'w-4 h-4') + ' Salin bulan lalu</button>',
     }) +
 
     '<section class="card">' +

@@ -233,6 +233,141 @@ function pickDefined(target, source) {
   });
 }
 
+function normalizedUserName(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function userReferenceCount(data, userId) {
+  let count = 0;
+  (data.accounts || []).forEach((account) => {
+    if (account?.owner === userId) count += 1;
+  });
+  ['transactions', 'recurring', 'notes', 'budgets'].forEach((key) => {
+    (data[key] || []).forEach((item) => {
+      if (item?.createdBy === userId) count += 1;
+      if (item?.updatedBy === userId) count += 1;
+    });
+  });
+  return count;
+}
+
+function pickCanonicalUser(candidates) {
+  // The choice must be deterministic across devices (same input -> same id),
+  // otherwise two devices could tombstone each other's canonical profile.
+  return [...candidates].sort((a, b) => {
+    const emailDiff = Number(Boolean(b.googleEmail)) - Number(Boolean(a.googleEmail));
+    if (emailDiff) return emailDiff;
+    const aCreated = new Date(a.createdAt || 0).getTime() || 0;
+    const bCreated = new Date(b.createdAt || 0).getTime() || 0;
+    if (aCreated !== bCreated) return aCreated - bCreated;
+    return String(a.id || '').localeCompare(String(b.id || ''));
+  })[0];
+}
+
+function mergeDuplicateUser(data, duplicate, canonical, remap, now) {
+  if (!duplicate || !canonical || duplicate.id === canonical.id) return;
+  if (duplicate.deletedAt || canonical.deletedAt) return;
+  remap.set(duplicate.id, canonical.id);
+  duplicate.deletedAt = now;
+  duplicate.updatedAt = now;
+  duplicate.mergedInto = canonical.id;
+  if (!canonical.googleEmail && duplicate.googleEmail) canonical.googleEmail = duplicate.googleEmail;
+  if (!canonical.picture && duplicate.picture) canonical.picture = duplicate.picture;
+  if (!canonical.pinHash && duplicate.pinHash) {
+    canonical.pinHash = duplicate.pinHash;
+    canonical.pinSalt = duplicate.pinSalt;
+    canonical.pinIterations = duplicate.pinIterations;
+  }
+  canonical.updatedAt = now;
+}
+
+function remapUserReferences(data, remap) {
+  if (!remap.size) return;
+  const canonicalName = (id) => data.users.find((user) => user.id === id)?.name;
+  (data.accounts || []).forEach((account) => {
+    if (remap.has(account?.owner)) account.owner = remap.get(account.owner);
+  });
+  ['transactions', 'recurring', 'notes', 'budgets'].forEach((key) => {
+    (data[key] || []).forEach((item) => {
+      if (!item) return;
+      ['createdBy', 'updatedBy'].forEach((field) => {
+        if (remap.has(item[field])) item[field] = remap.get(item[field]);
+      });
+      const name = item.createdBy ? canonicalName(item.createdBy) : '';
+      if (name) item.createdByName = name;
+    });
+  });
+  if (remap.has(data.updatedBy)) data.updatedBy = remap.get(data.updatedBy);
+}
+
+/**
+ * Fold duplicate/legacy members into a single canonical profile without losing
+ * ownership of existing accounts, transactions, schedules, or notes.
+ * Duplicates are tombstoned (deletedAt) so the cleanup also propagates on sync.
+ */
+export function dedupeUsers(data) {
+  if (!data || !Array.isArray(data.users)) return data;
+  const now = nowISO();
+  const remap = new Map();
+  const activeUsers = () => data.users.filter((user) => !user.deletedAt);
+
+  // 1. The same Google email always means the same person.
+  const byEmail = new Map();
+  activeUsers().forEach((user) => {
+    const email = String(user.googleEmail || '').trim().toLowerCase();
+    if (!email) return;
+    if (!byEmail.has(email)) byEmail.set(email, []);
+    byEmail.get(email).push(user);
+  });
+  byEmail.forEach((group) => {
+    if (group.length < 2) return;
+    const canonical = pickCanonicalUser(group);
+    group.forEach((user) => mergeDuplicateUser(data, user, canonical, remap, now));
+  });
+
+  // 2. A legacy profile without Google data that shares a connected member's
+  //    name is the same person (e.g. the old seeded "rizki"/"shelly" users).
+  //    Only merge when that name maps to a single connected Google account.
+  const connectedByName = new Map();
+  activeUsers().forEach((user) => {
+    if (!user.googleEmail) return;
+    const key = normalizedUserName(user.name);
+    if (!key) return;
+    if (!connectedByName.has(key)) connectedByName.set(key, []);
+    connectedByName.get(key).push(user);
+  });
+  activeUsers().forEach((user) => {
+    if (user.googleEmail) return;
+    const candidates = connectedByName.get(normalizedUserName(user.name)) || [];
+    if (!candidates.length) return;
+    const emails = new Set(candidates.map((item) => String(item.googleEmail || '').toLowerCase()));
+    if (emails.size !== 1) return;
+    mergeDuplicateUser(data, user, pickCanonicalUser(candidates), remap, now);
+  });
+
+  // 3. Duplicate no-email legacy profiles with the same name: only fold the
+  //    unreferenced copies so two different people are never merged.
+  const legacyByName = new Map();
+  activeUsers().forEach((user) => {
+    if (user.googleEmail) return;
+    const key = normalizedUserName(user.name);
+    if (!key) return;
+    if (!legacyByName.has(key)) legacyByName.set(key, []);
+    legacyByName.get(key).push(user);
+  });
+  legacyByName.forEach((group) => {
+    if (group.length < 2) return;
+    const referenced = group.filter((user) => userReferenceCount(data, user.id) > 0);
+    if (referenced.length > 1) return;
+    const canonical = referenced[0] || pickCanonicalUser(group);
+    group.forEach((user) => mergeDuplicateUser(data, user, canonical, remap, now));
+  });
+
+  remapUserReferences(data, remap);
+
+  return data;
+}
+
 /** Fill missing fields while preserving every user-created record. */
 export function migrateData(raw) {
   if (!raw || typeof raw !== 'object') return createDefaultData();
@@ -277,6 +412,7 @@ export function migrateData(raw) {
       createdAt: user?.createdAt || data.updatedAt || SEED_DATE,
       updatedAt: user?.updatedAt || data.updatedAt || SEED_DATE,
       ...(user?.deletedAt ? { deletedAt: user.deletedAt } : {}),
+      ...(user?.mergedInto ? { mergedInto: user.mergedInto } : {}),
     };
   });
   if (!data.users.length) data.users = defaults.users;
@@ -412,6 +548,8 @@ export function migrateData(raw) {
     completedAt: note.completedAt || null,
     ...(note.deletedAt ? { deletedAt: note.deletedAt } : {}),
   }));
+
+  dedupeUsers(data);
 
   return data;
 }
