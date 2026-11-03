@@ -3362,7 +3362,7 @@ function bindEvents() {
         }
       }).catch(() => {});
     }
-  }, 20_000);
+  }, 3_000);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && store.currentUser) {
       store.syncFamilyWorkspace().then((result) => {

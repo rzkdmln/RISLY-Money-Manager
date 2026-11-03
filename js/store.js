@@ -128,7 +128,7 @@ class Store {
     this._uploadTimer = setTimeout(() => {
       this._uploadTimer = null;
       this.uploadFamilyWorkspace().catch(() => {});
-    }, 1200);
+    }, 800);
   }
 
   updateWorkspaceMeta() {
