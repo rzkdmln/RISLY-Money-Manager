@@ -234,12 +234,35 @@ class FirebaseAdapter {
     return envelope;
   }
 
-  async subscribe() {
-    // REST mode uses polling in CloudSync instead of a live socket.
-    return null;
+  async subscribe(callback = () => {}) {
+    // Use the Firebase SDK so remote changes arrive in real time instead of
+    // waiting for the next poll. The SDK is loaded lazily to keep boot fast.
+    const [appMod, dbMod] = await Promise.all([
+      import(FIREBASE_APP_URL),
+      import(FIREBASE_DB_URL),
+    ]);
+    const { initializeApp, getApps, getApp } = appMod;
+    const { getDatabase, ref, onValue } = dbMod;
+    const app = getApps().length ? getApp() : initializeApp(this.firebaseConfig);
+    const db = getDatabase(app);
+    this.listenerRef = ref(db, this.path);
+    this.unsubscribe = onValue(
+      this.listenerRef,
+      (snapshot) => {
+        const envelope = extractEnvelope(snapshot.val());
+        if (envelope) callback(envelope);
+      },
+      (error) => console.warn('Firebase realtime listener error:', error),
+    );
+    return () => {
+      try { this.unsubscribe?.(); } catch { /* noop */ }
+      this.unsubscribe = null;
+    };
   }
 
   async destroy() {
+    try { this.unsubscribe?.(); } catch { /* noop */ }
+    this.unsubscribe = null;
     return null;
   }
 }
@@ -466,20 +489,28 @@ class CloudSync {
     }
   }
 
+  startPolling() {
+    clearInterval(this.pollTimer);
+    this.pollTimer = setInterval(() => {
+      if (!document.hidden) this.pull({ background: true }).catch(() => {});
+    }, APP.syncPollMs);
+  }
+
   async startEngine() {
     if (!this.adapter) return;
     clearInterval(this.pollTimer);
     if (this.config.provider === 'firebase' && this.adapter.subscribe) {
       try {
         this.unsubscribeRemote = await this.adapter.subscribe((remote) => this.handleRemote(remote, true));
+        if (!this.unsubscribeRemote) this.startPolling();
       } catch (error) {
-        this.lastError = error.message;
-        this.setStatus('error', error.message);
+        // Real-time listener unavailable (e.g. offline or blocked SDK); keep
+        // syncing with the previous polling behaviour.
+        console.warn('Firebase realtime tidak tersedia, memakai polling:', error);
+        this.startPolling();
       }
     } else {
-      this.pollTimer = setInterval(() => {
-        if (!document.hidden) this.pull({ background: true }).catch(() => {});
-      }, APP.syncPollMs);
+      this.startPolling();
     }
   }
 

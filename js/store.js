@@ -90,6 +90,7 @@ class Store {
     this.registry = { accounts: {}, workspaces: {}, legacyWorkspaceId: null };
     this.listeners = new Set();
     this.lastError = null;
+    this.familyHubBlocked = false;
     this._initialized = false;
     this._uploadTimer = null;
     this._flushPendingUpload = () => {
@@ -1598,6 +1599,19 @@ class Store {
     return `https://api.jsonbin.io/v3/b/${APP.familyBinId}`;
   }
 
+  // The JSONBin family hub is a legacy backend. When the device is configured
+  // for another provider (Firebase by default), CloudSync already handles
+  // cross-device sync, so we must not keep polling JSONBin in the background.
+  familySyncEnabled() {
+    try {
+      const raw = localStorage.getItem(APP.cloudKey);
+      if (!raw) return false;
+      return JSON.parse(raw)?.provider === 'jsonbin';
+    } catch {
+      return false;
+    }
+  }
+
   familyHeaders() {
     return {
       'Content-Type': 'application/json',
@@ -1606,12 +1620,18 @@ class Store {
   }
 
   async fetchFamilyHub() {
+    if (this.familyHubBlocked) return null;
     try {
       const response = await fetch(`${this.familyHubUrl}/latest`, {
         method: 'GET',
         headers: this.familyHeaders(),
         cache: 'no-store',
       });
+      if (response.status === 401 || response.status === 403) {
+        this.familyHubBlocked = true;
+        console.info('Family hub JSONBin tidak tersedia; sinkronisasi dilanjutkan lewat Firebase.');
+        return null;
+      }
       if (!response.ok) return null;
       const json = await response.json();
       return json?.record || null;
@@ -1731,12 +1751,18 @@ class Store {
   async fetchFamilyWorkspace(code) {
     const normalized = String(code || '').trim().toUpperCase();
     if (!/^[A-Z0-9]{4,8}$/.test(normalized)) return null;
+    if (this.familyHubBlocked) return null;
     try {
       const response = await fetch(`${this.familyHubUrl}/latest`, {
         method: 'GET',
         headers: this.familyHeaders(),
         cache: 'no-store',
       });
+      if (response.status === 401 || response.status === 403) {
+        this.familyHubBlocked = true;
+        console.info('Family hub JSONBin tidak tersedia; sinkronisasi dilanjutkan lewat Firebase.');
+        return null;
+      }
       if (!response.ok) return null;
       const json = await response.json();
       const record = json?.record;
@@ -1786,6 +1812,7 @@ class Store {
 
   async syncFamilyWorkspace() {
     if (!this.workspaceId || !this.data) return { changed: false };
+    if (!this.familySyncEnabled() || this.familyHubBlocked) return { changed: false, skipped: true };
     const code = String(this.data.settings?.inviteCode || '').toUpperCase();
     if (!code) return { changed: false };
     const cloudData = await this.fetchFamilyWorkspace(code);

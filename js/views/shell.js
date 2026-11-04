@@ -1,7 +1,7 @@
 import { APP, BOTTOM_NAV, DESKTOP_NAV, MORE_NAV, ROUTES } from '../config.js';
 import { Cloud } from '../cloud.js';
 import { icon } from '../icons.js';
-import { avatar, prefs, syncPill } from '../ui.js';
+import { avatar, prefs } from '../ui.js';
 import { escapeAttr, escapeHTML, formatDate, parseLocalDate, todayISO } from '../utils.js';
 
 function cloudColorClass(status) {
@@ -27,7 +27,7 @@ export function shellView(user, dueCount = 0) {
   const today = todayISO();
   const weekdayLabel = new Intl.DateTimeFormat(APP.locale, { weekday: 'long' }).format(parseLocalDate(today));
   const dateLabel = formatDate(today, { day: 'numeric', month: 'long', year: 'numeric' });
-  return `<div class="app-shell">
+  return `<div class="app-shell ${prefs.sidebarCollapsed ? 'sidebar-collapsed' : ''}">
     <aside class="sidebar">
       <div class="sidebar-brand">
         <img src="icons/icon-192.png" alt="RISLY Logo" class="w-9 h-9 rounded-xl shadow-sm object-cover">
@@ -35,6 +35,9 @@ export function shellView(user, dueCount = 0) {
           <p class="brand-name">${APP.name}</p>
           <p class="brand-caption">Money Manager</p>
         </div>
+        <button type="button" class="sidebar-collapse-btn" data-action="toggle-sidebar" aria-label="${prefs.sidebarCollapsed ? 'Tampilkan menu samping' : 'Sembunyikan menu samping'}" title="${prefs.sidebarCollapsed ? 'Tampilkan menu' : 'Sembunyikan menu'}">
+          ${icon(prefs.sidebarCollapsed ? 'chevron-right' : 'chevron-left', 'w-4 h-4')}
+        </button>
       </div>
 
       <nav class="sidebar-nav" aria-label="Navigasi utama">
@@ -45,15 +48,6 @@ export function shellView(user, dueCount = 0) {
       </nav>
 
       <div class="sidebar-bottom">
-        <div class="sidebar-sync js-sync-slot">${status.provider !== 'local' ? syncPill(status) : ''}</div>
-        <button type="button" class="sidebar-user" data-action="open-profile">
-          ${avatar(user, 'md')}
-          <span class="min-w-0 text-left">
-            <span class="block text-sm font-semibold text-slate-900 dark:text-white truncate">${escapeHTML(user?.name || 'Pengguna')}</span>
-            <span class="block text-[11px] text-slate-500 dark:text-slate-400 truncate">${escapeHTML(user?.googleEmail || '')}</span>
-          </span>
-          ${icon('more-horizontal', 'w-4 h-4 text-slate-400 ml-auto')}
-        </button>
         <p class="sidebar-version">${APP.name} v${APP.version} · PWA</p>
       </div>
     </aside>

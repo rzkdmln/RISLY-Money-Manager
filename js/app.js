@@ -1817,6 +1817,16 @@ async function handleAction(action, element) {
       togglePrivacy();
       renderApplication();
       break;
+    case 'toggle-sidebar': {
+      const next = !prefs.sidebarCollapsed;
+      savePrefs({ sidebarCollapsed: next });
+      const shell = document.querySelector('.app-shell');
+      if (shell) shell.classList.toggle('sidebar-collapsed', next);
+      element.innerHTML = icon(next ? 'chevron-right' : 'chevron-left', 'w-4 h-4');
+      element.setAttribute('aria-label', next ? 'Tampilkan menu samping' : 'Sembunyikan menu samping');
+      element.title = next ? 'Tampilkan menu' : 'Sembunyikan menu';
+      break;
+    }
     case 'toggle-networth-filter': {
       const next = ui.networthFilter === 'mine' ? 'all' : 'mine';
       savePrefs({ networthFilter: next });

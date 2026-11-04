@@ -61,6 +61,7 @@ export const DESKTOP_NAV = [
   'budgets',
   'reports',
   'recurring',
+  'categories',
   'settings',
 ];
 
