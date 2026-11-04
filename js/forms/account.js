@@ -40,13 +40,13 @@ function colorPicker(selected, inputName = 'color') {
   </div>`;
 }
 
-export function accountForm(account = null) {
+export function accountForm(account = null, defaultOwner = null) {
   const editing = Boolean(account?.id);
   const type = account?.type || 'cash';
   const color = account?.color || ACCOUNT_TYPES[type]?.color || '#3B82F6';
   const balance = editing ? store.accountBalance(account.id) : 0;
   const users = store.activeUsers();
-  const ownerValue = account?.owner || store.currentUserId || users[0]?.id || '';
+  const ownerValue = account?.owner || defaultOwner || store.currentUserId || users[0]?.id || '';
   return `<form data-form="account" data-id="${escapeAttr(account?.id || '')}" class="modal-form" novalidate>
     <header class="modal-header">
       <div>

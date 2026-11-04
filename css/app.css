@@ -1138,6 +1138,29 @@ body.is-auth { background: var(--bg); }
 .accounts-hero-meta span { display: inline-flex; align-items: center; gap: 4px; }
 .accounts-hero-ring { position: absolute; width: 230px; height: 230px; right: -90px; bottom: -120px; border: 1px solid rgba(255, 255, 255, .13); border-radius: 50%; }
 .accounts-hero-ring-two { width: 340px; height: 340px; right: -150px; bottom: -170px; }
+.members-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+.member-card {
+  display: flex; align-items: center; gap: 11px; width: 100%;
+  padding: 12px; text-align: left;
+  border: 1px solid var(--border); border-radius: 15px;
+  background: var(--surface); color: inherit;
+  transition: border-color .18s ease, background .18s ease, transform .18s ease;
+}
+.member-card:hover { border-color: color-mix(in srgb, var(--brand) 45%, var(--border)); background: var(--surface-2); transform: translateY(-1px); }
+.member-card.is-current { border-color: color-mix(in srgb, var(--brand) 45%, var(--border)); background: var(--brand-soft); }
+.member-main { min-width: 0; flex: 1; }
+.member-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 750; color: var(--text); }
+.member-you { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: var(--brand); color: #fff; font-size: 7.5px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; vertical-align: middle; }
+.member-meta { display: block; margin-top: 2px; font-size: 8.5px; color: var(--muted-2); }
+.member-value { flex: 0 0 auto; text-align: right; }
+.member-value strong { display: block; font-size: 13.5px; font-weight: 800; letter-spacing: -.02em; color: var(--text); }
+.member-value strong.is-negative { color: #dc2626; }
+.dark .member-value strong.is-negative { color: #fb7185; }
+.member-value span { display: block; margin-top: 1px; font-size: 8.5px; color: var(--muted-2); }
+.member-chevron { flex: 0 0 auto; color: var(--muted-2); }
+.member-card:hover .member-chevron { color: var(--brand); }
+.back-link { display: inline-flex; align-items: center; gap: 5px; align-self: flex-start; padding: 0; border: 0; background: none; font-size: 10px; font-weight: 650; color: var(--muted); cursor: pointer; }
+.back-link:hover { color: var(--brand); }
 .accounts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
 .account-card {
   padding: 15px; border: 1px solid var(--border); border-left: 3px solid var(--account-color, var(--brand));

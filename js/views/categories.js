@@ -57,36 +57,20 @@ export function categoriesView() {
 
     ${categories.length ? `<div class="${view === 'list' ? 'categories-grid categories-list-view' : 'categories-grid'}">${cards}</div>` : emptyState('tag', `Belum ada kategori ${type === 'expense' ? 'pengeluaran' : 'pemasukan'}`, 'Tambahkan kategori agar laporan lebih mudah dibaca.', `<button type="button" class="btn btn-primary btn-sm" data-action="add-category" data-type="${type}">${icon('plus', 'w-3.5 h-3.5')} Tambah kategori</button>`)}
 
-    <div class="grid md:grid-cols-2 gap-4">
-      <section class="card">
-        <div class="card-heading">
-          <div>
-            <p class="card-kicker">Tips struktur</p>
-            <h2 class="section-title">Kategori yang mudah dibaca</h2>
-          </div>
-          ${icon('sparkles', 'w-5 h-5 text-amber-500')}
+    <section class="card">
+      <div class="card-heading">
+        <div>
+          <p class="card-kicker">Ringkasan</p>
+          <h2 class="section-title">Pemakaian</h2>
         </div>
-        <ul class="space-y-2.5 text-sm text-slate-600 dark:text-slate-300">
-          <li class="flex gap-2.5">${icon('check', 'w-4 h-4 text-emerald-500 shrink-0')} Gunakan 6–10 kategori utama agar diagram tetap informatif.</li>
-          <li class="flex gap-2.5">${icon('check', 'w-4 h-4 text-emerald-500 shrink-0')} Subkategori cocok untuk kebutuhan yang sering berulang.</li>
-          <li class="flex gap-2.5">${icon('check', 'w-4 h-4 text-emerald-500 shrink-0')} Kategori yang dihapus tidak akan menghilangkan transaksi lama.</li>
-        </ul>
-      </section>
-      <section class="card">
-        <div class="card-heading">
-          <div>
-            <p class="card-kicker">Ringkasan</p>
-            <h2 class="section-title">Pemakaian</h2>
-          </div>
-          ${badge(`${usedCategories.size} dipakai`, 'blue', 'badge-soft')}
-        </div>
-        <div class="categories-usage">
-          ${categories.slice(0, 5).map((cat) => {
-            const count = allTx.filter((tx) => tx.categoryId === cat.id).length;
-            return `<div class="flex items-center gap-2 text-xs"><span class="legend-dot" style="--legend-color:${escapeAttr(cat.color)}"></span><span class="flex-1 text-slate-600 dark:text-slate-300 truncate">${escapeHTML(cat.name)}</span><strong class="text-slate-800 dark:text-slate-100">${count}</strong></div>`;
-          }).join('') || '<p class="text-sm text-slate-500">Belum ada pemakaian.</p>'}
-        </div>
-      </section>
-    </div>
+        ${badge(`${usedCategories.size} dipakai`, 'blue', 'badge-soft')}
+      </div>
+      <div class="categories-usage">
+        ${categories.slice(0, 5).map((cat) => {
+          const count = allTx.filter((tx) => tx.categoryId === cat.id).length;
+          return `<div class="flex items-center gap-2 text-xs"><span class="legend-dot" style="--legend-color:${escapeAttr(cat.color)}"></span><span class="flex-1 text-slate-600 dark:text-slate-300 truncate">${escapeHTML(cat.name)}</span><strong class="text-slate-800 dark:text-slate-100">${count}</strong></div>`;
+        }).join('') || '<p class="text-sm text-slate-500">Belum ada pemakaian.</p>'}
+      </div>
+    </section>
   </div>`;
 }

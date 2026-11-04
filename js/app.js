@@ -161,6 +161,7 @@ function routeFromHash() {
 
 function navigate(route, { replace = false } = {}) {
   if (!ROUTES[route]) return;
+  if (route === 'accounts') ui.accountsMember = null;
   closeModal({ silent: true });
   const target = `#/${route}`;
   if (location.hash === target) {
@@ -600,8 +601,8 @@ function openRecurringModal(rule = null, defaults = {}) {
   });
 }
 
-function openAccountModal(account = null) {
-  openModal({ size: 'md', className: 'form-modal', html: accountForm(account) });
+function openAccountModal(account = null, defaultOwner = null) {
+  openModal({ size: 'md', className: 'form-modal', html: accountForm(account, defaultOwner) });
 }
 
 function openCategoryModal(category = null, type = null) {
@@ -2024,9 +2025,17 @@ async function handleAction(action, element) {
     }
 
     /* Accounts */
+    case 'open-member':
+      ui.accountsMember = element.dataset.id || null;
+      renderApplication();
+      break;
+    case 'accounts-back':
+      ui.accountsMember = null;
+      renderApplication();
+      break;
     case 'add-account':
       closeModal({ silent: true });
-      openAccountModal();
+      openAccountModal(null, element.dataset.owner || null);
       break;
     case 'edit-account': {
       const account = store.accountById(id);
@@ -3505,6 +3514,13 @@ function bindEvents() {
 
   document.addEventListener('mousedown', (event) => {
     if (event.target.closest('.note-toolbar')) event.preventDefault();
+  });
+
+  document.addEventListener('click', (event) => {
+    const link = event.target.closest('[data-nav="accounts"]');
+    if (!link || !ui.accountsMember) return;
+    ui.accountsMember = null;
+    if (location.hash === '#/accounts') renderApplication();
   });
 
   window.addEventListener('hashchange', () => {
