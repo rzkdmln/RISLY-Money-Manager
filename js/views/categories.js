@@ -1,6 +1,6 @@
 import { store } from '../store.js';
 import { icon } from '../icons.js';
-import { badge, emptyState, money, pageHeader, ui } from '../ui.js';
+import { badge, emptyState, money, pageHeader, prefs, ui } from '../ui.js';
 import { escapeAttr, escapeHTML } from '../utils.js';
 
 export function categoriesView() {
