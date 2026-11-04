@@ -21,6 +21,7 @@ import {
   resumeGoogleAuthLogin,
   shouldUseAuthRelay,
   startGoogleAuthRedirect,
+  startGoogleAuthPopup,
 } from './google-auth-relay.js';
 import { initPullToRefresh } from './pull-to-refresh.js';
 import {
@@ -436,42 +437,48 @@ function showGoogleWaitingModal({ onCancel }) {
 }
 
 async function signInWithGoogleFlow() {
-  if (!shouldUseAuthRelay()) {
-    return GoogleDrive.signIn({ prompt: 'select_account' });
-  }
+  if (shouldUseAuthRelay()) {
+    // iOS: Firebase Auth redirect (tab/browser PWA standalone tidak mendukung popup).
+    const controller = new AbortController();
+    let waiting = null;
+    const session = await new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = (fn, value) => {
+        if (settled) return;
+        settled = true;
+        waiting?.close();
+        fn(value);
+      };
 
-  const controller = new AbortController();
-  let waiting = null;
-  const session = await new Promise((resolve, reject) => {
-    let settled = false;
-    const finish = (fn, value) => {
-      if (settled) return;
-      settled = true;
-      waiting?.close();
-      fn(value);
-    };
+      waiting = showGoogleWaitingModal({
+        onCancel: () => {
+          controller.abort();
+          finish(reject, new Error('Masuk dengan Google dibatalkan.'));
+        },
+      });
 
-    waiting = showGoogleWaitingModal({
-      onCancel: () => {
-        controller.abort();
-        finish(reject, new Error('Masuk dengan Google dibatalkan.'));
-      },
+      startGoogleAuthRedirect({ signal: controller.signal }).then(
+        async () => {
+          const completed = await completeGoogleAuthLogin({ signal: controller.signal });
+          if (!completed) {
+            finish(reject, new Error('Sesi login Google tidak ditemukan. Silakan coba lagi dari aplikasi.'));
+            return;
+          }
+          GoogleDrive.adoptSession(completed);
+          finish(resolve, completed);
+        },
+        (error) => finish(reject, error),
+      );
     });
 
-    startGoogleAuthRedirect({ signal: controller.signal }).then(
-      async () => {
-        const completed = await completeGoogleAuthLogin({ signal: controller.signal });
-        if (!completed) {
-          finish(reject, new Error('Sesi login Google tidak ditemukan. Silakan coba lagi dari aplikasi.'));
-          return;
-        }
-        GoogleDrive.adoptSession(completed);
-        finish(resolve, completed);
-      },
-      (error) => finish(reject, error),
-    );
-  });
+    return session.account;
+  }
 
+  // Desktop / non-iOS: Firebase Auth popup. Tidak pakai Google Identity Services
+  // karena token akses GIS bukan Firebase ID Token dan akan ditolak Firebase Auth
+  // (auth/argument-error / auth/invalid-credential).
+  const session = await startGoogleAuthPopup();
+  GoogleDrive.adoptSession(session);
   return session.account;
 }
 

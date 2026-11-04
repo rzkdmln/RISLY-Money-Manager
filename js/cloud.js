@@ -416,7 +416,17 @@ class CloudSync {
   }
 
   async signInWithGoogle(accessToken) {
-    if (!accessToken) return null;
+    // Validasi ketat: accessToken harus berupa string non-kosong. Jangan
+    // melewatkan string kosong ke GoogleAuthProvider.credential karena
+    // Firebase akan melempar auth/argument-error.
+    if (
+      !accessToken ||
+      typeof accessToken !== 'string' ||
+      accessToken.trim().length === 0
+    ) {
+      console.warn('Token akses Google kosong, melewatkan sign-in Firebase.');
+      return null;
+    }
     if (this.config.provider !== 'firebase') return null;
     try {
       const auth = await getFirebaseAuth();
@@ -437,7 +447,13 @@ class CloudSync {
       const { getAuth, GoogleAuthProvider, signInWithCredential } = authMod;
       const app = getApps().length ? getApp() : initializeApp(this.firebaseConfig || FIREBASE_CONFIG);
       const authApp = getAuth(app);
-      const credential = GoogleAuthProvider.credential(null, accessToken);
+      let credential;
+      try {
+        credential = GoogleAuthProvider.credential(null, accessToken.trim());
+      } catch (credError) {
+        console.warn('Firebase credential gagal dibuat:', credError);
+        return null;
+      }
       const result = await signInWithCredential(authApp, credential);
       const uid = result.user?.uid;
       if (uid) {

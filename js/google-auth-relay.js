@@ -413,6 +413,32 @@ export async function startGoogleAuthRedirect({ signal = null } = {}) {
 }
 
 /**
+ * Mulai login Google lewat Firebase Auth popup (desktop / non-iOS).
+ * Mengembalikan session yang kompatibel dengan GoogleDrive.adoptSession() dan store.
+ */
+export async function startGoogleAuthPopup({ signal = null } = {}) {
+  const appMod = await import(FIREBASE_APP_URL);
+  const authMod = await import(FIREBASE_AUTH_URL);
+  const { initializeApp, getApps, getApp } = appMod;
+  const { getAuth, GoogleAuthProvider, signInWithPopup } = authMod;
+  const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
+  const auth = getAuth(app);
+  const result = await signInWithPopup(auth, GoogleAuthProvider.PROVIDER_ID);
+  const user = result?.user;
+  if (!user) throw new Error('Hasil login Google tidak tersedia dari popup.');
+  const accessToken = String(user.accessToken || '');
+  if (!accessToken) throw new Error('Token Google dari Firebase Auth tidak tersedia.');
+  const expiresAt = Date.now() + (Number(user.expiresAt?.toMillis?.() || Date.now()) + 3600_000 - Date.now());
+  const account = {
+    email: String(user.email || ''),
+    name: String(user.displayName || ''),
+    picture: String(user.photoURL || ''),
+    clientId: APP.googleClientId,
+  };
+  return { account, accessToken, expiresAt, user };
+}
+
+/**
  * Selesaikan hasil login Google dari Firebase Auth redirect. Mengembalikan
  * session yang kompatibel dengan GoogleDrive.adoptSession() dan store.
  */
