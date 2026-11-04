@@ -270,31 +270,31 @@ class FirebaseAdapter {
   }
 
   async subscribe(callback = () => {}) {
-    // Use the Firebase SDK so remote changes arrive in real time instead of
-    // waiting for the next poll. The SDK is loaded lazily to keep boot fast and
-    // the listener is bound to the Firebase Auth instance so it only receives
-    // data for the currently signed-in household (auth != null in the rules).
-    const [appMod, dbMod, authMod] = await Promise.all([
-      import(FIREBASE_APP_URL),
-      import(FIREBASE_DB_URL),
-      import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`),
-    ]);
-    const { initializeApp, getApps, getApp } = appMod;
-    const { getDatabase, ref, onValue } = dbMod;
-    const { getAuth } = authMod;
-    const app = getApps().length ? getApp() : initializeApp(this.firebaseConfig);
-    const auth = getAuth(app);
-    const db = getDatabase(app, auth);
-    const listenerRef = ref(db, this.path);
-    this.listenerRef = listenerRef;
-    this.unsubscribe = onValue(
-      listenerRef,
-      (snapshot) => {
-        const envelope = extractEnvelope(snapshot.val());
-        if (envelope) callback(envelope);
-      },
-      (error) => console.warn('Firebase realtime listener error:', error),
-    );
+    // Real-time listener via Firebase SDK. Di-inisialisasi lazily agar boot
+    // tetap cepat. Tidak melempar error fatal saat belum ada auth — polling
+    // (dengan ?auth=idToken melalui REST) tetap menangani sinkronisasi.
+    try {
+      const [appMod, dbMod] = await Promise.all([
+        import(FIREBASE_APP_URL),
+        import(FIREBASE_DB_URL),
+      ]);
+      const { initializeApp, getApps, getApp } = appMod;
+      const { getDatabase, ref, onValue } = dbMod;
+      const app = getApps().length ? getApp() : initializeApp(this.firebaseConfig);
+      const db = getDatabase(app);
+      const listenerRef = ref(db, this.path);
+      this.listenerRef = listenerRef;
+      this.unsubscribe = onValue(
+        listenerRef,
+        (snapshot) => {
+          const envelope = extractEnvelope(snapshot.val());
+          if (envelope) callback(envelope);
+        },
+        (error) => console.warn('Firebase realtime listener error:', error),
+      );
+    } catch (error) {
+      console.warn('Firebase realtime tidak tersedia, memakai polling:', error);
+    }
     return () => {
       try { this.unsubscribe?.(); } catch { /* noop */ }
       this.unsubscribe = null;
@@ -419,14 +419,26 @@ class CloudSync {
     if (!accessToken) return null;
     if (this.config.provider !== 'firebase') return null;
     try {
+      const auth = await getFirebaseAuth();
+      const user = auth?.currentUser;
+      // Jika Firebase Auth sudah memiliki user (mis. alur redirect selesai),
+      // gunakan user tersebut. Jangan tukarkan token akses Google mentah melalui
+      // signInWithCredential, karena aud token tersebut mungkin bukan untuk
+      // project Firebase ini (auth/invalid-credential).
+      if (user?.uid) {
+        this.firebaseUid = user.uid;
+        await this.applyFirebaseUid(user.uid);
+        return user.uid;
+      }
+      // Sebaliknya, tukarkan token akses Google via Firebase credential.
       const appMod = await import(FIREBASE_APP_URL);
       const authMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`);
       const { initializeApp, getApps, getApp } = appMod;
       const { getAuth, GoogleAuthProvider, signInWithCredential } = authMod;
       const app = getApps().length ? getApp() : initializeApp(this.firebaseConfig || FIREBASE_CONFIG);
-      const auth = getAuth(app);
+      const authApp = getAuth(app);
       const credential = GoogleAuthProvider.credential(null, accessToken);
-      const result = await signInWithCredential(auth, credential);
+      const result = await signInWithCredential(authApp, credential);
       const uid = result.user?.uid;
       if (uid) {
         this.firebaseUid = uid;
@@ -585,19 +597,21 @@ class CloudSync {
     try {
       if (this.config.provider === 'firebase') {
         const uid = await this.getFirebaseUid();
-        if (uid) {
-          this.firebaseUid = uid;
-          if (this.adapter) this.adapter.ownerUid = uid;
-          let saved = null;
-          try { saved = JSON.parse(localStorage.getItem(APP.cloudKey) || 'null'); } catch { saved = null; }
-          const hasPath = Boolean(saved?.firebase?.path) && saved.firebase.path !== `households/${APP.householdId}`;
-          if (!saved || !saved.firebase?.path || !hasPath) {
-            const next = { provider: 'firebase', firebase: { path: `households/${uid}` } };
-            localStorage.setItem(APP.cloudKey, JSON.stringify(next));
-            this.config = next;
-            this.adapter = this.createAdapter(this.config);
-          }
+        if (!uid) {
+          // Belum ada pengguna Firebase yang terkonfirmasi. Jangan baca RTDB
+          // (mis. households/risly-family) tanpa auth — aturan keamanan
+          // menolaknya (permission_denied / 401).
+          this.connected = false;
+          this.firebaseUid = null;
+          this.adapter = null;
+          this.setStatus('idle', 'Menunggu autentikasi Firebase…');
+          return { ok: true, skipped: true };
         }
+        this.firebaseUid = uid;
+        // Path per-rumah tangga berdasarkan UID Firebase (isolasi data).
+        const next = { provider: 'firebase', firebase: { path: `households/${uid}` } };
+        localStorage.setItem(APP.cloudKey, JSON.stringify(next));
+        this.config = next;
       }
       this.adapter = this.createAdapter(this.config);
       if (this.config.provider === 'firebase' && this.firebaseUid && this.adapter?.setOwner) {
