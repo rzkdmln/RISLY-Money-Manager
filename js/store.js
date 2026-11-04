@@ -1,4 +1,6 @@
 import { APP } from './config.js';
+import { GoogleDrive } from './gdrive.js';
+import { Cloud } from './cloud.js';
 import { createSession, getSession } from './auth.js';
 import {
   createDefaultData,
@@ -90,22 +92,8 @@ class Store {
     this.registry = { accounts: {}, workspaces: {}, legacyWorkspaceId: null };
     this.listeners = new Set();
     this.lastError = null;
-    this.familyHubBlocked = false;
     this._initialized = false;
     this._uploadTimer = null;
-    this._flushPendingUpload = () => {
-      if (this._uploadTimer) {
-        clearTimeout(this._uploadTimer);
-        this._uploadTimer = null;
-        this.uploadFamilyWorkspace().catch(() => {});
-      }
-    };
-    if (typeof window !== 'undefined') {
-      window.addEventListener('pagehide', this._flushPendingUpload);
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden') this._flushPendingUpload();
-      });
-    }
   }
 
   init() {
@@ -129,12 +117,6 @@ class Store {
       this.lastError = error;
       throw error;
     }
-    // Debounced upload to family cloud hub
-    if (this._uploadTimer) clearTimeout(this._uploadTimer);
-    this._uploadTimer = setTimeout(() => {
-      this._uploadTimer = null;
-      this.uploadFamilyWorkspace().catch(() => {});
-    }, 800);
   }
 
   updateWorkspaceMeta() {
@@ -248,13 +230,13 @@ class Store {
   async signInWithGoogle(account) {
     const email = String(account?.email || '').trim().toLowerCase();
     if (!email) throw new Error('Akun Google tidak valid.');
+    // Bridge Google login to Firebase Auth so each household is isolated by UID.
+    try { await Cloud.signInWithGoogle(GoogleDrive.accessToken); } catch { /* noop */ }
     const entry = this.registry.accounts[email];
     if (entry?.workspaceId && this.openWorkspace(entry.workspaceId, { account })) {
       const user = this.ensureMember(account);
       this.currentUserId = user.id;
       this.persist();
-      // Sync in background
-      this.syncFamilyWorkspace().catch(() => {});
       return { user, created: false, workspaceId: this.workspaceId };
     }
 
@@ -267,23 +249,8 @@ class Store {
         const user = this.ensureMember(account);
         this.currentUserId = user.id;
         this.persist();
-        this.uploadFamilyWorkspace().catch(() => {});
         return { user, created: false, adopted: true, workspaceId };
       }
-    }
-
-    // Try cloud family hub: look up email -> invite code
-    try {
-      const code = await this.lookupFamilyCodeByEmail(email);
-      if (code) {
-        const cloudResult = await this.joinFamilyWorkspaceFromCloud(code, account);
-        if (cloudResult) {
-          this.syncFamilyWorkspace().catch(() => {});
-          return { user: cloudResult.user, created: false, workspaceId: cloudResult.workspaceId };
-        }
-      }
-    } catch (error) {
-      console.warn('Cloud family lookup failed:', error);
     }
 
     const workspaceId = uid('ws');
@@ -296,8 +263,6 @@ class Store {
     this.updateWorkspaceMeta();
     this.registerAccount(account, workspaceId);
     this.persist();
-    // Upload to cloud family hub in background
-    this.uploadFamilyWorkspace().catch(() => {});
     return { user, created: true, workspaceId };
   }
 
@@ -364,9 +329,8 @@ class Store {
       this.persist();
       return { user, workspaceId };
     }
-    // Try cloud
-    const cloudResult = await this.joinFamilyWorkspaceFromCloud(normalized, account);
-    if (cloudResult) return cloudResult;
+    // Cloud join via JSONBin family hub was retired; family sharing now goes
+    // through the Firebase household (members node) once Firebase Auth is wired.
     throw new Error('Kode undangan tidak ditemukan di perangkat maupun cloud.');
   }
 
@@ -1682,291 +1646,6 @@ class Store {
       this.emit({ source: 'remote', reason: 'sync:merge' });
     }
     return { changed, data: local };
-  }
-
-  /* ------------------------------------------------------------------------ */
-  /*  Family sharing via JSONBin cloud hub                                     */
-  /* ------------------------------------------------------------------------ */
-
-  get familyHubUrl() {
-    return `https://api.jsonbin.io/v3/b/${APP.familyBinId}`;
-  }
-
-  // The shared JSONBin family hub is legacy and is disabled by default. It must
-  // never run in the background, because its master key used to ship in the
-  // client bundle. Cross-device sync now goes through CloudSync (Firebase).
-  familySyncEnabled() {
-    return false;
-  }
-
-  familyHeaders() {
-    return {
-      'Content-Type': 'application/json',
-      'X-Master-Key': APP.familyMasterKey,
-    };
-  }
-
-  async fetchFamilyHub() {
-    if (!this.familySyncEnabled()) return null;
-    if (this.familyHubBlocked) return null;
-    try {
-      const response = await fetch(`${this.familyHubUrl}/latest`, {
-        method: 'GET',
-        headers: this.familyHeaders(),
-        cache: 'no-store',
-      });
-      if (response.status === 401 || response.status === 403) {
-        this.familyHubBlocked = true;
-        console.info('Family hub JSONBin tidak tersedia; sinkronisasi dilanjutkan lewat Firebase.');
-        return null;
-      }
-      if (!response.ok) return null;
-      const json = await response.json();
-      return json?.record || null;
-    } catch (error) {
-      console.warn('Family hub fetch failed:', error);
-      return null;
-    }
-  }
-
-  async uploadFamilyWorkspace() {
-    if (!this.familySyncEnabled()) return false;
-    if (!this.workspaceId || !this.data) return false;
-    const code = String(this.data.settings?.inviteCode || '').toUpperCase();
-    if (!code) return false;
-    try {
-      const fetchedHub = await this.fetchFamilyHub();
-      // Never overwrite the cloud hub with an empty snapshot if the fetch failed;
-      // that would destroy other devices' workspaces.
-      if (fetchedHub === null) return false;
-      const hub = fetchedHub || {};
-      // Migrate old format (single workspace) to new format (workspaces keyed by code)
-      if (hub.data && !hub.workspaces) {
-        const oldCode = String(hub.data?.settings?.inviteCode || '').toUpperCase();
-        if (oldCode) {
-          hub.workspaces = hub.workspaces || {};
-          hub.workspaces[oldCode] = {
-            data: hub.data,
-            ownerEmail: hub.data?.settings?.ownerEmail || '',
-            updatedAt: hub.savedAt || nowISO(),
-          };
-        }
-        delete hub.data;
-        delete hub.app;
-        delete hub.schemaVersion;
-        delete hub.revision;
-        delete hub.savedAt;
-        delete hub.client;
-      }
-      if (!hub.workspaces || typeof hub.workspaces !== 'object') hub.workspaces = {};
-      // Merge any existing cloud snapshot into the local one before writing so
-      // a second device never clobbers transactions created by another device.
-      const mergedData = deepClone(this.data);
-      const existingEntry = hub.workspaces[code];
-      if (existingEntry?.data) {
-        try {
-          const existing = migrateData(existingEntry.data);
-          mergedData.users = mergeCollection(mergedData.users, existing.users);
-          mergedData.accounts = mergeCollection(mergedData.accounts, existing.accounts);
-          mergedData.categories = mergeCollection(mergedData.categories, existing.categories);
-          mergedData.transactions = mergeCollection(mergedData.transactions, existing.transactions);
-          mergedData.budgets = mergeCollection(mergedData.budgets, existing.budgets);
-          mergedData.recurring = mergeCollection(mergedData.recurring, existing.recurring);
-          mergedData.notes = mergeCollection(mergedData.notes, existing.notes);
-           mergedData.goals = mergeCollection(mergedData.goals, existing.goals);
-           mergedData.netWorthHistory = mergeCollection(mergedData.netWorthHistory, existing.netWorthHistory);
-          if (recordStamp(existing.settings) > recordStamp(mergedData.settings)) {
-            const workspaceId = mergedData.settings?.workspaceId;
-            const inviteCode = mergedData.settings?.inviteCode;
-            mergedData.settings = deepClone(existing.settings);
-            if (workspaceId) mergedData.settings.workspaceId = workspaceId;
-            if (inviteCode) mergedData.settings.inviteCode = inviteCode;
-          }
-          mergedData.revision = Math.max(Number(mergedData.revision) || 1, Number(existing.revision) || 1);
-          if (new Date(existing.updatedAt || 0) > new Date(mergedData.updatedAt || 0)) {
-            mergedData.updatedAt = existing.updatedAt;
-          }
-        } catch (error) {
-          console.warn('Family hub merge on upload failed:', error);
-        }
-      }
-      hub.workspaces[code] = {
-        data: mergedData,
-        ownerEmail: mergedData.settings?.ownerEmail || this.data.settings.ownerEmail || '',
-        updatedAt: nowISO(),
-      };
-      // Update member email -> code mapping for cross-device login
-      if (!hub.members || typeof hub.members !== 'object') hub.members = {};
-      (mergedData.users || []).forEach((u) => {
-        const email = String(u.googleEmail || '').trim().toLowerCase();
-        if (email) hub.members[email] = code;
-      });
-      const response = await fetch(this.familyHubUrl, {
-        method: 'PUT',
-        headers: this.familyHeaders(),
-        body: JSON.stringify(hub),
-      });
-      return response.ok;
-    } catch (error) {
-      console.warn('Family hub upload failed:', error);
-      return false;
-    }
-  }
-
-  async lookupFamilyCodeByEmail(email) {
-    if (!this.familySyncEnabled()) return null;
-    const normalized = String(email || '').trim().toLowerCase();
-    if (!normalized) return null;
-    try {
-      const hub = await this.fetchFamilyHub();
-      if (!hub) return null;
-      // Check members mapping
-      if (hub.members && hub.members[normalized]) {
-        return String(hub.members[normalized]).toUpperCase();
-      }
-      // Fallback: search workspaces for matching googleEmail
-      if (hub.workspaces) {
-        for (const [code, entry] of Object.entries(hub.workspaces)) {
-          const users = entry?.data?.users || [];
-          if (users.some((u) => String(u.googleEmail || '').toLowerCase() === normalized)) {
-            return String(code).toUpperCase();
-          }
-        }
-      }
-      return null;
-    } catch (error) {
-      console.warn('Family hub lookup failed:', error);
-      return null;
-    }
-  }
-
-  async fetchFamilyWorkspace(code) {
-    if (!this.familySyncEnabled()) return null;
-    const normalized = String(code || '').trim().toUpperCase();
-    if (!/^[A-Z0-9]{4,8}$/.test(normalized)) return null;
-    if (this.familyHubBlocked) return null;
-    try {
-      const response = await fetch(`${this.familyHubUrl}/latest`, {
-        method: 'GET',
-        headers: this.familyHeaders(),
-        cache: 'no-store',
-      });
-      if (response.status === 401 || response.status === 403) {
-        this.familyHubBlocked = true;
-        console.info('Family hub JSONBin tidak tersedia; sinkronisasi dilanjutkan lewat Firebase.');
-        return null;
-      }
-      if (!response.ok) return null;
-      const json = await response.json();
-      const record = json?.record;
-      if (!record) return null;
-
-      // New format: workspaces keyed by code
-      if (record.workspaces && record.workspaces[normalized]) {
-        const entry = record.workspaces[normalized];
-        return entry?.data ? migrateData(entry.data) : null;
-      }
-
-      // Old format: single workspace with inviteCode in settings
-      if (record.data && record.data.settings) {
-        const recordCode = String(record.data.settings.inviteCode || '').toUpperCase();
-        if (recordCode === normalized) {
-          return migrateData(record.data);
-        }
-      }
-
-      return null;
-    } catch (error) {
-      console.warn('Family hub fetch failed:', error);
-      return null;
-    }
-  }
-
-  async joinFamilyWorkspaceFromCloud(code, account) {
-    if (!this.familySyncEnabled()) return null;
-    const data = await this.fetchFamilyWorkspace(code);
-    if (!data) return null;
-    const workspaceId = uid('ws');
-    data.settings = { ...data.settings, workspaceId, inviteCode: code };
-    localStorage.setItem(workspaceStorageKey(workspaceId), JSON.stringify(data));
-    this.registry.workspaces[workspaceId] = {
-      id: workspaceId,
-      name: data.settings.workspaceName || data.settings.householdName,
-      inviteCode: code,
-      ownerEmail: data.settings.ownerEmail || '',
-      updatedAt: nowISO(),
-    };
-    this.openWorkspace(workspaceId, { account });
-    const user = this.ensureMember(account);
-    this.currentUserId = user.id;
-    this.registerAccount(account, workspaceId);
-    this.persist();
-    return { user, workspaceId };
-  }
-
-  async syncFamilyWorkspace() {
-    if (!this.workspaceId || !this.data) return { changed: false };
-    if (!this.familySyncEnabled() || this.familyHubBlocked) return { changed: false, skipped: true };
-    const code = String(this.data.settings?.inviteCode || '').toUpperCase();
-    if (!code) return { changed: false };
-    const cloudData = await this.fetchFamilyWorkspace(code);
-    if (!cloudData) return { changed: false };
-    const before = JSON.stringify(this.data);
-    const remote = migrateData(cloudData);
-
-    // Merge collections instead of replacing, so transactions created on either
-    // device are preserved even when timestamps are out of order.
-    this.data.users = mergeCollection(this.data.users, remote.users);
-    this.data.accounts = mergeCollection(this.data.accounts, remote.accounts);
-    this.data.categories = mergeCollection(this.data.categories, remote.categories);
-    this.data.transactions = mergeCollection(this.data.transactions, remote.transactions);
-    this.data.budgets = mergeCollection(this.data.budgets, remote.budgets);
-    this.data.recurring = mergeCollection(this.data.recurring, remote.recurring);
-    this.data.notes = mergeCollection(this.data.notes, remote.notes);
-    this.data.goals = mergeCollection(this.data.goals, remote.goals);
-    this.data.netWorthHistory = mergeCollection(this.data.netWorthHistory, remote.netWorthHistory);
-
-    // Settings: keep the newer side, but never lose this device's workspace id
-    // or invite code.
-    if (recordStamp(remote.settings) > recordStamp(this.data.settings)) {
-      const workspaceId = this.data.settings?.workspaceId;
-      const inviteCode = this.data.settings?.inviteCode || code;
-      this.data.settings = { ...remote.settings, workspaceId, inviteCode };
-    } else if (remote.settings) {
-      this.data.settings = { ...remote.settings, ...this.data.settings };
-      this.data.settings.workspaceId = this.workspaceId;
-      this.data.settings.inviteCode = code;
-    }
-
-    this.data.revision = Math.max(Number(this.data.revision) || 1, Number(remote.revision) || 1);
-    if (new Date(remote.updatedAt || 0) > new Date(this.data.updatedAt || 0)) {
-      this.data.updatedAt = remote.updatedAt;
-    }
-    this.data.schemaVersion = APP.schemaVersion;
-
-    // The remote snapshot may use different user ids. Re-bind the signed-in
-    // user (and the stored session) so a background sync can never drop the
-    // user back to the login screen right after signing in.
-    if (this.account?.email) {
-      const member = this.ensureMember(this.account);
-      this.currentUserId = member?.id || this.data.users?.[0]?.id || null;
-    } else if (!this.currentUserId
-      || !(this.data.users || []).some((user) => user.id === this.currentUserId)) {
-      this.currentUserId = this.data.users?.[0]?.id || null;
-    }
-    if (this.currentUserId) {
-      const session = getSession();
-      if (!session || session.userId !== this.currentUserId || session.workspaceId !== this.workspaceId) {
-        createSession(this.currentUserId, this.workspaceId);
-      }
-    }
-
-    const changed = before !== JSON.stringify(this.data);
-    if (changed) {
-      this.persist();
-      this.emit({ source: 'remote', reason: 'family:sync' });
-    }
-    return { changed };
   }
 }
 

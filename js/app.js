@@ -385,15 +385,9 @@ function enterApplication(user, { fresh = false } = {}) {
   runRecurring({ notify: true });
   try { store.recordNetWorthSnapshot(); } catch { /* ignore */ }
   setTimeout(checkReminders, 1_200);
-  // Sync family workspace from cloud in background
+  // Cloud sync (Firebase) runs through the CloudSync engine.
   if (store.workspaceId) {
-    store.syncFamilyWorkspace().then((result) => {
-      if (result?.changed && store.currentUser) {
-        ui.appMounted = false;
-        renderApplication();
-        toast('Data ruang diperbarui dari cloud.', 'info');
-      }
-    }).catch(() => {});
+    Cloud.push({ immediate: true }).catch(() => {});
   }
 }
 
@@ -2611,16 +2605,13 @@ async function handleAction(action, element) {
       element.disabled = true;
       element.textContent = 'Menyinkronkan...';
       try {
-        const result = await store.syncFamilyWorkspace();
-        if (result?.changed) {
+        const result = await Cloud.syncNow();
+        if (result?.ok) {
           ui.appMounted = false;
           renderApplication();
-          toast('Ruang diperbarui dari cloud.', 'success');
+          toast('Ruang tersimpan ke cloud.', 'success');
         } else {
-          // Also try uploading
-          const uploaded = await store.uploadFamilyWorkspace();
-          if (uploaded) toast('Ruang tersimpan ke cloud.', 'success');
-          else toast('Gagal menyimpan ke cloud. Periksa key/bin JSONBin.', 'error');
+          toast('Gagal menyinkronkan ke cloud.', 'error');
         }
       } catch (error) {
         toast(error.message || 'Gagal menyinkronkan.', 'error');
@@ -3609,22 +3600,12 @@ function bindEvents() {
     checkAutoLock();
     if (store.currentUser) checkReminders();
     if (store.currentUser) {
-      store.syncFamilyWorkspace().then((result) => {
-        if (result?.changed) {
-          ui.appMounted = false;
-          renderApplication();
-        }
-      }).catch(() => {});
+      Cloud.syncNow().then(() => {}).catch(() => {});
     }
   }, 3_000);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && store.currentUser) {
-      store.syncFamilyWorkspace().then((result) => {
-        if (result?.changed) {
-          ui.appMounted = false;
-          renderApplication();
-        }
-      }).catch(() => {});
+      Cloud.syncNow().then(() => {}).catch(() => {});
     }
   });
 }

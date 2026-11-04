@@ -1,29 +1,25 @@
 # Keamanan RISLY
 
-Dokumen ini merangkum status keamanan dan langkah yang perlu dilakukan di
-Firebase Console. Kode aplikasi sudah disesuaikan; aturan di bawah ini harus
-diterapkan **setelah** Firebase Authentication aktif.
-
 ## Status saat ini
-- Database RTDB `households/risly-family` masih publik (baca/tulis tanpa auth)
-  sampai aturan di `firebase-security-rules.json` diterapkan.
-- Kunci JSONBin yang bocor di versi lama sudah dihapus dari bundle; rotasi
-  kunci lama tetap disarankan.
-- Token Google pada relay iOS sekarang dienkripsi dengan ECDH + AES-GCM.
-  Relay masih dapat ditulis siapa saja (diperlukan untuk callback Safari);
-  risiko injection tersisa dan akan ditutup bila pindah ke Firebase Auth redirect.
+- Firebase Auth (Google) sudah terintegrasi di aplikasi untuk isolasi per rumah tangga:
+  `Cloud.signInWithGoogle()` memakai credential dari login Google (GIS) via `GoogleAuthProvider.credential(null, accessToken)`.
+  Setelah sign-in, household dipindah ke path per-user `households/<firebaseUid>` bila belum ada config tersimpan.
+- Token Google di relay iOS sekarang dienkripsi (ECDH P-256 + AES-GCM). Relay tetap publik sementara callback Safari memang memerlukan write tanpa auth.
+- Kunci master JSONBin sudah dihapus dari client dan kode legacy JSONBin sudah dihapus. Key lama harus di-rotasi di JSONBin.
+- Data lokal di localStorage belum dienkripsi; PIN hanya mengunci sesi.
 
-## Langkah yang harus dilakukan pemilik proyek
-1. Firebase Console → Authentication → Sign-in method → aktifkan **Google**.
-2. Firebase Console → Realtime Database → Rules → salin isi
-   `firebase-security-rules.json` → Publish.
-3. (Opsional, disarankan) rotasi kunci JSONBin lama yang pernah bocor:
-   JSONBin → API Keys → revoke key lama.
-4. Hapus kunci lama dari riwayat Git bila perlu:
-   `git filter-repo` / BFG, lalu force-push.
-5. Deploy ulang PWA (bump service worker sudah dilakukan: `risly-1.2.24`).
+## Aturan Firebase yang harus dipublikasikan
+1. Firebase Console → Authentication → Sign-in method → **Google** → aktifkan.
+2. Firebase Console → Realtime Database → Rules → paste isi file `firebase-security-rules.json` → **Publish**.
 
-## Catatan arsitektur target
-- Setiap akun Google mendapat UID Firebase; data pribadi di `households/<uid>`.
-- Berbagi keluarga via undangan yang menambah `members/<uid>` oleh pemilik.
-- Relay iOS diganti dengan Firebase Auth redirect (menghapus relay publik).
+Aturan ini mengizinkan baca/tulis hanya anggota (`members/<uid>`) atau owner (`owner`) milik household. Pengguna baru yang menulis pertama kali harus menetapkan `owner` ke UID Firebase-nya sendiri (`newData.child('owner').val() === auth.uid`).
+
+## Langkah pasca-deploy
+- Rotasi JSONBin master key lama yang pernah bocor.
+- Hapus kunci lama dari riwayat Git (opsional, disarankan).
+- Deploy ulang PWA (service worker terbump `risly-1.2.24`).
+
+## Catatan arsitektur
+- Setiap akun Google dapat membuat household sendiri `households/<firebaseUid>`.
+- Berbagi keluarga via undangan (owner menambah `members/<uid>`).
+- Relay iOS diganti dengan Firebase Auth redirect pada tahap berikutnya (menutup akses publik relay).

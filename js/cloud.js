@@ -5,8 +5,8 @@ const FIREBASE_VERSION = '10.12.5';
 const FIREBASE_APP_URL = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`;
 const FIREBASE_DB_URL = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-database.js`;
 
-function makeEnvelope(data, revision = 1, savedAt = nowISO()) {
-  return {
+function makeEnvelope(data, revision = 1, savedAt = nowISO(), owner = null) {
+  const envelope = {
     app: 'risly-money-manager',
     schemaVersion: APP.schemaVersion,
     revision: Math.max(1, Number(revision) || 1),
@@ -14,6 +14,8 @@ function makeEnvelope(data, revision = 1, savedAt = nowISO()) {
     client: getClientId(),
     data,
   };
+  if (owner) envelope.owner = owner;
+  return envelope;
 }
 
 function extractEnvelope(value) {
@@ -275,6 +277,7 @@ class CloudSync {
   constructor() {
     this.store = null;
     this.config = this.loadConfig();
+    this.firebaseUid = null;
     this.adapter = null;
     this.unsubscribeStore = null;
     this.unsubscribeRemote = null;
@@ -313,6 +316,65 @@ class CloudSync {
     } catch { /* noop */ }
     // Default to the built-in Firebase project so sync works out of the box.
     return { provider: 'firebase', firebase: { path: `households/${APP.householdId}` } };
+  }
+
+  async getFirebaseUid() {
+    if (this.firebaseUid) return this.firebaseUid;
+    if (this.config.provider !== 'firebase') return null;
+    try {
+      const appMod = await import(FIREBASE_APP_URL);
+      const authMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`);
+      const { initializeApp, getApps, getApp } = appMod;
+      const { getAuth } = authMod;
+      const app = getApps().length ? getApp() : initializeApp(this.firebaseConfig || FIREBASE_CONFIG);
+      const auth = getAuth(app);
+      const user = auth.currentUser;
+      if (user?.uid) {
+        this.firebaseUid = user.uid;
+        return user.uid;
+      }
+    } catch (error) {
+      console.warn('Firebase auth restore failed:', error);
+    }
+    return null;
+  }
+
+  async signInWithGoogle(accessToken) {
+    if (!accessToken) return null;
+    if (this.config.provider !== 'firebase') return null;
+    try {
+      const appMod = await import(FIREBASE_APP_URL);
+      const authMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`);
+      const { initializeApp, getApps, getApp } = appMod;
+      const { getAuth, GoogleAuthProvider, signInWithCredential } = authMod;
+      const app = getApps().length ? getApp() : initializeApp(this.firebaseConfig || FIREBASE_CONFIG);
+      const auth = getAuth(app);
+      const credential = GoogleAuthProvider.credential(null, accessToken);
+      const result = await signInWithCredential(auth, credential);
+      const uid = result.user?.uid;
+      if (uid) {
+        this.firebaseUid = uid;
+        await this.applyFirebaseUid(uid);
+      }
+      return uid;
+    } catch (error) {
+      console.warn('Firebase sign-in failed:', error);
+      return null;
+    }
+  }
+
+  async applyFirebaseUid(uid) {
+    if (!uid || this.config.provider !== 'firebase') return;
+    // If there is no saved cloud config yet, use a per-user household path.
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(APP.cloudKey) || 'null'); } catch { saved = null; }
+    const hasPath = Boolean(saved?.firebase?.path) && saved.firebase.path !== `households/${APP.householdId}`;
+    if (!saved || !saved.firebase?.path || !hasPath) {
+      const next = { provider: 'firebase', firebase: { path: `households/${uid}` } };
+      localStorage.setItem(APP.cloudKey, JSON.stringify(next));
+      this.config = next;
+      await this.connect(this.config, { initial: true });
+    }
   }
 
   loadMeta() {
@@ -426,6 +488,22 @@ class CloudSync {
     }
     this.setStatus('connecting', 'Menghubungkan…');
     try {
+      if (this.config.provider === 'firebase') {
+        const uid = await this.getFirebaseUid();
+        if (uid) {
+          this.firebaseUid = uid;
+          if (this.adapter) this.adapter.ownerUid = uid;
+          let saved = null;
+          try { saved = JSON.parse(localStorage.getItem(APP.cloudKey) || 'null'); } catch { saved = null; }
+          const hasPath = Boolean(saved?.firebase?.path) && saved.firebase.path !== `households/${APP.householdId}`;
+          if (!saved || !saved.firebase?.path || !hasPath) {
+            const next = { provider: 'firebase', firebase: { path: `households/${uid}` } };
+            localStorage.setItem(APP.cloudKey, JSON.stringify(next));
+            this.config = next;
+            this.adapter = this.createAdapter(this.config);
+          }
+        }
+      }
       this.adapter = this.createAdapter(this.config);
       const remote = await this.adapter.read();
       if (remote?.data) {
@@ -569,7 +647,7 @@ class CloudSync {
         Number(remote?.revision) || 0,
         Number(local.revision) || 0,
       ) + 1;
-      const envelope = makeEnvelope(local, revision, nowISO());
+      const envelope = makeEnvelope(local, revision, nowISO(), this.firebaseUid);
       await this.adapter.write(envelope);
       this.lastRevision = revision;
       this.lastSyncAt = envelope.savedAt;
@@ -670,7 +748,7 @@ class CloudSync {
 
   async createJsonBin(config) {
     if (config.provider !== 'jsonbin') throw new Error('Pembuatan bin hanya tersedia untuk JSONBin.');
-    const envelope = makeEnvelope(this.store.data, Math.max(1, Number(this.store.data.revision) || 1), nowISO());
+    const envelope = makeEnvelope(this.store.data, Math.max(1, Number(this.store.data.revision) || 1), nowISO(), this.firebaseUid);
     return createJsonBin(config, envelope);
   }
 }
