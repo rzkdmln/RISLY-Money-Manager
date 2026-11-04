@@ -28,7 +28,8 @@ export function reportsView() {
   const accounts = store.activeAccounts();
   const savingsTone = summary.savingsRate >= 20 ? 'green' : summary.savingsRate >= 0 ? 'amber' : 'red';
   const topCategory = categories[0];
-  const average = transactions.length ? transactions.reduce((total, tx) => total + tx.amount, 0) / transactions.length : 0;
+  const expenseTransactions = transactions.filter((tx) => tx.type === 'expense');
+  const average = expenseTransactions.length ? expenseTransactions.reduce((total, tx) => total + tx.amount, 0) / expenseTransactions.length : 0;
 
   return `<div class="page-stack">
     ${pageHeader({
@@ -125,7 +126,7 @@ export function reportsView() {
         </div>
         <div class="report-divider"></div>
         <div class="flex items-center justify-between text-sm">
-          <span class="text-slate-500 dark:text-slate-400">Rata-rata nominal</span>
+          <span class="text-slate-500 dark:text-slate-400">Rata-rata pengeluaran</span>
           <strong class="text-slate-900 dark:text-white">${money(average)}</strong>
         </div>
         <div class="flex items-center justify-between text-sm mt-2">

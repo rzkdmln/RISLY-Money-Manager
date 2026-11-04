@@ -1666,11 +1666,13 @@ async function handleAction(action, element) {
       buttons.forEach(b => {
         b.classList.remove('bg-white/20', 'text-white', 'shadow-sm');
         b.classList.add('text-white/70');
+         b.setAttribute('aria-pressed', 'false');
       });
 
       // 4. Beri gaya aktif pada tombol yang sedang diklik
       element.classList.remove('text-white/70');
       element.classList.add('bg-white/20', 'text-white', 'shadow-sm');
+       element.setAttribute('aria-pressed', 'true');
       break;
     }
 

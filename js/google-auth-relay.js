@@ -22,6 +22,85 @@ const PENDING_KEY = 'risly.mm.oauth.pending.v1';
 const CALLBACK_FILE = 'oauth-callback.html';
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
+
+export function base64UrlFromBytes(bytes) {
+  let binary = '';
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+export function bytesFromBase64Url(value) {
+  const padded = String(value || '').replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - String(value || '').length % 4) % 4);
+  const binary = atob(padded);
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+function stateNonce() {
+  const bytes = new Uint8Array(16);
+  if (globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256);
+  }
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+export function encodeState(publicJwk) {
+  return base64UrlFromBytes(textEncoder.encode(JSON.stringify({ n: stateNonce(), k: publicJwk })));
+}
+
+export function parseState(state) {
+  try {
+    const parsed = JSON.parse(textDecoder.decode(bytesFromBase64Url(state)));
+    return parsed?.k ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function createRelayKeys() {
+  if (!globalThis.crypto?.subtle) throw new Error('Browser tidak mendukung kriptografi aman untuk login.');
+  const pair = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey']);
+  return {
+    publicJwk: await crypto.subtle.exportKey('jwk', pair.publicKey),
+    privateJwk: await crypto.subtle.exportKey('jwk', pair.privateKey),
+  };
+}
+
+async function deriveAesKey(privateKeyOrJwk, publicKeyJwk) {
+  const privateKey = privateKeyOrJwk instanceof CryptoKey
+    ? privateKeyOrJwk
+    : await crypto.subtle.importKey('jwk', privateKeyOrJwk, { name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveKey']);
+  const publicKey = await crypto.subtle.importKey('jwk', publicKeyJwk, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+  return crypto.subtle.deriveKey({ name: 'ECDH', public: publicKey }, privateKey, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+
+export async function encryptRelayPayload(state, payload) {
+  const parsed = parseState(state);
+  if (!parsed) throw new Error('State login tidak valid.');
+  const ephemeral = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey']);
+  const key = await deriveAesKey(ephemeral.privateKey, parsed.k);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, textEncoder.encode(JSON.stringify(payload)));
+  const epk = await crypto.subtle.exportKey('jwk', ephemeral.publicKey);
+  return {
+    v: 1,
+    epk,
+    iv: base64UrlFromBytes(iv),
+    ciphertext: base64UrlFromBytes(new Uint8Array(ciphertext)),
+    createdAt: Date.now(),
+  };
+}
+
+export async function decryptRelayPayload(entry, privateJwk) {
+  if (!entry?.epk || !entry?.iv || !entry?.ciphertext) throw new Error('Payload login tidak valid.');
+  const key = await deriveAesKey(privateJwk, entry.epk);
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytesFromBase64Url(entry.iv) }, key, bytesFromBase64Url(entry.ciphertext));
+  return JSON.parse(textDecoder.decode(plain));
+}
+
 const ACTIVE_TIMEOUT_MS = 5 * 60 * 1000;
 const MAX_PENDING_AGE_MS = 15 * 60 * 1000;
 const POLL_INTERVALS_MS = [2000, 2500, 3000, 3500, 4000, 5000];
@@ -38,18 +117,6 @@ export function currentGoogleRedirectUri() {
     ? location.pathname
     : location.pathname.replace(/[^/]*$/, '');
   return `${location.origin}${directory}${CALLBACK_FILE}`;
-}
-
-function randomState() {
-  const bytes = new Uint8Array(16);
-  if (globalThis.crypto?.getRandomValues) {
-    globalThis.crypto.getRandomValues(bytes);
-  } else {
-    for (let index = 0; index < bytes.length; index += 1) {
-      bytes[index] = Math.floor(Math.random() * 256);
-    }
-  }
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 function buildAuthUrl(state) {
@@ -69,7 +136,7 @@ export function readPendingGoogleLogin() {
   try {
     const raw = localStorage.getItem(PENDING_KEY);
     const parsed = raw ? JSON.parse(raw) : null;
-    if (!parsed?.state || !parsed?.createdAt) return null;
+    if (!parsed?.state || !parsed?.privateJwk || !parsed?.createdAt) return null;
     if (Date.now() - parsed.createdAt > MAX_PENDING_AGE_MS) {
       clearPendingGoogleLogin();
       return null;
@@ -179,7 +246,7 @@ async function writeRelaySession(state, payload) {
   throw new Error(lastError?.message || 'Gagal mengirim hasil login Google.');
 }
 
-async function pollForSession(state, { signal = null, deadline = Date.now() + ACTIVE_TIMEOUT_MS } = {}) {
+async function pollForSession(state, { signal = null, deadline = Date.now() + ACTIVE_TIMEOUT_MS, privateKey = null } = {}) {
   let attempt = 0;
   while (Date.now() < deadline) {
     if (signal?.aborted) throw abortError();
@@ -194,6 +261,14 @@ async function pollForSession(state, { signal = null, deadline = Date.now() + AC
       // Cleanup is best-effort and must not delay the login.
       deleteRelaySession(state);
       clearPendingGoogleLogin();
+      if (entry.v !== 1 || !privateKey) {
+        throw new Error('Hasil login Google tidak dapat diverifikasi. Silakan coba lagi.');
+      }
+      try {
+        entry = await decryptRelayPayload(entry, privateKey);
+      } catch {
+        throw new Error('Hasil login Google tidak dapat diverifikasi. Silakan coba lagi.');
+      }
       if (entry.error) throw new Error(entry.error);
       if (!entry.account?.email || !entry.accessToken) {
         throw new Error('Hasil login Google tidak lengkap. Silakan coba lagi.');
@@ -213,21 +288,34 @@ async function pollForSession(state, { signal = null, deadline = Date.now() + AC
  * written the result to the relay. Must be called from a click so iOS allows
  * the new window.
  */
-export function startGoogleRelayLogin({ signal = null } = {}) {
-  const state = randomState();
-  try {
-    localStorage.setItem(PENDING_KEY, JSON.stringify({ state, createdAt: Date.now() }));
-  } catch {
-    return Promise.reject(new Error('Penyimpanan perangkat tidak tersedia.'));
-  }
-
-  const url = buildAuthUrl(state);
+export async function startGoogleRelayLogin({ signal = null } = {}) {
   let popup = null;
   try {
     popup = window.open('about:blank', '_blank');
   } catch {
     popup = null;
   }
+
+  let publicJwk = null;
+  let privateJwk = null;
+  try {
+    const keys = await createRelayKeys();
+    publicJwk = keys.publicJwk;
+    privateJwk = keys.privateJwk;
+  } catch (error) {
+    popup?.close?.();
+    throw error;
+  }
+
+  const state = encodeState(publicJwk);
+  try {
+    localStorage.setItem(PENDING_KEY, JSON.stringify({ state, privateJwk, createdAt: Date.now() }));
+  } catch {
+    popup?.close?.();
+    throw new Error('Penyimpanan perangkat tidak tersedia.');
+  }
+
+  const url = buildAuthUrl(state);
   if (popup) {
     try {
       popup.location.href = url;
@@ -239,7 +327,7 @@ export function startGoogleRelayLogin({ signal = null } = {}) {
     location.assign(url);
   }
 
-  return pollForSession(state, { signal });
+  return pollForSession(state, { signal, privateKey: privateJwk });
 }
 
 /**
@@ -254,7 +342,7 @@ export function resumeGoogleRelayLogin({ signal = null } = {}) {
     clearPendingGoogleLogin();
     return null;
   }
-  return pollForSession(pending.state, { signal, deadline });
+  return pollForSession(pending.state, { signal, deadline, privateKey: pending.privateJwk });
 }
 
 /** Used by oauth-callback.html (runs in the Safari sheet). */
@@ -270,7 +358,7 @@ export async function completeGoogleRelayFromFragment() {
     const message = oauthError === 'access_denied'
       ? 'Akses Google dibatalkan.'
       : (params.get('error_description') || oauthError);
-    await writeRelaySession(state, { error: message, createdAt });
+    await writeRelaySession(state, await encryptRelayPayload(state, { error: message, createdAt }));
     return { error: message };
   }
 
@@ -294,12 +382,12 @@ export async function completeGoogleRelayFromFragment() {
     picture: profile.picture,
     clientId: APP.googleClientId,
   };
-  await writeRelaySession(state, {
+  await writeRelaySession(state, await encryptRelayPayload(state, {
     account,
     accessToken,
     expiresAt: Date.now() + expiresIn * 1000,
     createdAt,
-  });
+  }));
 
   try { history.replaceState(null, '', location.pathname); } catch { /* noop */ }
   return { account };

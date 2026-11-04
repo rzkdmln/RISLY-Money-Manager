@@ -6,6 +6,7 @@ import {
 } from '../config.js';
 import { GoogleDrive, googleAccountBadge, googleGlyph } from '../gdrive.js';
 import { store } from '../store.js';
+import { Cloud } from '../cloud.js';
 import { icon } from '../icons.js';
 import {
   avatar,
@@ -57,7 +58,7 @@ function googleDriveCard(user, driveConnected) {
       </div>
       <div class="settings-row">
         <span class="settings-row-icon">${icon('cloud', 'w-4 h-4')}</span>
-        <span class="flex-1"><strong>Cloud ruang</strong><small>Firebase RTDB (sinkron otomatis)</small></span>
+        <span class="flex-1"><strong>Cloud ruang</strong><small>${escapeHTML(Cloud.getStatus().providerLabel)}${Cloud.getStatus().provider === 'local' ? ' — belum tersinkron' : ' (sinkron otomatis)'}</small></span>
       </div>
     </div>
 

@@ -148,7 +148,7 @@ function memberDetail(bucket) {
   const gridClass = `accounts-grid ${view === 'list' ? 'accounts-list-view' : ''}`;
   const ownerAttr = bucket.id === UNASSIGNED ? '' : escapeAttr(bucket.id);
 
-  const distribution = accounts.length
+  const distribution = accounts.length && netWorth > 0
     ? `<section class="card min-w-0 w-full overflow-hidden">
         <div class="card-heading min-w-0">
           <div class="min-w-0 flex-1">

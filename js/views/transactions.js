@@ -102,13 +102,17 @@ export function transactionsView() {
   const accounts = store.data.accounts.filter((account) => !account.deletedAt);
   const users = store.activeUsers();
 
-  // Buat opsi tahun otomatis dinamis
+  // Buat opsi tahun otomatis dinamis berdasarkan transaksi yang ada
   const currentYear = new Date().getFullYear();
-  const startYear = 2026;
+  const transactionYears = new Set(
+    store.transactions().map((tx) => String(tx.date || '').slice(0, 4)).filter((year) => /^\d{4}$/.test(year)),
+  );
+  transactionYears.add(String(currentYear));
+  const sortedYears = [...transactionYears].sort((a, b) => Number(b) - Number(a));
   let yearOptions = `<option value="all" ${ui.txYear === 'all' ? 'selected' : ''}>Semua tahun</option>`;
-  for (let y = currentYear; y >= startYear; y--) {
-    yearOptions += `<option value="${y}" ${ui.txYear === y.toString() ? 'selected' : ''}>${y}</option>`;
-  }
+  sortedYears.forEach((year) => {
+    yearOptions += `<option value="${year}" ${ui.txYear === year ? 'selected' : ''}>${year}</option>`;
+  });
 
   const groupHtml = groups.length
     ? groups.map((group) => `<section class="day-group min-w-0 w-full overflow-hidden">
@@ -127,7 +131,7 @@ export function transactionsView() {
       <div class="stat-card stat-green min-w-0 overflow-hidden">
         <div class="stat-top min-w-0"><span class="truncate">Pemasukan</span><span class="stat-icon shrink-0">${icon('arrow-down-left', 'w-4 h-4')}</span></div>
         <div class="stat-value text-base sm:text-xl truncate">${money(summary.income)}</div>
-        <div class="stat-hint truncate">${summary.count} transaksi</div>
+        <div class="stat-hint truncate">${all.filter((tx) => tx.type === 'income').length} transaksi</div>
       </div>
       <div class="stat-card stat-red min-w-0 overflow-hidden">
         <div class="stat-top min-w-0"><span class="truncate">Pengeluaran</span><span class="stat-icon shrink-0">${icon('arrow-up-right', 'w-4 h-4')}</span></div>

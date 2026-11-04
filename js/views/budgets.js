@@ -74,10 +74,10 @@ export function budgetsView() {
           '<div class="grid grid-cols-3 gap-2 mt-4">' +
             '<div class="budget-metric"><span>Pemasukan</span><strong class="amount-income">' + money(summary.income) + '</strong></div>' +
             '<div class="budget-metric"><span>Sisa</span><strong class="' + (status.remaining < 0 ? 'amount-expense' : '') + '">' + money(Math.abs(status.remaining)) + '</strong></div>' +
-            '<div class="budget-metric"><span>Harian aman</span><strong>' + money(sisaHarian(status.remaining)) + '</strong></div>' +
+            '<div class="budget-metric"><span>Harian aman</span><strong>' + money(sisaHarian(status.remaining, month)) + '</strong></div>' +
           '</div>' +
           (unallocatedText ? '<p class="text-[11px] text-slate-400 mt-2">' + unallocatedText + '</p>' : '') +
-          (status.remaining < 0 ? '<p class="budget-alert mt-3">' + icon('alert-triangle', 'w-3.5 h-3.5') + ' Anggaran terlampaui ' + money(Math.abs(status.remaining)) + '.</p>' : status.percent >= status.warning ? '<p class="budget-alert budget-alert-warning mt-3">' + icon('info', 'w-3.5 h-3.5') + ' ' + (status.percent >= status.danger ? 'Sangat dekat' : 'Mendekati') + ' batas anggaran. Sisa harian aman ' + money(sisaHarian(status.remaining)) + '.</p>' : '<p class="budget-alert budget-alert-safe mt-3">' + icon('check-circle', 'w-3.5 h-3.5') + ' Arus kas masih sehat. Pertahankan ritme belanja.</p>') +
+          (status.remaining < 0 ? '<p class="budget-alert mt-3">' + icon('alert-triangle', 'w-3.5 h-3.5') + ' Anggaran terlampaui ' + money(Math.abs(status.remaining)) + '.</p>' : status.percent >= status.warning ? '<p class="budget-alert budget-alert-warning mt-3">' + icon('info', 'w-3.5 h-3.5') + ' ' + (status.percent >= status.danger ? 'Sangat dekat' : 'Mendekati') + ' batas anggaran. Sisa harian aman ' + money(sisaHarian(status.remaining, month)) + '.</p>' : '<p class="budget-alert budget-alert-safe mt-3">' + icon('check-circle', 'w-3.5 h-3.5') + ' Arus kas masih sehat. Pertahankan ritme belanja.</p>') +
         '</div>' : '<p class="text-sm leading-6 text-slate-500 dark:text-slate-400">Isi total anggaran untuk melihat progres, sisa dana, dan rekomendasi batas belanja harian.</p>') +
       '</div>' +
     '</section>' +
@@ -139,9 +139,18 @@ export function budgetsView() {
   '</div>';
 }
 
-function sisaHarian(remaining) {
+function sisaHarian(remaining, month) {
   if (remaining <= 0) return 0;
-  const today = new Date();
-  const days = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate() - today.getDate() + 1;
-  return remaining / Math.max(1, days);
+  const parts = String(month || '').split('-');
+  const year = Number(parts[0]);
+  const monthNumber = Number(parts[1]);
+  const daysInMonth = Number.isFinite(year) && Number.isFinite(monthNumber)
+    ? new Date(year, monthNumber, 0).getDate()
+    : 30;
+  const now = new Date();
+  const isCurrentMonth = year === now.getFullYear() && monthNumber === now.getMonth() + 1;
+  const daysLeft = isCurrentMonth
+    ? Math.max(1, daysInMonth - now.getDate() + 1)
+    : Math.max(1, daysInMonth);
+  return remaining / daysLeft;
 }

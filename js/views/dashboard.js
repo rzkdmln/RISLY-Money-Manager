@@ -109,8 +109,8 @@ export function dashboardView(user) {
         <!-- Switcher Header -->
         <div class="flex items-center justify-between min-w-0 mb-6">
           <div class="flex items-center gap-1 bg-white/10 p-1 rounded-xl w-fit">
-            <button type="button" data-action="switch-networth" data-target="personal" class="px-4 py-1.5 text-xs font-bold bg-white/20 text-white shadow-sm rounded-lg transition-all">Saya</button>
-            <button type="button" data-action="switch-networth" data-target="family" class="px-4 py-1.5 text-xs font-bold text-white/70 hover:text-white transition-all">Keluarga</button>
+            <button type="button" data-action="switch-networth" data-target="personal" aria-pressed="true" class="px-4 py-1.5 text-xs font-bold bg-white/20 text-white shadow-sm rounded-lg transition-all">Saya</button>
+            <button type="button" data-action="switch-networth" data-target="family" aria-pressed="false" class="px-4 py-1.5 text-xs font-bold text-white/70 hover:text-white transition-all">Keluarga</button>
           </div>
           <button type="button" class="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-lg transition-colors shrink-0" data-action="toggle-privacy" aria-label="Sembunyikan nominal">
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>
@@ -121,11 +121,11 @@ export function dashboardView(user) {
         <div class="mb-8 min-w-0">
           <div id="networth-personal" class="block min-w-0">
              <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Total Kekayaan Saya</p>
-             <h2 class="text-4xl sm:text-5xl font-extrabold text-slate-900 text-white truncate tracking-tight">${money(myNetWorth)}</h2>
+             <h2 class="text-4xl sm:text-5xl font-extrabold text-white truncate tracking-tight">${money(myNetWorth)}</h2>
           </div>
           <div id="networth-family" class="hidden min-w-0">
              <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Total Kekayaan Keluarga</p>
-             <h2 class="text-4xl sm:text-5xl font-extrabold text-slate-900 text-white truncate tracking-tight">${money(netWorth)}</h2>
+             <h2 class="text-4xl sm:text-5xl font-extrabold text-white truncate tracking-tight">${money(netWorth)}</h2>
           </div>
         </div>
 

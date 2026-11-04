@@ -10,6 +10,7 @@ export function recurringView() {
   const paused = rules.filter((rule) => !rule.active);
   const due = rules.filter((rule) => rule.active && rule.nextDate <= todayISO());
   const monthlyEstimate = active.reduce((total, rule) => {
+    if (rule.type !== 'expense') return total;
     if (rule.frequency === 'daily') return total + rule.amount * 30;
     if (rule.frequency === 'weekly') return total + rule.amount * 4.33;
     if (rule.frequency === 'yearly') return total + rule.amount / 12;
@@ -36,9 +37,9 @@ export function recurringView() {
         <div class="stat-hint">perlu diproses</div>
       </div>
       <div class="stat-card stat-blue">
-        <div class="stat-top"><span>Estimasi / bulan</span><span class="stat-icon">${icon('calculator', 'w-4 h-4')}</span></div>
+        <div class="stat-top"><span>Estimasi pengeluaran / bulan</span><span class="stat-icon">${icon('calculator', 'w-4 h-4')}</span></div>
         <div class="stat-value text-base sm:text-xl">${money(monthlyEstimate, { compact: true })}</div>
-        <div class="stat-hint">perkiraan seluruh jadwal</div>
+        <div class="stat-hint">perkiraan jadwal pengeluaran aktif</div>
       </div>
       <div class="stat-card stat-slate">
         <div class="stat-top"><span>Dijeda</span><span class="stat-icon">${icon('pause', 'w-4 h-4')}</span></div>

@@ -1599,17 +1599,11 @@ class Store {
     return `https://api.jsonbin.io/v3/b/${APP.familyBinId}`;
   }
 
-  // The JSONBin family hub is a legacy backend. When the device is configured
-  // for another provider (Firebase by default), CloudSync already handles
-  // cross-device sync, so we must not keep polling JSONBin in the background.
+  // The shared JSONBin family hub is legacy and is disabled by default. It must
+  // never run in the background, because its master key used to ship in the
+  // client bundle. Cross-device sync now goes through CloudSync (Firebase).
   familySyncEnabled() {
-    try {
-      const raw = localStorage.getItem(APP.cloudKey);
-      if (!raw) return false;
-      return JSON.parse(raw)?.provider === 'jsonbin';
-    } catch {
-      return false;
-    }
+    return false;
   }
 
   familyHeaders() {
@@ -1620,6 +1614,7 @@ class Store {
   }
 
   async fetchFamilyHub() {
+    if (!this.familySyncEnabled()) return null;
     if (this.familyHubBlocked) return null;
     try {
       const response = await fetch(`${this.familyHubUrl}/latest`, {
@@ -1642,6 +1637,7 @@ class Store {
   }
 
   async uploadFamilyWorkspace() {
+    if (!this.familySyncEnabled()) return false;
     if (!this.workspaceId || !this.data) return false;
     const code = String(this.data.settings?.inviteCode || '').toUpperCase();
     if (!code) return false;
@@ -1723,6 +1719,7 @@ class Store {
   }
 
   async lookupFamilyCodeByEmail(email) {
+    if (!this.familySyncEnabled()) return null;
     const normalized = String(email || '').trim().toLowerCase();
     if (!normalized) return null;
     try {
@@ -1749,6 +1746,7 @@ class Store {
   }
 
   async fetchFamilyWorkspace(code) {
+    if (!this.familySyncEnabled()) return null;
     const normalized = String(code || '').trim().toUpperCase();
     if (!/^[A-Z0-9]{4,8}$/.test(normalized)) return null;
     if (this.familyHubBlocked) return null;
@@ -1790,6 +1788,7 @@ class Store {
   }
 
   async joinFamilyWorkspaceFromCloud(code, account) {
+    if (!this.familySyncEnabled()) return null;
     const data = await this.fetchFamilyWorkspace(code);
     if (!data) return null;
     const workspaceId = uid('ws');

@@ -7,7 +7,7 @@ export const APP = Object.freeze({
   name: 'RISLY',
   fullName: 'RISLY Money Manager',
   tagline: 'Keuangan pribadi dan keluarga, rapi dalam satu tempat.',
-  version: '1.2.22',
+  version: '1.2.23',
   schemaVersion: 4,
   storageKey: 'risly.mm.data.v3',
   workspaceRegistryKey: 'risly.mm.workspaces.v1',
@@ -30,13 +30,10 @@ export const APP = Object.freeze({
   driveBackupLimit: 10,
   // Public OAuth client ID (safe to ship in a browser app). Never add a client secret here.
   googleClientId: '56904374704-nlpn19hmj5rmq7878sgkmrchq5t8nrh6.apps.googleusercontent.com',
-  // Shared JSONBin family hub (used for cross-device family sharing via invite code).
-  familyBinId: '6ae401b8ffd5d16053977a61',
-  familyMasterKey: '$2a$10$gbDFMyiNvka4a7qEz2TRcuXgmAbnOgIhB4CndvCn0n0m43emrvKc6',
-  // Tiny relay used only to hand a completed Google login back to an installed
-  // iOS PWA. The PWA and the Safari sheet cannot share storage, so the callback
-  // page writes the short-lived result here and the PWA polls for it.
-  authRelayBinId: '6ae981c0ffd5d16053a18644',
+  // Legacy JSONBin family hub is disabled. NEVER put a master key in client code.
+  // The generic JSONBin cloud provider still accepts a user-supplied key in Settings.
+  familyBinId: '',
+  familyMasterKey: '',
 });
 
 export const ROUTES = Object.freeze({

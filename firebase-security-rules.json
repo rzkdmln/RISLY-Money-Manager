@@ -1,0 +1,20 @@
+{
+  "rules": {
+    "households": {
+      "$householdId": {
+        ".read": "auth != null && (root.child('households').child($householdId).child('members').child(auth.uid).exists() || root.child('households').child($householdId).child('owner').val() === auth.uid)",
+        ".write": "auth != null && (root.child('households').child($householdId).child('members').child(auth.uid).exists() || root.child('households').child($householdId).child('owner').val() === auth.uid || !data.exists())",
+        "members": {
+          ".write": "auth != null && (root.child('households').child($householdId).child('owner').val() === auth.uid || (auth.uid === $uid && !data.exists()))"
+        }
+      }
+    },
+    "oauth_relay": {
+      ".read": true,
+      ".write": true,
+      "$state": {
+        ".validate": "newData.hasChildren(['createdAt'])"
+      }
+    }
+  }
+}
