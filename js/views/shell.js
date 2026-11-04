@@ -1,7 +1,7 @@
 import { APP, BOTTOM_NAV, DESKTOP_NAV, MORE_NAV, ROUTES } from '../config.js';
 import { Cloud } from '../cloud.js';
 import { icon } from '../icons.js';
-import { avatar, prefs } from '../ui.js';
+import { avatar, prefs, syncPill } from '../ui.js';
 import { escapeAttr, escapeHTML, formatDate, parseLocalDate, todayISO } from '../utils.js';
 
 function cloudColorClass(status) {
