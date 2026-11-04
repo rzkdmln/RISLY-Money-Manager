@@ -3697,7 +3697,62 @@ function bindStore() {
   });
 }
 
-function boot() {
+function tryResumeRedirectLogin() {
+  return _tryResumeRedirectLogin();
+}
+
+async function _tryResumeRedirectLogin() {
+  try {
+    // 1. Tangkap hasil redirect yang tertunda (getRedirectResult) — penting untuk iOS
+    const session = await completeGoogleAuthLogin();
+    if (session) {
+      GoogleDrive.adoptSession(session);
+      const result = await store.signInWithGoogle(session.account);
+      enterApplication(result.user, { fresh: result.created });
+      toast(`Masuk sebagai ${result.user.name}.`, 'success');
+      return true;
+    }
+  } catch (error) {
+    if (error?.name === 'AbortError') return false;
+    console.warn('Gagal menangkap redirect result:', error);
+  }
+
+  // 2. Tunggu onAuthStateChanged sebagai source of truth (untuk ITP iOS)
+  // Batasi waktu tunggu agar tidak memblokir boot terlalu lama
+  const uid = await Promise.race([
+    Cloud.waitForFirebaseUser(),
+    new Promise((resolve) => setTimeout(() => resolve(null), 5_000)),
+  ]);
+
+  if (uid) {
+    const user = Cloud.getCurrentFirebaseUser();
+    if (user) {
+      GoogleDrive.adoptSession({
+        account: {
+          email: user.email || '',
+          name: user.displayName || '',
+          picture: user.photoURL || '',
+          clientId: APP.googleClientId,
+        },
+        accessToken: String(user.accessToken || ''),
+        expiresAt: Date.now() + 3600_000,
+      });
+      const result = await store.signInWithGoogle({
+        email: user.email || '',
+        name: user.displayName || '',
+        picture: user.photoURL || '',
+        clientId: APP.googleClientId,
+      });
+      enterApplication(result.user, { fresh: result.created });
+      toast(`Masuk sebagai ${result.user.name}.`, 'success');
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function boot() {
   if (!root) {
     console.error('Elemen #app-root tidak ditemukan.');
     return;
@@ -3751,8 +3806,11 @@ function boot() {
   registerServiceWorker();
 
   if (!store.currentUser) {
-    renderAuth();
-    resumeGoogleLoginOnBoot();
+    const resumed = await tryResumeRedirectLogin();
+    if (!resumed) {
+      renderAuth();
+      resumeGoogleLoginOnBoot();
+    }
   } else {
     renderApplication();
     runRecurring({ notify: true });

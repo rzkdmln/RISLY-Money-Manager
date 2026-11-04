@@ -396,6 +396,7 @@ class CloudSync {
       let unsubscribe = null;
       try {
         unsubscribe = auth?.onAuthStateChanged?.((user) => {
+          this.currentFirebaseUser = user || null;
           if (user?.uid) {
             this.firebaseUid = user.uid;
             finish(user.uid);
@@ -408,6 +409,14 @@ class CloudSync {
       }
       setTimeout(() => finish(null), 12_000);
     });
+  }
+
+  /**
+   * Ambil Firebase User object yang sedang login (untuk accessToken, email, displayName, photoURL).
+   * Digunakan saat onAuthStateChanged terpicu tapi getRedirectResult() kembali null (ITP iOS).
+   */
+  getCurrentFirebaseUser() {
+    return this.currentFirebaseUser || null;
   }
 
   canSync() {
