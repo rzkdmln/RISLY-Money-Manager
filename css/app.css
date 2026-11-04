@@ -938,7 +938,12 @@ body.is-auth { background: var(--bg); }
    ========================================================================== */
 
 .filter-card { padding: 15px 16px; }
-.filter-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.filter-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.period-presets { display: inline-flex; align-items: stretch; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2, var(--surface)); }
+.period-preset { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-size: 11.5px; font-weight: 650; cursor: pointer; white-space: nowrap; transition: background .15s ease, color .15s ease; }
+.period-preset:hover { color: var(--text); background: var(--surface); }
+.period-preset.is-active { background: var(--primary, #2563eb); color: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.period-preset.is-active:hover { color: #fff; }
 .filter-title { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 750; color: var(--muted); }
 .filter-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
 .filter-search { grid-column: span 2; }

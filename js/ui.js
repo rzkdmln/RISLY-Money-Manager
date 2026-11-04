@@ -46,6 +46,7 @@ export const ui = {
   locked: false,
   txMonth: 'all',
   txYear: 'all',
+  txLast12: false,
   txType: 'all',
   txAccount: 'all',
   txCategory: 'all',

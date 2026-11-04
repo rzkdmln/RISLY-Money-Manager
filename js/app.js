@@ -2118,6 +2118,7 @@ async function handleAction(action, element) {
     }
     case 'filter-account':
       ui.txAccount = id;
+      ui.txLast12 = false;
       ui.txMonth = 'all';
       ui.txType = 'all';
       ui.txCategory = 'all';
@@ -2288,33 +2289,36 @@ async function handleAction(action, element) {
       renderApplication();
       break;
     case 'tx-preset-month':
+      ui.txLast12 = false;
       ui.txYear = String(new Date().getFullYear());
       ui.txMonth = String(new Date().getMonth() + 1).padStart(2, '0');
       ui.txPage = 1;
       renderApplication();
       break;
     case 'tx-preset-year':
+      ui.txLast12 = false;
       ui.txYear = String(new Date().getFullYear());
       ui.txMonth = 'all';
       ui.txPage = 1;
       renderApplication();
       break;
     case 'tx-preset-recent': {
-      const now = new Date();
-      const target = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-      ui.txYear = String(target.getFullYear());
-      ui.txMonth = String(target.getMonth() + 1).padStart(2, '0');
+      ui.txLast12 = true;
+      ui.txYear = 'all';
+      ui.txMonth = 'all';
       ui.txPage = 1;
       renderApplication();
       break;
     }
     case 'tx-all-months':
+      ui.txLast12 = false;
       ui.txYear = 'all';
       ui.txMonth = 'all';
       ui.txPage = 1;
       renderApplication();
       break;
     case 'reset-tx-filter':
+      ui.txLast12 = false;
       ui.txYear = 'all';
       ui.txMonth = 'all';
       ui.txType = 'all';
@@ -3517,10 +3521,12 @@ function bindEvents() {
     if (filter) {
       switch (filter) {
         case 'tx-year':
+          ui.txLast12 = false;
           ui.txYear = target.value || new Date().getFullYear().toString();
           ui.txPage = 1;
           break;
         case 'tx-month':
+          ui.txLast12 = false;
           ui.txMonth = target.value || 'all';
           ui.txPage = 1;
           break;

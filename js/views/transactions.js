@@ -23,20 +23,28 @@ function paginationPages(current, total) {
 function filterTransactions() {
   let list = store.transactions();
 
-  // Filter berdasarkan Tahun
-  if (ui.txYear && ui.txYear !== 'all') {
-    list = list.filter((tx) => {
-      const txYear = tx.date.split('-')[0]; // Format YYYY
-      return txYear === ui.txYear;
-    });
-  }
+  // Filter "12 bulan terakhir" (mode khusus, mengabaikan pilihan tahun/bulan manual).
+  if (ui.txLast12) {
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - 12);
+    const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
+    list = list.filter((tx) => String(tx.date || '') >= cutoffStr);
+  } else {
+    // Filter berdasarkan Tahun
+    if (ui.txYear && ui.txYear !== 'all') {
+      list = list.filter((tx) => {
+        const txYear = tx.date.split('-')[0]; // Format YYYY
+        return txYear === ui.txYear;
+      });
+    }
 
-  // Filter berdasarkan Bulan
-  if (ui.txMonth && ui.txMonth !== 'all') {
-    list = list.filter((tx) => {
-      const txMonth = tx.date.split('-')[1]; // Format MM
-      return txMonth === ui.txMonth;
-    });
+    // Filter berdasarkan Bulan
+    if (ui.txMonth && ui.txMonth !== 'all') {
+      list = list.filter((tx) => {
+        const txMonth = tx.date.split('-')[1]; // Format MM
+        return txMonth === ui.txMonth;
+      });
+    }
   }
 
   if (ui.txType !== 'all') list = list.filter((tx) => tx.type === ui.txType);
@@ -75,6 +83,7 @@ export function transactionsView() {
   // Inisialisasi default jika belum ada: tampilkan semua waktu, lalu paginate.
   if (!ui.txYear) ui.txYear = 'all';
   if (!ui.txMonth || ui.txMonth.length > 2) ui.txMonth = 'all';
+  if (ui.txLast12 === undefined) ui.txLast12 = false;
 
   const all = filterTransactions();
   const summary = store.summaryForTransactions(all);
@@ -141,7 +150,7 @@ export function transactionsView() {
       <div class="stat-card stat-blue min-w-0 overflow-hidden">
         <div class="stat-top min-w-0"><span class="truncate">Arus kas</span><span class="stat-icon shrink-0">${icon('trending-up', 'w-4 h-4')}</span></div>
         <div class="stat-value text-base sm:text-xl truncate ${summary.net < 0 ? 'amount-expense' : ''}">${summary.net > 0 ? '+' : ''}${money(summary.net)}</div>
-        <div class="stat-hint truncate">${ui.txMonth === 'all' && ui.txYear === 'all' ? 'Semua waktu' : `${ui.txMonth === 'all' ? 'Tahun ' + ui.txYear : ''}`.trim() || 'Periode terpilih'}</div>
+        <div class="stat-hint truncate">${ui.txLast12 ? '12 bulan terakhir' : (ui.txMonth === 'all' && ui.txYear === 'all' ? 'Semua waktu' : `${ui.txMonth === 'all' ? 'Tahun ' + ui.txYear : ''}`.trim() || 'Periode terpilih')}</div>
       </div>
       <div class="stat-card stat-amber min-w-0 overflow-hidden">
         <div class="stat-top min-w-0"><span class="truncate">Rata-rata harian</span><span class="stat-icon shrink-0">${icon('calendar', 'w-4 h-4')}</span></div>
@@ -152,15 +161,19 @@ export function transactionsView() {
 
     <section class="card filter-card min-w-0 w-full overflow-hidden">
       <div class="filter-top min-w-0">
-        <div class="flex items-center gap-2 min-w-0">
+        <div class="flex items-center gap-2 min-w-0 flex-wrap">
           <button type="button" class="link-button shrink-0" data-action="tx-toggle-filter" aria-expanded="${ui.txFilterOpen}">
             ${icon('filter', 'w-4 h-4')} Filter
-          </button>${ui.txMonth === 'all' && ui.txYear === 'all' ? badge('Semua waktu', 'blue', 'badge-soft') : ''}
+          </button>
+          ${ui.txLast12 ? badge('12 bulan terakhir', 'blue', 'badge-soft') : (ui.txMonth === 'all' && ui.txYear === 'all' ? badge('Semua waktu', 'blue', 'badge-soft') : (ui.txMonth === 'all' ? badge(`Tahun ${ui.txYear}`, 'slate', 'badge-soft') : badge(`${['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][Number(ui.txMonth)-1] || ui.txMonth} ${ui.txYear}`, 'slate', 'badge-soft')))}
         </div>
         <div class="flex items-center gap-2 shrink-0 min-w-0 flex-wrap justify-end">
-          <button type="button" class="btn btn-secondary btn-sm shrink-0" data-action="tx-preset-month">${icon('calendar', 'w-3.5 h-3.5')} Bulan ini</button>
-          <button type="button" class="btn btn-secondary btn-sm shrink-0" data-action="tx-preset-year">${icon('calendar', 'w-3.5 h-3.5')} Tahun ini</button>
-          <button type="button" class="btn btn-secondary btn-sm shrink-0" data-action="tx-preset-recent">${icon('calendar', 'w-3.5 h-3.5')} 12 bulan</button>
+          <div class="period-presets" role="group" aria-label="Periode transaksi">
+            <button type="button" class="period-preset ${!ui.txLast12 && ui.txMonth !== 'all' && ui.txYear !== 'all' ? 'is-active' : ''}" data-action="tx-preset-month">${icon('calendar', 'w-3.5 h-3.5')} Bulan ini</button>
+            <button type="button" class="period-preset ${!ui.txLast12 && ui.txMonth === 'all' && ui.txYear !== 'all' ? 'is-active' : ''}" data-action="tx-preset-year">${icon('calendar', 'w-3.5 h-3.5')} Tahun ini</button>
+            <button type="button" class="period-preset ${ui.txLast12 ? 'is-active' : ''}" data-action="tx-preset-recent">${icon('calendar', 'w-3.5 h-3.5')} 12 bulan</button>
+            <button type="button" class="period-preset ${!ui.txLast12 && ui.txMonth === 'all' && ui.txYear === 'all' ? 'is-active' : ''}" data-action="tx-all-months">${icon('calendar', 'w-3.5 h-3.5')} Semua</button>
+          </div>
           <button type="button" class="link-button shrink-0" data-action="reset-tx-filter">Reset</button>
         </div>
       </div>
@@ -226,7 +239,7 @@ export function transactionsView() {
         </label>
       </div>
       <div class="filter-bottom min-w-0">
-        <button type="button" class="link-button shrink-0" data-action="tx-all-months">${icon('calendar', 'w-3.5 h-3.5')} Tampilkan semua waktu</button>
+        <span class="text-xs text-slate-500 dark:text-slate-400">Preset periode di atas akan menyesuaikan pilihan tahun &amp; bulan secara otomatis.</span>
         <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 min-w-0 overflow-hidden">
           ${badge(`${all.length} hasil`, 'slate', 'badge-soft')}
           ${summary.transfers ? `<span class="truncate">Transfer ${money(summary.transfers)}</span>` : ''}
