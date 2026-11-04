@@ -451,6 +451,24 @@ export async function completeGoogleAuthLogin({ signal = null } = {}) {
   const { getAuth, getRedirectResult } = authMod;
   const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
   const auth = getAuth(app);
+
+  // Cek apakah user sudah tersedia (ITP iOS bisa memblokir getRedirectResult,
+  // tetapi auth.currentUser mungkin masih ada di IndexedDB).
+  if (auth.currentUser?.uid) {
+    const user = auth.currentUser;
+    const accessToken = String(user.accessToken || '');
+    if (accessToken) {
+      const expiresAt = Date.now() + (Number(user.expiresAt?.toMillis?.() || Date.now()) + 3600_000 - Date.now());
+      const account = {
+        email: String(user.email || ''),
+        name: String(user.displayName || ''),
+        picture: String(user.photoURL || ''),
+        clientId: APP.googleClientId,
+      };
+      return { account, accessToken, expiresAt, user };
+    }
+  }
+
   const result = await getRedirectResult(auth);
   const user = result?.user;
   if (!user) return null;

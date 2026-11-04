@@ -437,8 +437,11 @@ function showGoogleWaitingModal({ onCancel }) {
 }
 
 async function signInWithGoogleFlow() {
-  if (shouldUseAuthRelay()) {
-    // iOS: Firebase Auth redirect (tab/browser PWA standalone tidak mendukung popup).
+  const useRedirect = isIos() && isStandalone();
+
+  if (useRedirect) {
+    // iOS standalone PWA: gunakan redirect (popup tidak didukung di standalone).
+    // Peringatan: ITP Safari bisa memblokir sesi cross-domain.
     const controller = new AbortController();
     let waiting = null;
     const session = await new Promise((resolve, reject) => {
@@ -474,9 +477,7 @@ async function signInWithGoogleFlow() {
     return session.account;
   }
 
-  // Desktop / non-iOS: Firebase Auth popup. Tidak pakai Google Identity Services
-  // karena token akses GIS bukan Firebase ID Token dan akan ditolak Firebase Auth
-  // (auth/argument-error / auth/invalid-credential).
+  // Desktop / iOS Safari browser / Android: gunakan popup Firebase Auth.
   const session = await startGoogleAuthPopup();
   GoogleDrive.adoptSession(session);
   return session.account;
@@ -3697,11 +3698,7 @@ function bindStore() {
   });
 }
 
-function tryResumeRedirectLogin() {
-  return _tryResumeRedirectLogin();
-}
-
-async function _tryResumeRedirectLogin() {
+async function tryResumeRedirectLogin() {
   try {
     // 1. Tangkap hasil redirect yang tertunda (getRedirectResult) — penting untuk iOS
     const session = await completeGoogleAuthLogin();
@@ -3718,10 +3715,10 @@ async function _tryResumeRedirectLogin() {
   }
 
   // 2. Tunggu onAuthStateChanged sebagai source of truth (untuk ITP iOS)
-  // Batasi waktu tunggu agar tidak memblokir boot terlalu lama
+  // Batasi waktu tunggu agar tidak memblokir boot terlalu lama (10 detik)
   const uid = await Promise.race([
     Cloud.waitForFirebaseUser(),
-    new Promise((resolve) => setTimeout(() => resolve(null), 5_000)),
+    new Promise((resolve) => setTimeout(() => resolve(null), 10_000)),
   ]);
 
   if (uid) {
@@ -3808,6 +3805,11 @@ async function boot() {
   if (!store.currentUser) {
     const resumed = await tryResumeRedirectLogin();
     if (!resumed) {
+      // Pada iOS, redirect login bisa gagal karena ITP memblokir sesi cross-domain.
+      // Tampilkan pesan yang membantu pengguna.
+      if (isIos() && isStandalone()) {
+        toast('Login Google di iOS standalone mungkin terhambat oleh keamanan Safari (ITP). Coba buka aplikasi di Safari biasa.', 'info');
+      }
       renderAuth();
       resumeGoogleLoginOnBoot();
     }
