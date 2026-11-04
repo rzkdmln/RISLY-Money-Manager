@@ -408,7 +408,8 @@ export async function startGoogleAuthRedirect({ signal = null } = {}) {
   const { getAuth, GoogleAuthProvider, signInWithRedirect } = authMod;
   const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
   const auth = getAuth(app);
-  await signInWithRedirect(auth, GoogleAuthProvider.PROVIDER_ID);
+  const provider = new GoogleAuthProvider();
+  await signInWithRedirect(auth, provider);
   return { started: true };
 }
 
@@ -423,7 +424,8 @@ export async function startGoogleAuthPopup({ signal = null } = {}) {
   const { getAuth, GoogleAuthProvider, signInWithPopup } = authMod;
   const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
   const auth = getAuth(app);
-  const result = await signInWithPopup(auth, GoogleAuthProvider.PROVIDER_ID);
+  const provider = new GoogleAuthProvider();
+  const result = await signInWithPopup(auth, provider);
   const user = result?.user;
   if (!user) throw new Error('Hasil login Google tidak tersedia dari popup.');
   const accessToken = String(user.accessToken || '');
