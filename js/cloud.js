@@ -430,6 +430,28 @@ class CloudSync {
     return this.currentFirebaseUser || null;
   }
 
+  /**
+   * Keluar penuh dari Firebase Auth (IndexedDB/localStorage) agar login Google
+   * berikutnya benar-benar diminta ulang. Dipakai saat "logout" aplikasi.
+   */
+  async signOutFirebase() {
+    try {
+      const auth = await getFirebaseAuth();
+      const authMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`);
+      const { signOut } = authMod;
+      await signOut(auth);
+    } catch (error) {
+      console.warn('Firebase signOut gagal:', error);
+    }
+    this.firebaseUid = null;
+    this.currentFirebaseUser = null;
+    this.adapter = null;
+    this.connected = false;
+    this.state = 'idle';
+    this.message = '';
+    this.emitStatus();
+  }
+
   canSync() {
     // Jangan mengirim permintaan sync sebelum Firebase Auth mengonfirmasi user.
     return this.config?.provider === 'local' || Boolean(this.firebaseUid);

@@ -513,7 +513,7 @@ function resumeGoogleLoginOnBoot() {
 
 function lockApplication({ expired = false } = {}) {
   if (!store.currentUser?.pinHash) {
-    leaveApplication();
+    leaveApplication().catch(() => {});
     if (expired) toast('Sesi berakhir. Masuk kembali dengan Google.', 'info');
     return;
   }
@@ -526,13 +526,18 @@ function lockApplication({ expired = false } = {}) {
   if (expired) toast('Aplikasi terkunci karena tidak ada aktivitas.', 'info');
 }
 
-function leaveApplication() {
+async function leaveApplication() {
   clearSession();
+  clearPendingGoogleLogin();
   store.setCurrentUser(null);
   ui.currentUser = null;
   ui.locked = false;
   ui.appMounted = false;
   closeModal({ silent: true });
+  // Keluar penuh dari Google & Firebase agar sesi tidak tersisa dan login Google
+  // diminta ulang saat masuk kembali.
+  try { await GoogleDrive.signOut(); } catch { /* noop */ }
+  try { await Cloud.signOutFirebase(); } catch { /* noop */ }
   renderAuth();
   toast('Anda sudah keluar.', 'info');
 }
@@ -1828,7 +1833,7 @@ async function handleAction(action, element) {
         danger: false,
         iconName: 'log-out',
       });
-      if (ok) leaveApplication();
+      if (ok) await leaveApplication();
       break;
     }
     case 'toggle-privacy':

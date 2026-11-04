@@ -161,21 +161,10 @@ export function transactionsView() {
 
     <section class="card filter-card min-w-0 w-full overflow-hidden">
       <div class="filter-top min-w-0">
-        <div class="flex items-center gap-2 min-w-0 flex-wrap">
-          <button type="button" class="link-button shrink-0" data-action="tx-toggle-filter" aria-expanded="${ui.txFilterOpen}">
-            ${icon('filter', 'w-4 h-4')} Filter
-          </button>
-          ${ui.txLast12 ? badge('12 bulan terakhir', 'blue', 'badge-soft') : (ui.txMonth === 'all' && ui.txYear === 'all' ? badge('Semua waktu', 'blue', 'badge-soft') : (ui.txMonth === 'all' ? badge(`Tahun ${ui.txYear}`, 'slate', 'badge-soft') : badge(`${['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][Number(ui.txMonth)-1] || ui.txMonth} ${ui.txYear}`, 'slate', 'badge-soft')))}
-        </div>
-        <div class="flex items-center gap-2 shrink-0 min-w-0 flex-wrap justify-end">
-          <div class="period-presets" role="group" aria-label="Periode transaksi">
-            <button type="button" class="period-preset ${!ui.txLast12 && ui.txMonth !== 'all' && ui.txYear !== 'all' ? 'is-active' : ''}" data-action="tx-preset-month">${icon('calendar', 'w-3.5 h-3.5')} Bulan ini</button>
-            <button type="button" class="period-preset ${!ui.txLast12 && ui.txMonth === 'all' && ui.txYear !== 'all' ? 'is-active' : ''}" data-action="tx-preset-year">${icon('calendar', 'w-3.5 h-3.5')} Tahun ini</button>
-            <button type="button" class="period-preset ${ui.txLast12 ? 'is-active' : ''}" data-action="tx-preset-recent">${icon('calendar', 'w-3.5 h-3.5')} 12 bulan</button>
-            <button type="button" class="period-preset ${!ui.txLast12 && ui.txMonth === 'all' && ui.txYear === 'all' ? 'is-active' : ''}" data-action="tx-all-months">${icon('calendar', 'w-3.5 h-3.5')} Semua</button>
-          </div>
-          <button type="button" class="link-button shrink-0" data-action="reset-tx-filter">Reset</button>
-        </div>
+        <button type="button" class="link-button shrink-0" data-action="tx-toggle-filter" aria-expanded="${ui.txFilterOpen}">
+          ${icon('filter', 'w-4 h-4')} Filter
+        </button>
+        <button type="button" class="link-button shrink-0" data-action="reset-tx-filter">Reset</button>
       </div>
       ${ui.txFilterOpen ? `<div class="filter-grid min-w-0 w-full">
         <label class="field-label min-w-0">Tahun
@@ -245,7 +234,7 @@ export function transactionsView() {
           ${summary.transfers ? `<span class="truncate">Transfer ${money(summary.transfers)}</span>` : ''}
         </div>
       </div>`
-    : `<div class="min-w-0 w-full"><p class="text-xs text-slate-500 dark:text-slate-400">Filter transaksi disembunyikan. Pakai preset periode di atas untuk melihat ringkasan dengan cepat.</p></div>`}
+    : ''}
     </section>
 
     <div class="space-y-5 min-w-0 w-full">${groupHtml}</div>
