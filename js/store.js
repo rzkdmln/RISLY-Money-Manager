@@ -694,18 +694,30 @@ class Store {
     return sum(this.activeAccounts().map((account) => this.accountBalance(account.id)));
   }
 
+  accountOwners(account) {
+    if (!account) return [];
+    const owners = [account.owner, ...(Array.isArray(account.sharedWith) ? account.sharedWith : [])]
+      .map((id) => String(id || '').trim())
+      .filter(Boolean);
+    return [...new Set(owners)];
+  }
+
   personalBalance(userId = null) {
     const ownerId = userId || this.currentUserId;
     return sum(
       this.activeAccounts()
-        .filter((account) => account.owner === ownerId)
+        .filter((account) => this.accountOwners(account).includes(ownerId))
         .map((account) => this.accountBalance(account.id)),
     );
   }
 
   accountsByOwner(userId = null) {
     const ownerId = userId || this.currentUserId;
-    return this.activeAccounts().filter((account) => account.owner === ownerId);
+    return this.activeAccounts().filter((account) => this.accountOwners(account).includes(ownerId));
+  }
+
+  sharedAccounts() {
+    return this.activeAccounts().filter((account) => Array.isArray(account.sharedWith) && account.sharedWith.length > 0);
   }
 
   saveAccount(payload, id = null) {
@@ -723,6 +735,8 @@ class Store {
             ? safeNumber(account.openingBalance)
             : safeNumber(payload.openingBalance),
           owner: payload.owner || account.owner || owner,
+           sharedWith: Array.isArray(payload.sharedWith) ? payload.sharedWith : (account.sharedWith || []),
+           creditLimit: payload.creditLimit === undefined ? safeNumber(account.creditLimit) : safeNumber(payload.creditLimit),
           updatedAt: now,
         });
 
@@ -764,6 +778,8 @@ class Store {
         color: payload.color || '#3B82F6',
         openingBalance: safeNumber(payload.openingBalance),
         owner: owner,
+        sharedWith: Array.isArray(payload.sharedWith) ? payload.sharedWith : [],
+           creditLimit: safeNumber(payload.creditLimit),
         archived: false,
         createdAt: now,
         updatedAt: now,
@@ -1015,6 +1031,81 @@ class Store {
 
   recurringById(id) {
     return this.data.recurring.find((rule) => rule.id === id && !rule.deletedAt) || null;
+  }
+
+  goals({ includeDeleted = false } = {}) {
+    const list = Array.isArray(this.data?.goals) ? this.data.goals : [];
+    return list.filter((goal) => includeDeleted || !goal?.deletedAt);
+  }
+
+  goalById(id) {
+    return (this.data.goals || []).find((goal) => goal.id === id && !goal.deletedAt) || null;
+  }
+
+  saveGoal(payload, id = null) {
+    return this.commit(id ? 'goal:update' : 'goal:add', (data, now) => {
+      if (!Array.isArray(data.goals)) data.goals = [];
+      const targetAmount = Math.max(0, Number(payload.targetAmount) || 0);
+      const currentAmount = Math.max(0, Number(payload.currentAmount) || 0);
+      if (id) {
+        const goal = data.goals.find((item) => item.id === id);
+        if (!goal) throw new Error('Target tidak ditemukan.');
+        Object.assign(goal, {
+          name: String(payload.name || goal.name).trim() || goal.name,
+          targetAmount: payload.targetAmount === undefined ? goal.targetAmount : targetAmount,
+          currentAmount: payload.currentAmount === undefined ? goal.currentAmount : currentAmount,
+          dueDate: payload.dueDate === undefined ? goal.dueDate : (payload.dueDate || null),
+          color: payload.color || goal.color,
+          updatedAt: now,
+        });
+        return goal;
+      }
+      const goal = {
+        id: uid('goal'),
+        name: String(payload.name || 'Target baru').trim(),
+        targetAmount,
+        currentAmount,
+        dueDate: payload.dueDate || null,
+        color: payload.color || '#10B981',
+        createdBy: this.currentUserId || data.users?.[0]?.id || 'owner',
+        createdAt: now,
+        updatedAt: now,
+      };
+      data.goals.push(goal);
+      return goal;
+    });
+  }
+
+  deleteGoal(id) {
+    return this.commit('goal:delete', (data, now) => {
+      const goal = data.goals.find((item) => item.id === id);
+      if (!goal) throw new Error('Target tidak ditemukan.');
+      goal.deletedAt = now;
+      goal.updatedAt = now;
+      return goal;
+    });
+  }
+
+  netWorthHistory() {
+    return (this.data.netWorthHistory || []).slice().sort((a, b) => a.month.localeCompare(b.month));
+  }
+
+  recordNetWorthSnapshot() {
+    if (!this.data) return;
+    const month = new Date().toISOString().slice(0, 7);
+    const value = this.totalBalance();
+    if (!Array.isArray(this.data.netWorthHistory)) this.data.netWorthHistory = [];
+    const existing = this.data.netWorthHistory.find((entry) => entry.month === month);
+    if (existing) {
+      existing.value = value;
+      existing.recordedAt = new Date().toISOString();
+    } else {
+      this.data.netWorthHistory.push({ month, value, recordedAt: new Date().toISOString() });
+    }
+    // keep last 24 months
+    this.data.netWorthHistory = this.data.netWorthHistory
+      .sort((a, b) => a.month.localeCompare(b.month))
+      .slice(-24);
   }
 
   saveRecurring(payload, id = null) {
@@ -1561,6 +1652,8 @@ class Store {
     local.budgets = mergeCollection(local.budgets, remote.budgets);
     local.recurring = mergeCollection(local.recurring, remote.recurring);
     local.notes = mergeCollection(local.notes, remote.notes);
+    local.goals = mergeCollection(local.goals, remote.goals);
+    local.netWorthHistory = mergeCollection(local.netWorthHistory, remote.netWorthHistory);
 
     if (recordStamp(remote.settings) > recordStamp(local.settings)) {
       local.settings = remote.settings;
@@ -1680,6 +1773,8 @@ class Store {
           mergedData.budgets = mergeCollection(mergedData.budgets, existing.budgets);
           mergedData.recurring = mergeCollection(mergedData.recurring, existing.recurring);
           mergedData.notes = mergeCollection(mergedData.notes, existing.notes);
+           mergedData.goals = mergeCollection(mergedData.goals, existing.goals);
+           mergedData.netWorthHistory = mergeCollection(mergedData.netWorthHistory, existing.netWorthHistory);
           if (recordStamp(existing.settings) > recordStamp(mergedData.settings)) {
             const workspaceId = mergedData.settings?.workspaceId;
             const inviteCode = mergedData.settings?.inviteCode;
@@ -1828,6 +1923,8 @@ class Store {
     this.data.budgets = mergeCollection(this.data.budgets, remote.budgets);
     this.data.recurring = mergeCollection(this.data.recurring, remote.recurring);
     this.data.notes = mergeCollection(this.data.notes, remote.notes);
+    this.data.goals = mergeCollection(this.data.goals, remote.goals);
+    this.data.netWorthHistory = mergeCollection(this.data.netWorthHistory, remote.netWorthHistory);
 
     // Settings: keep the newer side, but never lose this device's workspace id
     // or invite code.

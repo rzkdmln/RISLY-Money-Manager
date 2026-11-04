@@ -8,7 +8,7 @@ export const APP = Object.freeze({
   fullName: 'RISLY Money Manager',
   tagline: 'Keuangan pribadi dan keluarga, rapi dalam satu tempat.',
   version: '1.2.23',
-  schemaVersion: 4,
+  schemaVersion: 5,
   storageKey: 'risly.mm.data.v3',
   workspaceRegistryKey: 'risly.mm.workspaces.v1',
   workspaceDataPrefix: 'risly.mm.workspace.v1.',
@@ -45,6 +45,7 @@ export const ROUTES = Object.freeze({
   budgets: { label: 'Anggaran', icon: 'chart-pie' },
   reports: { label: 'Laporan', icon: 'file-text' },
   recurring: { label: 'Berulang', icon: 'repeat' },
+  goals: { label: 'Target', icon: 'piggy-bank' },
   categories: { label: 'Kategori', icon: 'tag' },
   settings: { label: 'Pengaturan', icon: 'settings' },
 });
@@ -62,11 +63,12 @@ export const DESKTOP_NAV = [
   'settings',
 ];
 
-export const BOTTOM_NAV = ['dashboard', 'transactions', 'calendar', 'notes'];
+export const BOTTOM_NAV = ['dashboard', 'transactions', 'accounts', 'budgets'];
 
 export const MORE_NAV = [
-  'accounts',
-  'budgets',
+  'calendar',
+  'notes',
+  'goals',
   'reports',
   'recurring',
   'categories',

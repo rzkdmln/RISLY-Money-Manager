@@ -153,7 +153,7 @@ export function reportsView() {
                 const category = store.categoryById(tx.categoryId);
                 return `<tr>
                   <td class="whitespace-nowrap">${escapeHTML(formatDate(tx.date, { day: '2-digit', month: 'short' }))}</td>
-                  <td><span class="font-medium text-slate-800 dark:text-slate-100">${escapeHTML(tx.note || category?.name || (tx.type === 'transfer' ? 'Transfer' : 'Transaksi'))}</span><span class="block text-[10px] text-slate-400">${escapeHTML(category?.name || (tx.type === 'transfer' ? 'Transfer antar akun' : '—'))}</span></td>
+                  <td><span class="font-medium text-slate-800 dark:text-slate-100">${escapeHTML(tx.note || category?.name || (tx.type === 'transfer' ? 'Transfer' : 'Transaksi'))}</span><span class="block text-[12px] text-slate-400">${escapeHTML(category?.name || (tx.type === 'transfer' ? 'Transfer antar akun' : '—'))}</span></td>
                   <td>${escapeHTML(store.accountName(tx.accountId))}</td>
                   <td class="text-right ${tx.type === 'income' ? 'amount-income' : tx.type === 'expense' ? 'amount-expense' : 'amount-transfer'}">${tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : ''}${money(tx.amount)}</td>
                 </tr>`;
@@ -206,6 +206,10 @@ export function reportsView() {
         <button type="button" class="btn btn-secondary" data-action="export-xlsx-month">${icon('download', 'w-4 h-4')} Bulan ini (.xlsx)</button>
         <button type="button" class="btn btn-primary" data-action="export-pdf">${icon('file-text', 'w-4 h-4')} Laporan PDF</button>
       </div>
+    </section>
+    <section class="card">
+      <div class="card-heading"><div><p class="card-kicker">Riwayat</p><h2 class="section-title">Kekayaan bersih per bulan</h2></div></div>
+      ${store.netWorthHistory().length ? `<div class="space-y-2">${store.netWorthHistory().slice(-12).reverse().map((entry) => `<div class="flex items-center justify-between text-sm"><span class="text-slate-600 dark:text-slate-300">${escapeHTML(entry.month)}</span><strong class="text-slate-900 dark:text-white">${money(entry.value)}</strong></div>`).join('')}</div>` : '<p class="text-sm text-slate-500">Belum ada riwayat. Snapshot dicatat otomatis saat aplikasi dibuka.</p>'}
     </section>
     <p class="text-[11px] text-slate-400 text-center">Laporan dibuat pada ${escapeHTML(formatDate(todayISO(), { day: 'numeric', month: 'long', year: 'numeric' }))} · ${escapeHTML(store.data.settings.householdName)}</p>
   </div>`;

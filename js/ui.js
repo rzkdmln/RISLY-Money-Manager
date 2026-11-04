@@ -110,7 +110,7 @@ export function togglePrivacy() {
 
 export function avatar(user, size = 'md', extra = '') {
   const sizes = {
-    xs: 'w-7 h-7 text-[10px]',
+    xs: 'w-7 h-7 text-[12px]',
     sm: 'w-9 h-9 text-xs',
     md: 'w-11 h-11 text-sm',
     lg: 'w-14 h-14 text-lg',

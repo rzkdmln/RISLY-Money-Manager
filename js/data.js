@@ -224,6 +224,8 @@ export function createDefaultData(owner = null) {
     budgets: [],
     recurring: [],
     notes: [],
+    goals: [],
+    netWorthHistory: [],
   };
 }
 
@@ -429,6 +431,8 @@ export function migrateData(raw) {
     color: account.color || '#3B82F6',
     openingBalance: Number(account.openingBalance) || 0,
     owner: account.owner || defaultOwner,
+    sharedWith: Array.isArray(account.sharedWith) ? account.sharedWith : [],
+    creditLimit: Number(account.creditLimit) || 0,
     archived: Boolean(account.archived),
     createdAt: account.createdAt || data.updatedAt,
     updatedAt: account.updatedAt || data.updatedAt,
@@ -548,6 +552,27 @@ export function migrateData(raw) {
     completedAt: note.completedAt || null,
     ...(note.deletedAt ? { deletedAt: note.deletedAt } : {}),
   }));
+
+  data.goals = Array.isArray(data.goals) ? data.goals : [];
+  data.goals = data.goals.map((goal) => ({
+    id: goal.id || uid('goal'),
+    name: String(goal.name || 'Target baru').trim(),
+    targetAmount: Math.max(0, Number(goal.targetAmount) || 0),
+    currentAmount: Math.max(0, Number(goal.currentAmount) || 0),
+    dueDate: goal.dueDate || null,
+    color: goal.color || '#10B981',
+    createdBy: goal.createdBy || data.users[0]?.id || 'owner',
+    createdAt: goal.createdAt || data.updatedAt,
+    updatedAt: goal.updatedAt || data.updatedAt,
+    ...(goal.deletedAt ? { deletedAt: goal.deletedAt } : {}),
+  }));
+
+  data.netWorthHistory = Array.isArray(data.netWorthHistory) ? data.netWorthHistory : [];
+  data.netWorthHistory = data.netWorthHistory.map((entry) => ({
+    month: String(entry.month || ''),
+    value: Number(entry.value) || 0,
+    recordedAt: entry.recordedAt || data.updatedAt,
+  })).filter((entry) => /^\d{4}-\d{2}$/.test(entry.month));
 
   dedupeUsers(data);
 

@@ -241,7 +241,7 @@ export function recurringForm(rule = null, defaults = {}) {
         <label class="field-label">Jatuh tempo berikutnya
           <input class="field mt-1.5" type="date" name="nextDate" value="${escapeAttr(rule?.nextDate || defaults.nextDate || todayISO())}" required>
         </label>
-        <p class="text-[10px] text-slate-400 mt-1">Pilih tanggal dari kalender browser.</p>
+        <p class="text-[12px] text-slate-400 mt-1">Pilih tanggal dari kalender browser.</p>
       </div>
       <div class="form-grid">
         <label class="field-label">${isTransfer ? 'Dari akun' : 'Akun'}

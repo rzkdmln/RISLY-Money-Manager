@@ -47,6 +47,7 @@ export function accountForm(account = null, defaultOwner = null) {
   const balance = editing ? store.accountBalance(account.id) : 0;
   const users = store.activeUsers();
   const ownerValue = account?.owner || defaultOwner || store.currentUserId || users[0]?.id || '';
+  const sharedValue = Array.isArray(account?.sharedWith) ? account.sharedWith : [];
   return `<form data-form="account" data-id="${escapeAttr(account?.id || '')}" class="modal-form" novalidate>
     <header class="modal-header">
       <div>
@@ -68,11 +69,19 @@ export function accountForm(account = null, defaultOwner = null) {
         ${editing ? `<label class="field-label">Saldo akun ini
           <div class="input-with-prefix mt-1.5"><span>Rp</span><input class="field" type="number" name="balanceTarget" step="1" inputmode="numeric" value="${Math.round(balance)}"></div>
         </label>` : ''}
+        <label class="field-label">Limit kredit (opsional, untuk kartu kredit)
+          <div class="input-with-prefix mt-1.5"><span>Rp</span><input class="field" type="number" name="creditLimit" min="0" step="1000" inputmode="numeric" value="${Math.round(account?.creditLimit || 0)}"></div>
+        </label>
       ${users.length > 1 ? `<label class="field-label">Pemilik akun
         <select class="field mt-1.5" name="owner">
           ${users.map((u) => `<option value="${escapeAttr(u.id)}" ${ownerValue === u.id ? 'selected' : ''}>${escapeHTML(u.name)}</option>`).join('')}
         </select>
       </label>` : ''}
+      ${users.length > 1 ? `<div class="field-label">Bagikan ke (akun bersama)
+        <div class="mt-1.5 flex flex-wrap gap-2">
+          ${users.filter((u) => u.id !== ownerValue).map((u) => `<label class="inline-flex items-center gap-1.5 text-xs"><input type="checkbox" name="sharedWith" value="${escapeAttr(u.id)}" ${sharedValue.includes(u.id) ? 'checked' : ''}> ${escapeHTML(u.name)}</label>`).join('')}
+        </div>
+      </div>` : ''}
       </div>
       ${editing ? '<p class="text-[11px] text-slate-400">Perubahan saldo akan dicatat sebagai transaksi penyesuaian.</p>' : ''}
       <div>

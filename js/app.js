@@ -93,6 +93,7 @@ import { accountsView } from './views/accounts.js';
 import { budgetsView } from './views/budgets.js';
 import { recurringView } from './views/recurring.js';
 import { categoriesView } from './views/categories.js';
+import { goalsView, goalForm } from './views/goals.js';
 import { reportsView } from './views/reports.js';
 import { settingsView } from './views/settings.js';
 import { loginView } from './views/auth.js';
@@ -142,6 +143,7 @@ const ROUTE_VIEWS = {
   budgets: () => budgetsView(),
   recurring: () => recurringView(),
   categories: () => categoriesView(),
+  goals: () => goalsView(),
   reports: () => reportsView(),
   settings: () => settingsView(store.currentUser),
 };
@@ -381,6 +383,7 @@ function enterApplication(user, { fresh = false } = {}) {
   renderApplication();
   if (fresh) toast(`Selamat datang, ${user.name}.`, 'success');
   runRecurring({ notify: true });
+  try { store.recordNetWorthSnapshot(); } catch { /* ignore */ }
   setTimeout(checkReminders, 1_200);
   // Sync family workspace from cloud in background
   if (store.workspaceId) {
@@ -2068,6 +2071,30 @@ async function handleAction(action, element) {
       renderApplication();
       break;
     }
+    case 'add-goal':
+      closeModal({ silent: true });
+      openModal({ size: 'md', className: 'form-modal', html: goalForm() });
+      break;
+    case 'edit-goal': {
+      const goal = store.goalById(id);
+      if (!goal) break;
+      closeModal({ silent: true });
+      openModal({ size: 'md', className: 'form-modal', html: goalForm(goal) });
+      break;
+    }
+    case 'delete-goal': {
+      const goal = store.goalById(id);
+      if (!goal) break;
+      const ok = await confirmDialog({
+        title: 'Hapus target?',
+        message: `Target "${goal.name}" akan dihapus.`,
+      });
+      if (!ok) return;
+      store.deleteGoal(id);
+      toast('Target dihapus.', 'success');
+      renderApplication();
+      break;
+    }
     case 'restore-account': {
       const account = store.accountById(id);
       if (!account) break;
@@ -2925,6 +2952,27 @@ function submitRecurring(form) {
   }
 }
 
+function submitGoal(form) {
+  const fd = new FormData(form);
+  const editingId = form.dataset.id || null;
+  const name = String(fd.get('name') || '').trim();
+  if (!name) {
+    showFormError(form, 'Nama target wajib diisi.');
+    return;
+  }
+  const targetAmount = Number(fd.get('targetAmount')) || 0;
+  const currentAmount = Number(fd.get('currentAmount')) || 0;
+  const dueDate = String(fd.get('dueDate') || '').trim() || null;
+  try {
+    store.saveGoal({ name, targetAmount, currentAmount, dueDate }, editingId);
+    closeModal({ silent: true });
+    toast('Target disimpan.', 'success');
+    renderApplication();
+  } catch (error) {
+    showFormError(form, error.message || 'Gagal menyimpan target.');
+  }
+}
+
 function submitAccount(form) {
   const fd = new FormData(form);
   const editingId = form.dataset.id || null;
@@ -2954,6 +3002,8 @@ function submitAccount(form) {
       type: String(fd.get('type') || 'cash'),
       color: String(fd.get('color') || '#3B82F6'),
       owner: String(fd.get('owner') || ''),
+      sharedWith: fd.getAll('sharedWith').map((v) => String(v)),
+      creditLimit: String(fd.get('creditLimit') || ''),
       ...(balanceTarget !== undefined ? { balanceTarget } : {}),
     }, editingId);
     const adjusted = balanceTarget !== undefined && balanceTarget !== Math.round(currentBalance);
@@ -3141,6 +3191,9 @@ async function submitForm(form) {
       break;
     case 'account':
       submitAccount(form);
+      break;
+    case 'goal':
+      submitGoal(form);
       break;
     case 'category':
       submitCategory(form);

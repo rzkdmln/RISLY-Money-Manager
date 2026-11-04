@@ -77,7 +77,7 @@ export function dashboardView(user) {
         <span class="mini-list-icon shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white" style="background-color:${escapeAttr(category?.color || '#3B82F6')}">${icon(rule.type === 'transfer' ? 'repeat' : category?.icon || 'receipt', 'w-3.5 h-3.5')}</span>
         <span class="min-w-0 flex-1 text-left">
           <span class="block text-xs font-bold text-slate-800 dark:text-slate-100 truncate">${escapeHTML(rule.title)}</span>
-          <span class="block text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">${escapeHTML(relativeDay(rule.nextDate))} · ${escapeHTML(formatDate(rule.nextDate))}</span>
+          <span class="block text-[12px] text-slate-500 dark:text-slate-400 truncate mt-0.5">${escapeHTML(relativeDay(rule.nextDate))} · ${escapeHTML(formatDate(rule.nextDate))}</span>
         </span>
         <span class="text-xs font-bold text-slate-700 dark:text-slate-200 shrink-0">${money(rule.amount, { compact: rule.amount >= 1_000_000 })}</span>
       </button>`;
@@ -89,7 +89,7 @@ export function dashboardView(user) {
         <span class="mini-check shrink-0 ${task.done ? 'is-done text-emerald-500' : 'text-slate-300'}">${task.done ? icon('check', 'w-4 h-4') : icon('circle', 'w-4 h-4')}</span>
         <span class="min-w-0 flex-1 text-left">
           <span class="block text-xs font-bold text-slate-800 dark:text-slate-100 truncate ${task.done ? 'line-through text-slate-400' : ''}">${escapeHTML(task.title)}</span>
-          <span class="block text-[10px] truncate mt-0.5 ${task.dueDate < todayISO() ? 'text-red-500 font-medium' : 'text-slate-500 dark:text-slate-400'}">${escapeHTML(relativeDay(task.dueDate))}</span>
+          <span class="block text-[12px] truncate mt-0.5 ${task.dueDate < todayISO() ? 'text-red-500 font-medium' : 'text-slate-500 dark:text-slate-400'}">${escapeHTML(relativeDay(task.dueDate))}</span>
         </span>
         <span class="shrink-0">${badge(task.priority === 'urgent' ? 'Mendesak' : task.priority === 'high' ? 'Tinggi' : 'Tugas', task.priority === 'urgent' ? 'red' : task.priority === 'high' ? 'amber' : 'slate', 'badge-soft')}</span>
       </button>`).join('')
@@ -106,12 +106,9 @@ export function dashboardView(user) {
       <!-- KARTU KEKAYAAN (CLEAN & SWITCHABLE) -->
       <section class="accounts-hero lg:col-span-2 min-w-0 w-full overflow-hidden relative rounded-2xl p-6 shadow-sm flex flex-col justify-between">
 
-        <!-- Switcher Header -->
+        <!-- Header -->
         <div class="flex items-center justify-between min-w-0 mb-6">
-          <div class="flex items-center gap-1 bg-white/10 p-1 rounded-xl w-fit">
-            <button type="button" data-action="switch-networth" data-target="personal" aria-pressed="true" class="px-4 py-1.5 text-xs font-bold bg-white/20 text-white shadow-sm rounded-lg transition-all">Saya</button>
-            <button type="button" data-action="switch-networth" data-target="family" aria-pressed="false" class="px-4 py-1.5 text-xs font-bold text-white/70 hover:text-white transition-all">Keluarga</button>
-          </div>
+          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Kekayaan Keluarga</p>
           <button type="button" class="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-lg transition-colors shrink-0" data-action="toggle-privacy" aria-label="Sembunyikan nominal">
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>
           </button>
@@ -119,25 +116,19 @@ export function dashboardView(user) {
 
         <!-- Area Nominal Besar -->
         <div class="mb-8 min-w-0">
-          <div id="networth-personal" class="block min-w-0">
-             <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Total Kekayaan Saya</p>
-             <h2 class="text-4xl sm:text-5xl font-extrabold text-white truncate tracking-tight">${money(myNetWorth)}</h2>
-          </div>
-          <div id="networth-family" class="hidden min-w-0">
-             <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Total Kekayaan Keluarga</p>
-             <h2 class="text-4xl sm:text-5xl font-extrabold text-white truncate tracking-tight">${money(netWorth)}</h2>
-          </div>
+          <h2 class="text-4xl sm:text-5xl font-extrabold text-white truncate tracking-tight">${money(netWorth)}</h2>
+          <p class="mt-1 text-xs text-slate-400">Kekayaan Anda: ${money(myNetWorth)}</p>
         </div>
 
         <!-- Arus Kas -->
         <div class="pt-5 border-t border-white/10">
           <div class="grid grid-cols-2 gap-2 sm:gap-4 min-w-0">
             <div class="min-w-0">
-              <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 truncate">Masuk</span>
+              <span class="block text-[12px] font-bold uppercase tracking-wider text-slate-400 mb-1 truncate">Masuk</span>
               <span class="block text-sm sm:text-base font-bold text-emerald-600 dark:text-emerald-400 truncate">+${money(income)}</span>
             </div>
             <div class="min-w-0 border-l border-slate-100 dark:border-slate-800/60 pl-2 sm:pl-4">
-              <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 truncate">Keluar</span>
+              <span class="block text-[12px] font-bold uppercase tracking-wider text-slate-400 mb-1 truncate">Keluar</span>
               <span class="block text-sm sm:text-base font-bold text-rose-600 dark:text-rose-400 truncate">-${money(expense)}</span>
             </div>
           </div>
@@ -158,7 +149,7 @@ export function dashboardView(user) {
           ${budget.total > 0 ? `
             <div class="mt-5 min-w-0">
               ${progressBar(budget.percent, budgetTone, 'progress-lg')}
-              <div class="flex justify-between text-[10px] font-medium text-slate-400 mt-1.5 px-1">
+              <div class="flex justify-between text-[12px] font-medium text-slate-400 mt-1.5 px-1">
                 <span>0</span>
                 <span class="${budget.percent >= budget.warning ? 'text-amber-500 font-bold' : ''}">${budget.warning}%</span>
                 <span class="${budget.percent >= budget.danger ? 'text-red-500 font-bold' : ''}">${budget.danger}%</span>

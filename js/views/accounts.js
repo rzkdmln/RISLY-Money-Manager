@@ -19,10 +19,12 @@ function accountCard(account, archived = false) {
         <h3 class="account-name truncate">${escapeHTML(account.name)}</h3>
         <p class="account-type truncate">${escapeHTML(type.label)}</p>
       </div>
+      ${Array.isArray(account.sharedWith) && account.sharedWith.length ? badge('Bersama', 'blue', 'badge-soft') : ''}
       ${archived ? badge('Arsip', 'slate', 'badge-soft') : ''}
       <button type="button" class="card-icon-btn shrink-0" data-action="edit-account" data-id="${escapeAttr(account.id)}" aria-label="Ubah akun">${icon('edit', 'w-3.5 h-3.5')}</button>
     </div>
     <div class="account-balance truncate ${balance < 0 ? 'is-negative' : ''}">${money(balance)}</div>
+    ${account.type === 'credit' && account.creditLimit > 0 ? `<div class="text-[12px] text-slate-400 mt-1">Limit ${money(account.creditLimit)} · Terpakai ${Math.round(Math.abs(balance) / account.creditLimit * 100)}%</div>` : ''}
     <div class="account-meta min-w-0 flex justify-end gap-2 text-xs">
       <span class="shrink-0">${txCount} transaksi</span>
     </div>
