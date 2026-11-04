@@ -740,6 +740,20 @@ export function isStandalone() {
   return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 }
 
+/** Deteksi device mobile secara luas (iOS, Android, tablet, Windows Phone). */
+export function isMobile() {
+  if (typeof navigator === 'undefined') return false;
+  const ua = String(navigator.userAgent || '');
+  const platform = String(navigator.platform || '');
+  const maxTouch = Number(navigator.maxTouchPoints || 0);
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (platform === 'MacIntel' && maxTouch > 1);
+  const isAndroidLike = /Android|webOS|iBlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua) || /Android/i.test(platform);
+  if (isIOS || isAndroidLike) return true;
+  // iPadOS versi baru memakai UA Mac + touch.
+  if (/Mac/i.test(platform) && maxTouch > 1) return true;
+  return false;
+}
+
 export function randomFrom(list) {
   return list[Math.floor(Math.random() * list.length)];
 }

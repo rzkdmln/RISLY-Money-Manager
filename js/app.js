@@ -73,6 +73,7 @@ import {
   formatMonth,
   getInitials,
   isIos,
+  isMobile,
   isStandalone,
   localDateISO,
   monthKey,
@@ -437,7 +438,11 @@ function showGoogleWaitingModal({ onCancel }) {
 }
 
 async function signInWithGoogleFlow() {
-  const useRedirect = isIos() && isStandalone();
+  // Mobile (iOS PWA/Safari, Android, tablet) SELALU memakai Firebase Auth
+  // redirect. signInWithPopup tidak andal di mobile browser (terutama iOS
+  // Safari) dan tidak didukung di iOS standalone PWA. Redirect + persistence
+  // lokal permanen + global loading state menutup celah ITP dan race condition.
+  const useRedirect = isMobile();
 
   if (useRedirect) {
     // iOS standalone PWA: gunakan redirect (popup tidak didukung di standalone).

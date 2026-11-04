@@ -53,9 +53,15 @@ async function getFirebaseAuth() {
   const appMod = await import(FIREBASE_APP_URL);
   const authMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`);
   const { initializeApp, getApps, getApp } = appMod;
-  const { getAuth } = authMod;
+  const { getAuth, setPersistence, browserLocalPersistence } = authMod;
   const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
-  return getAuth(app);
+  const auth = getAuth(app);
+  // Pastikan persistence lokal (localStorage/IndexedDB) aktif sebelum
+  // proses sign-in apa pun. Tanpa ini, pada mobile (terutama iOS PWA/Safari)
+  // SDK boleh memakai persistence lain sehingga sesi tidak terbawa kembali
+  // setelah redirect dari Google.
+  try { await setPersistence(auth, browserLocalPersistence); } catch (error) { console.warn('Gagal set firebase persistence:', error); }
+  return auth;
 }
 
 async function getFirebaseIdToken(auth) {
@@ -365,6 +371,7 @@ class CloudSync {
       const user = auth?.currentUser;
       if (user?.uid) {
         this.firebaseUid = user.uid;
+        this.currentFirebaseUser = user;
         return user.uid;
       }
     } catch (error) {
@@ -383,6 +390,10 @@ class CloudSync {
     let uid = auth?.currentUser?.uid || this.firebaseUid || null;
     if (uid) {
       this.firebaseUid = uid;
+      // Sinkronkan snapshot user juga pada jalur cache agar konsisten dengan
+      // listener onAuthStateChanged (tanpa ini, getCurrentFirebaseUser()
+      // bisa null padahal uid memang valid).
+      this.currentFirebaseUser = auth?.currentUser || null;
       return uid;
     }
     return new Promise((resolve) => {
