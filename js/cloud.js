@@ -49,6 +49,21 @@ function timeoutSignal(ms = 16_000) {
   return controller.signal;
 }
 
+async function getFirebaseAuth() {
+  const appMod = await import(FIREBASE_APP_URL);
+  const authMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`);
+  const { initializeApp, getApps, getApp } = appMod;
+  const { getAuth } = authMod;
+  const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
+  return getAuth(app);
+}
+
+async function getFirebaseIdToken(auth) {
+  const user = auth?.currentUser;
+  if (!user) return null;
+  try { return await user.getIdToken(); } catch { return null; }
+}
+
 async function requestJSON(url, options = {}, timeout = 16_000) {
   const response = await fetch(url, {
     ...options,
@@ -212,15 +227,33 @@ class FirebaseAdapter {
     if (!parsed || !parsed.databaseURL) throw new Error('databaseURL Firebase wajib ada.');
     this.firebaseConfig = parsed;
     this.databaseURL = String(parsed.databaseURL).replace(/\/+$/, '');
+    this.ownerUid = null;
     this.path = String(config.firebase?.path || `households/${APP.householdId}`).replace(/^\/+|\/+$/g, '');
   }
 
-  endpoint() {
-    return `${this.databaseURL}/${this.path}.json`;
+  setOwner(uid) {
+    if (!uid) return;
+    this.ownerUid = String(uid);
+    this.path = `households/${this.ownerUid}`;
+  }
+
+  async auth() {
+    return getFirebaseAuth();
+  }
+
+  async idToken() {
+    const auth = await this.auth();
+    return getFirebaseIdToken(auth);
+  }
+
+  async endpoint() {
+    const token = await this.idToken();
+    const suffix = token ? `?auth=${encodeURIComponent(token)}` : '';
+    return `${this.databaseURL}/${this.path}.json${suffix}`;
   }
 
   async read() {
-    const body = await requestJSON(this.endpoint(), {
+    const body = await requestJSON(await this.endpoint(), {
       method: 'GET',
       cache: 'no-store',
     });
@@ -228,7 +261,7 @@ class FirebaseAdapter {
   }
 
   async write(envelope) {
-    await requestJSON(this.endpoint(), {
+    const body = await requestJSON(await this.endpoint(), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(envelope),
@@ -238,18 +271,24 @@ class FirebaseAdapter {
 
   async subscribe(callback = () => {}) {
     // Use the Firebase SDK so remote changes arrive in real time instead of
-    // waiting for the next poll. The SDK is loaded lazily to keep boot fast.
-    const [appMod, dbMod] = await Promise.all([
+    // waiting for the next poll. The SDK is loaded lazily to keep boot fast and
+    // the listener is bound to the Firebase Auth instance so it only receives
+    // data for the currently signed-in household (auth != null in the rules).
+    const [appMod, dbMod, authMod] = await Promise.all([
       import(FIREBASE_APP_URL),
       import(FIREBASE_DB_URL),
+      import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`),
     ]);
     const { initializeApp, getApps, getApp } = appMod;
     const { getDatabase, ref, onValue } = dbMod;
+    const { getAuth } = authMod;
     const app = getApps().length ? getApp() : initializeApp(this.firebaseConfig);
-    const db = getDatabase(app);
-    this.listenerRef = ref(db, this.path);
+    const auth = getAuth(app);
+    const db = getDatabase(app, auth);
+    const listenerRef = ref(db, this.path);
+    this.listenerRef = listenerRef;
     this.unsubscribe = onValue(
-      this.listenerRef,
+      listenerRef,
       (snapshot) => {
         const envelope = extractEnvelope(snapshot.val());
         if (envelope) callback(envelope);
@@ -322,13 +361,8 @@ class CloudSync {
     if (this.firebaseUid) return this.firebaseUid;
     if (this.config.provider !== 'firebase') return null;
     try {
-      const appMod = await import(FIREBASE_APP_URL);
-      const authMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`);
-      const { initializeApp, getApps, getApp } = appMod;
-      const { getAuth } = authMod;
-      const app = getApps().length ? getApp() : initializeApp(this.firebaseConfig || FIREBASE_CONFIG);
-      const auth = getAuth(app);
-      const user = auth.currentUser;
+      const auth = await getFirebaseAuth();
+      const user = auth?.currentUser;
       if (user?.uid) {
         this.firebaseUid = user.uid;
         return user.uid;
@@ -337,6 +371,48 @@ class CloudSync {
       console.warn('Firebase auth restore failed:', error);
     }
     return null;
+  }
+
+  /**
+   * Menunggu hingga Firebase Auth mengonfirmasi status auth (onAuthStateChanged).
+   * Hanya mengembalikan uid setelah user != null, atau null bila belum login.
+   */
+  async waitForFirebaseUser() {
+    if (this.config.provider !== 'firebase') return this.firebaseUid || null;
+    const auth = await getFirebaseAuth();
+    let uid = auth?.currentUser?.uid || this.firebaseUid || null;
+    if (uid) {
+      this.firebaseUid = uid;
+      return uid;
+    }
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (value) => {
+        if (settled) return;
+        settled = true;
+        try { unsubscribe?.(); } catch { /* noop */ }
+        resolve(value);
+      };
+      let unsubscribe = null;
+      try {
+        unsubscribe = auth?.onAuthStateChanged?.((user) => {
+          if (user?.uid) {
+            this.firebaseUid = user.uid;
+            finish(user.uid);
+            return;
+          }
+          finish(null);
+        });
+      } catch {
+        return finish(null);
+      }
+      setTimeout(() => finish(null), 12_000);
+    });
+  }
+
+  canSync() {
+    // Jangan mengirim permintaan sync sebelum Firebase Auth mengonfirmasi user.
+    return this.config?.provider === 'local' || Boolean(this.firebaseUid);
   }
 
   async signInWithGoogle(accessToken) {
@@ -442,11 +518,30 @@ class CloudSync {
     return this;
   }
 
-  async bootstrap() {
+  async bootstrap({ waitForAuth = false } = {}) {
     if (this.config.provider === 'local') {
       this.state = 'local';
       this.emitStatus();
       return { ok: true, local: true };
+    }
+    if (this.config.provider === 'firebase') {
+      const uid = waitForAuth ? await this.waitForFirebaseUser() : await this.getFirebaseUid();
+      if (!uid) {
+        // Belum ada pengguna Firebase yang terkonfirmasi. Jangan sentuh RTDB
+        // sebelum onAuthStateChanged mengonfirmasi user, karena aturan keamanan
+        // saat ini mensyaratkan auth != null.
+        this.connected = false;
+        this.firebaseUid = null;
+        this.adapter = null;
+        this.setStatus('idle', 'Menunggu autentikasi Firebase…');
+        return { ok: true, skipped: true };
+      }
+      this.firebaseUid = uid;
+      const next = { provider: 'firebase', firebase: { path: `households/${uid}` } };
+      const changed = JSON.stringify(this.config) !== JSON.stringify(next);
+      this.config = next;
+      localStorage.setItem(APP.cloudKey, JSON.stringify(this.config));
+      if (this.adapter?.setOwner) this.adapter.setOwner(uid);
     }
     const timeout = new Promise((resolve) => setTimeout(() => resolve({ ok: false, timeout: true }), 8_000));
     const work = this.connect(this.config, { initial: true }).catch((error) => {
@@ -505,6 +600,9 @@ class CloudSync {
         }
       }
       this.adapter = this.createAdapter(this.config);
+      if (this.config.provider === 'firebase' && this.firebaseUid && this.adapter?.setOwner) {
+        this.adapter.setOwner(this.firebaseUid);
+      }
       const remote = await this.adapter.read();
       if (remote?.data) {
         this.lastRevision = remote.revision || 0;
@@ -718,6 +816,10 @@ class CloudSync {
     if (!this.adapter || this.config.provider === 'local') {
       if (!silent) this.setStatus('local', 'Sinkronisasi cloud belum diaktifkan.');
       return { ok: false, local: true };
+    }
+    if (this.config.provider === 'firebase' && !this.firebaseUid) {
+      // Belum ada Firebase Auth user yang terkonfirmasi; tunda sinkronisasi.
+      return { ok: false, skipped: true };
     }
     if (!this.connected) {
       return this.connect(this.config);

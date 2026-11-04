@@ -17,9 +17,10 @@ import { Cloud } from './cloud.js';
 import { GoogleDrive, googleAccountBadge } from './gdrive.js';
 import {
   clearPendingGoogleLogin,
-  resumeGoogleRelayLogin,
+  completeGoogleAuthLogin,
+  resumeGoogleAuthLogin,
   shouldUseAuthRelay,
-  startGoogleRelayLogin,
+  startGoogleAuthRedirect,
 } from './google-auth-relay.js';
 import { initPullToRefresh } from './pull-to-refresh.js';
 import {
@@ -80,6 +81,7 @@ import {
   parseDateTimeLocal,
   readFileAsText,
   sanitizeNoteHTML,
+  safeNumber,
   shiftMonthKey,
   todayISO,
   toDateTimeLocal,
@@ -392,12 +394,12 @@ function enterApplication(user, { fresh = false } = {}) {
 }
 
 /**
- * Google sign-in for installed iOS PWAs.
+ * Google sign-in untuk installed iOS PWAs.
  *
- * The Google window is a separate Safari sheet there, so it cannot hand a
- * session back through cookies/localStorage. The relay callback writes the
- * result to a tiny cloud relay and this helper polls it while the app stays
- * open. Must be called directly from the click so iOS allows the new window.
+ * Jalur login memakai Firebase Auth redirect (startGoogleAuthRedirect +
+ * completeGoogleAuthLogin) agar hasilnya kembali ke aplikasi ini secara
+ * langsung, tanpa relay publik. Must be called directly from the click so iOS
+ * allows the redirect navigation.
  */
 function showGoogleWaitingModal({ onCancel }) {
   let done = false;
@@ -415,7 +417,7 @@ function showGoogleWaitingModal({ onCancel }) {
       </span>
       <h2 class="mt-4 text-[17px] font-bold text-slate-900 dark:text-white">Menyelesaikan masuk</h2>
       <p class="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-        Jendela Google sudah dibuka. Pilih akun Anda, lalu kembali ke aplikasi ini.
+        Buka halaman Google untuk masuk dengan akun Anda, lalu kembali ke aplikasi ini.
         Proses akan selesai otomatis.
       </p>
       <button type="button" class="btn btn-secondary mt-5 w-full" data-google-cancel>Batalkan</button>
@@ -452,35 +454,38 @@ async function signInWithGoogleFlow() {
     waiting = showGoogleWaitingModal({
       onCancel: () => {
         controller.abort();
-        clearPendingGoogleLogin();
         finish(reject, new Error('Masuk dengan Google dibatalkan.'));
       },
     });
 
-    startGoogleRelayLogin({ signal: controller.signal }).then(
-      (value) => finish(resolve, value),
+    startGoogleAuthRedirect({ signal: controller.signal }).then(
+      async () => {
+        const completed = await completeGoogleAuthLogin({ signal: controller.signal });
+        if (!completed) {
+          finish(reject, new Error('Sesi login Google tidak ditemukan. Silakan coba lagi dari aplikasi.'));
+          return;
+        }
+        GoogleDrive.adoptSession(completed);
+        finish(resolve, completed);
+      },
       (error) => finish(reject, error),
     );
   });
 
-  GoogleDrive.adoptSession(session);
   return session.account;
 }
 
 function resumeGoogleLoginOnBoot() {
   const controller = new AbortController();
-  const pending = resumeGoogleRelayLogin({ signal: controller.signal });
-  if (!pending) return;
-
   const waiting = showGoogleWaitingModal({
     onCancel: () => {
       controller.abort();
-      clearPendingGoogleLogin();
     },
   });
 
-  pending.then(async (session) => {
+  resumeGoogleAuthLogin({ signal: controller.signal }).then(async (session) => {
     waiting.close();
+    if (!session) return;
     GoogleDrive.adoptSession(session);
     const result = await store.signInWithGoogle(session.account);
     enterApplication(result.user, { fresh: result.created });
@@ -2265,6 +2270,31 @@ async function handleAction(action, element) {
       break;
 
     /* Transactions filters */
+    case 'tx-toggle-filter':
+      ui.txFilterOpen = !ui.txFilterOpen;
+      renderApplication();
+      break;
+    case 'tx-preset-month':
+      ui.txYear = String(new Date().getFullYear());
+      ui.txMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+      ui.txPage = 1;
+      renderApplication();
+      break;
+    case 'tx-preset-year':
+      ui.txYear = String(new Date().getFullYear());
+      ui.txMonth = 'all';
+      ui.txPage = 1;
+      renderApplication();
+      break;
+    case 'tx-preset-recent': {
+      const now = new Date();
+      const target = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+      ui.txYear = String(target.getFullYear());
+      ui.txMonth = String(target.getMonth() + 1).padStart(2, '0');
+      ui.txPage = 1;
+      renderApplication();
+      break;
+    }
     case 'tx-all-months':
       ui.txYear = 'all';
       ui.txMonth = 'all';
@@ -2514,6 +2544,16 @@ async function handleAction(action, element) {
       break;
     case 'export-backup':
       backupNow();
+      break;
+    case 'close-month':
+      store.closeMonth(ui.reportMonth || monthKey());
+      renderApplication();
+      toast('Bulan ditutup sebagai buku buku.', 'success');
+      break;
+    case 'reopen-month':
+      store.reopenMonth(ui.reportMonth || monthKey());
+      renderApplication();
+      toast('Bulan dibuka kembali ke transaksi aktif.', 'info');
       break;
     case 'import-backup':
       pickBackupFile();
@@ -2825,6 +2865,16 @@ function submitTransaction(form) {
   if (type !== 'transfer' && !categoryId && !originalTransaction?.adjustment) {
     showFormError(form, 'Pilih kategori transaksi.');
     return;
+  }
+  const selectedAccountForCheck = store.accountById(accountId);
+  if (type === 'expense' && selectedAccountForCheck?.type === 'credit') {
+    const creditLimit = safeNumber(selectedAccountForCheck.creditLimit);
+    const spentSoFar = store.creditSpent(accountId);
+    const remainingLimit = Math.max(0, creditLimit - spentSoFar);
+    if (amount > remainingLimit) {
+      showFormError(form, `Nominal melebihi sisa limit kredit (sisa ${formatCurrency(remainingLimit)}).`);
+      return;
+    }
   }
 
   const payload = {
@@ -3599,12 +3649,12 @@ function bindEvents() {
   setInterval(() => {
     checkAutoLock();
     if (store.currentUser) checkReminders();
-    if (store.currentUser) {
+    if (store.currentUser && Cloud.canSync()) {
       Cloud.syncNow().then(() => {}).catch(() => {});
     }
   }, 3_000);
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && store.currentUser) {
+    if (document.visibilityState === 'visible' && store.currentUser && Cloud.canSync()) {
       Cloud.syncNow().then(() => {}).catch(() => {});
     }
   });
@@ -3724,7 +3774,7 @@ function boot() {
     }
   }
   if (store.hasWorkspace) {
-    Cloud.bootstrap().then(() => {
+    Cloud.bootstrap({ waitForAuth: true }).then(() => {
       if (store.currentUser && !ui.locked) renderApplication();
       else renderAuth();
     }).catch((error) => console.warn('Cloud bootstrap skipped:', error));

@@ -226,6 +226,7 @@ export function createDefaultData(owner = null) {
     notes: [],
     goals: [],
     netWorthHistory: [],
+    closedMonths: [],
   };
 }
 
@@ -573,6 +574,21 @@ export function migrateData(raw) {
     value: Number(entry.value) || 0,
     recordedAt: entry.recordedAt || data.updatedAt,
   })).filter((entry) => /^\d{4}-\d{2}$/.test(entry.month));
+
+  data.closedMonths = Array.isArray(data.closedMonths) ? data.closedMonths : [];
+  data.closedMonths = data.closedMonths
+    .filter((entry) => entry && typeof entry.month === 'string' && /^\d{4}-\d{2}$/.test(entry.month))
+    .map((entry) => ({
+      month: String(entry.month || ''),
+      closedAt: entry.closedAt || data.updatedAt,
+      closedBy: entry.closedBy || null,
+      income: Number(entry.income) || 0,
+      expense: Number(entry.expense) || 0,
+      net: Number(entry.net) || 0,
+      savingsRate: Number(entry.savingsRate) || 0,
+      transfers: Number(entry.transfers) || 0,
+      count: Number(entry.count) || 0,
+    }));
 
   dedupeUsers(data);
 

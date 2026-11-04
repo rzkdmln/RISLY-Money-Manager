@@ -13,6 +13,9 @@ import { APP, FIREBASE_CONFIG } from './config.js';
 import { DRIVE_SCOPE } from './gdrive.js';
 import { isIos } from './utils.js';
 
+const FIREBASE_VERSION = '10.12.5';
+const FIREBASE_APP_URL = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`;
+const FIREBASE_AUTH_URL = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`;
 const RELAY_URL = `${String(FIREBASE_CONFIG.databaseURL).replace(/\/+$/, '')}/oauth_relay.json`;
 const RELAY_HEADERS = {
   'Content-Type': 'application/json',
@@ -391,4 +394,53 @@ export async function completeGoogleRelayFromFragment() {
 
   try { history.replaceState(null, '', location.pathname); } catch { /* noop */ }
   return { account };
+}
+
+/**
+ * Mulai login Google lewat Firebase Auth redirect (alur utama, termasuk iOS).
+ * Menggantikan mekanisme relay custom. Setelah redirect selesai, caller harus
+ * memanggil completeGoogleAuthLogin() untuk menerima session + token.
+ */
+export async function startGoogleAuthRedirect({ signal = null } = {}) {
+  const appMod = await import(FIREBASE_APP_URL);
+  const authMod = await import(FIREBASE_AUTH_URL);
+  const { initializeApp, getApps, getApp } = appMod;
+  const { getAuth, GoogleAuthProvider, signInWithRedirect } = authMod;
+  const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
+  const auth = getAuth(app);
+  await signInWithRedirect(auth, GoogleAuthProvider.PROVIDER_ID);
+  return { started: true };
+}
+
+/**
+ * Selesaikan hasil login Google dari Firebase Auth redirect. Mengembalikan
+ * session yang kompatibel dengan GoogleDrive.adoptSession() dan store.
+ */
+export async function completeGoogleAuthLogin({ signal = null } = {}) {
+  const appMod = await import(FIREBASE_APP_URL);
+  const authMod = await import(FIREBASE_AUTH_URL);
+  const { initializeApp, getApps, getApp } = appMod;
+  const { getAuth, getRedirectResult } = authMod;
+  const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
+  const auth = getAuth(app);
+  const result = await getRedirectResult(auth);
+  const user = result?.user;
+  if (!user) return null;
+  const accessToken = String(user.accessToken || '');
+  if (!accessToken) return null;
+  const expiresAt = Date.now() + (Number(user.expiresAt?.toMillis?.() || Date.now()) + 3600_000 - Date.now());
+  const account = {
+    email: String(user.email || ''),
+    name: String(user.displayName || ''),
+    picture: String(user.photoURL || ''),
+    clientId: APP.googleClientId,
+  };
+  return { account, accessToken, expiresAt, user };
+}
+
+/**
+ * Resume login Google yang sedang berjalan lewat Firebase Auth redirect.
+ */
+export async function resumeGoogleAuthLogin({ signal = null } = {}) {
+  return completeGoogleAuthLogin({ signal });
 }

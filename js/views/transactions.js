@@ -153,11 +153,18 @@ export function transactionsView() {
     <section class="card filter-card min-w-0 w-full overflow-hidden">
       <div class="filter-top min-w-0">
         <div class="flex items-center gap-2 min-w-0">
-          <span class="filter-title shrink-0">${icon('filter', 'w-4 h-4')} Filter</span>${ui.txMonth === 'all' && ui.txYear === 'all' ? badge('Semua waktu', 'blue', 'badge-soft') : ''}
+          <button type="button" class="link-button shrink-0" data-action="tx-toggle-filter" aria-expanded="${ui.txFilterOpen}">
+            ${icon('filter', 'w-4 h-4')} Filter
+          </button>${ui.txMonth === 'all' && ui.txYear === 'all' ? badge('Semua waktu', 'blue', 'badge-soft') : ''}
         </div>
-        <button type="button" class="link-button shrink-0" data-action="reset-tx-filter">Reset</button>
+        <div class="flex items-center gap-2 shrink-0 min-w-0 flex-wrap justify-end">
+          <button type="button" class="btn btn-secondary btn-sm shrink-0" data-action="tx-preset-month">${icon('calendar', 'w-3.5 h-3.5')} Bulan ini</button>
+          <button type="button" class="btn btn-secondary btn-sm shrink-0" data-action="tx-preset-year">${icon('calendar', 'w-3.5 h-3.5')} Tahun ini</button>
+          <button type="button" class="btn btn-secondary btn-sm shrink-0" data-action="tx-preset-recent">${icon('calendar', 'w-3.5 h-3.5')} 12 bulan</button>
+          <button type="button" class="link-button shrink-0" data-action="reset-tx-filter">Reset</button>
+        </div>
       </div>
-      <div class="filter-grid min-w-0 w-full">
+      ${ui.txFilterOpen ? `<div class="filter-grid min-w-0 w-full">
         <label class="field-label min-w-0">Tahun
           <select class="field mt-1.5 min-w-0 w-full" id="tx-filter-year" data-filter="tx-year">
             ${yearOptions}
@@ -224,7 +231,8 @@ export function transactionsView() {
           ${badge(`${all.length} hasil`, 'slate', 'badge-soft')}
           ${summary.transfers ? `<span class="truncate">Transfer ${money(summary.transfers)}</span>` : ''}
         </div>
-      </div>
+      </div>`
+    : `<div class="min-w-0 w-full"><p class="text-xs text-slate-500 dark:text-slate-400">Filter transaksi disembunyikan. Pakai preset periode di atas untuk melihat ringkasan dengan cepat.</p></div>`}
     </section>
 
     <div class="space-y-5 min-w-0 w-full">${groupHtml}</div>

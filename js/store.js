@@ -562,6 +562,58 @@ class Store {
     return this.summaryForTransactions(this.transactionsForDate(date));
   }
 
+  closingForMonth(month = monthKey()) {
+    const summary = this.monthSummary(month);
+    const transactions = this.transactionsForMonth(month);
+    const expenseTransactions = transactions.filter((tx) => tx.type === 'expense');
+    const average = expenseTransactions.length
+      ? expenseTransactions.reduce((total, tx) => total + safeNumber(tx.amount), 0) / expenseTransactions.length
+      : 0;
+    const topCategory = this.expenseByCategory(month)[0] || null;
+    return {
+      month,
+      income: summary.income,
+      expense: summary.expense,
+      net: summary.net,
+      savingsRate: summary.savingsRate,
+      transfers: summary.transfers,
+      count: summary.count,
+      average,
+      topCategory,
+      closed: this.isMonthClosed(month),
+    };
+  }
+
+  closingMonths() {
+    const list = Array.isArray(this.data.closedMonths) ? this.data.closedMonths : [];
+    return list
+      .filter((entry) => entry && typeof entry.month === 'string')
+      .slice()
+      .sort((a, b) => String(b.month).localeCompare(String(a.month)));
+  }
+
+  isMonthClosed(month = monthKey()) {
+    return this.closingMonths().some((entry) => entry.month === month);
+  }
+
+  closeMonth(month = monthKey()) {
+    const closing = this.closingForMonth(month);
+    const list = this.closingMonths().filter((entry) => entry.month !== month);
+    list.unshift({ ...closing, month, closedAt: nowISO(), closedBy: this.currentUserId || null });
+    this.data.closedMonths = list.slice(0, 24);
+    this.persist();
+    this.emit({ source: 'local', reason: 'data:closing' });
+    return this.data.closedMonths[0];
+  }
+
+  reopenMonth(month = monthKey()) {
+    const list = this.closingMonths().filter((entry) => entry.month !== month);
+    this.data.closedMonths = list;
+    this.persist();
+    this.emit({ source: 'local', reason: 'data:closing' });
+    return { month };
+  }
+
   monthlyTrend(months = 6, endMonth = monthKey()) {
     const [year, month] = endMonth.split('-').map(Number);
     const result = [];
@@ -682,6 +734,27 @@ class Store {
 
   sharedAccounts() {
     return this.activeAccounts().filter((account) => Array.isArray(account.sharedWith) && account.sharedWith.length > 0);
+  }
+
+  creditAccounts() {
+    return this.activeAccounts().filter((account) => account.type === 'credit');
+  }
+
+  creditSpent(accountId) {
+    const account = this.accountById(accountId);
+    if (!account || account.type !== 'credit') return 0;
+    const spent = this.transactions()
+      .filter((tx) => tx.type === 'expense' && !tx.adjustment && (tx.accountId === accountId || tx.toAccountId === accountId))
+      .reduce((total, tx) => total + safeNumber(tx.amount), 0);
+    const opening = safeNumber(account.openingBalance) || 0;
+    return Math.max(0, spent + opening);
+  }
+
+  remainingCreditLimit(account) {
+    const limit = safeNumber(account?.creditLimit);
+    if (!(limit > 0)) return 0;
+    const spent = account?.id ? this.creditSpent(account.id) : 0;
+    return Math.max(0, limit - spent);
   }
 
   saveAccount(payload, id = null) {
@@ -1160,6 +1233,15 @@ class Store {
       const toAccount = data.accounts.find((item) => item.id === rule.toAccountId && !item.deletedAt);
       if (!toAccount) return false;
     }
+    if (rule.type === 'expense') {
+      const creditLimit = safeNumber(account.creditLimit);
+      const spent = this.creditSpent(rule.accountId);
+      const remaining = Math.max(0, creditLimit - spent);
+      if (creditLimit > 0 && safeNumber(rule.amount) > remaining) {
+        // Jangan auto-post tagihan yang melebihi sisa limit kredit.
+        return false;
+      }
+    }
     data.transactions.push({
       id: transactionId,
       date,
@@ -1618,6 +1700,17 @@ class Store {
     local.notes = mergeCollection(local.notes, remote.notes);
     local.goals = mergeCollection(local.goals, remote.goals);
     local.netWorthHistory = mergeCollection(local.netWorthHistory, remote.netWorthHistory);
+
+    const remoteClosed = Array.isArray(remote.closedMonths) ? remote.closedMonths : [];
+    const localClosed = Array.isArray(local.closedMonths) ? local.closedMonths : [];
+    const mergedClosed = localClosed.slice();
+    remoteClosed.forEach((entry) => {
+      const existing = mergedClosed.find((item) => item && item.month === entry?.month);
+      if (existing) Object.assign(existing, entry);
+      else mergedClosed.push({ ...entry });
+    });
+    mergedClosed.sort((a, b) => String(b?.month || '').localeCompare(String(a?.month || '')));
+    local.closedMonths = mergedClosed;
 
     if (recordStamp(remote.settings) > recordStamp(local.settings)) {
       local.settings = remote.settings;

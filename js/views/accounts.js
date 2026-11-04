@@ -2,7 +2,7 @@ import { ACCOUNT_TYPES } from '../config.js';
 import { store } from '../store.js';
 import { icon } from '../icons.js';
 import { avatar, badge, emptyState, money, pageHeader, prefs, ui } from '../ui.js';
-import { escapeAttr, escapeHTML, formatPercent } from '../utils.js';
+import { escapeAttr, escapeHTML, formatPercent, safeNumber } from '../utils.js';
 import { accountIcon } from './common.js';
 
 const UNASSIGNED = '__unassigned__';
@@ -24,7 +24,17 @@ function accountCard(account, archived = false) {
       <button type="button" class="card-icon-btn shrink-0" data-action="edit-account" data-id="${escapeAttr(account.id)}" aria-label="Ubah akun">${icon('edit', 'w-3.5 h-3.5')}</button>
     </div>
     <div class="account-balance truncate ${balance < 0 ? 'is-negative' : ''}">${money(balance)}</div>
-    ${account.type === 'credit' && account.creditLimit > 0 ? `<div class="text-[12px] text-slate-400 mt-1">Limit ${money(account.creditLimit)} · Terpakai ${Math.round(Math.abs(balance) / account.creditLimit * 100)}%</div>` : ''}
+    ${account.type === 'credit' && safeNumber(account.creditLimit) > 0 ? (() => {
+      const creditLimit = safeNumber(account.creditLimit);
+      const spent = store.creditSpent(account.id);
+      const usedPercent = creditLimit > 0 ? Math.min(100, Math.round((spent / creditLimit) * 100)) : 0;
+      const remaining = Math.max(0, creditLimit - spent);
+      const tone = usedPercent >= 90 ? 'text-red-500' : usedPercent >= 60 ? 'text-amber-500' : 'text-slate-400';
+      return `<div class="min-w-0">
+        <div class="text-[12px] ${tone}">Limit ${money(creditLimit)} · Sisa ${money(remaining)} · Terpakai ${usedPercent}%</div>
+        <div class="account-bar min-w-0 w-full"><span style="width:${Math.min(100, usedPercent)}%; background:${usedPercent >= 90 ? '#EF4444' : undefined}"></span></div>
+      </div>`;
+    })() : ''}
     <div class="account-meta min-w-0 flex justify-end gap-2 text-xs">
       <span class="shrink-0">${txCount} transaksi</span>
     </div>

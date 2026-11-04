@@ -52,6 +52,7 @@ export const ui = {
   txUser: 'all',
   txQuery: '',
   txTab: 'history',
+  txFilterOpen: true,
   txPage: 1,
   calcOpen: false,
   calendarMonth: '',

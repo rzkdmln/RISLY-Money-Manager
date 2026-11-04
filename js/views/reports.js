@@ -21,6 +21,7 @@ export function reportsView() {
     ui.reportRangeEnd = `${month}-${String(last).padStart(2, '0')}`;
   }
   const summary = store.monthSummary(month);
+  const closing = store.closingForMonth(month);
   const categories = store.expenseByCategory(month);
   const categoriesTotal = categories.reduce((total, item) => total + item.total, 0);
   const creators = store.creatorBreakdown(month);
@@ -77,6 +78,43 @@ export function reportsView() {
         <div class="stat-hint">${badge(`${savingsTone === 'green' ? 'Sehat' : savingsTone === 'amber' ? 'Cukup' : 'Perlu perhatian'}`, savingsTone, 'badge-soft')}</div>
       </div>
     </div>
+
+    <section class="card">
+      <div class="card-heading">
+        <div>
+          <p class="card-kicker">Buku buku</p>
+          <h2 class="section-title">Tutup buku · ${escapeHTML(formatMonth(month))}</h2>
+        </div>
+        ${closing.closed ? badge('Bulan tertutup', 'blue', 'badge-soft') : badge('Belum ditutup', 'slate', 'badge-soft')}
+      </div>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 min-w-0 w-full">
+        <div class="stat-card stat-green min-w-0 overflow-hidden">
+          <div class="stat-top min-w-0"><span class="truncate">Pemasukan</span><span class="stat-icon shrink-0">${icon('arrow-down-left', 'w-4 h-4')}</span></div>
+          <div class="stat-value text-base sm:text-xl truncate">${money(closing.income)}</div>
+          <div class="stat-hint truncate">${closing.count} transaksi</div>
+        </div>
+        <div class="stat-card stat-red min-w-0 overflow-hidden">
+          <div class="stat-top min-w-0"><span class="truncate">Pengeluaran</span><span class="stat-icon shrink-0">${icon('arrow-up-right', 'w-4 h-4')}</span></div>
+          <div class="stat-value text-base sm:text-xl truncate">${money(closing.expense)}</div>
+          <div class="stat-hint truncate">${closing.topCategory ? `Terbesar: ${closing.topCategory.name}` : 'Tanpa pengeluaran'}</div>
+        </div>
+        <div class="stat-card stat-blue min-w-0 overflow-hidden">
+          <div class="stat-top min-w-0"><span class="truncate">Arus kas bersih</span><span class="stat-icon shrink-0">${icon('trending-up', 'w-4 h-4')}</span></div>
+          <div class="stat-value text-base sm:text-xl truncate ${closing.net < 0 ? 'amount-expense' : ''}">${closing.net > 0 ? '+' : ''}${money(closing.net)}</div>
+          <div class="stat-hint truncate">${formatPercent(closing.savingsRate)} tabungan</div>
+        </div>
+        <div class="stat-card stat-amber min-w-0 overflow-hidden">
+          <div class="stat-top min-w-0"><span class="truncate">Rata-rata harian</span><span class="stat-icon shrink-0">${icon('calendar', 'w-4 h-4')}</span></div>
+          <div class="stat-value text-base sm:text-xl truncate">${money(closing.average)}</div>
+          <div class="stat-hint truncate">${closing.transfers ? `Transfer ${money(closing.transfers)}` : 'Tanpa transfer'}</div>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 mt-4">
+        ${closing.closed
+          ? `<button type="button" class="btn btn-secondary btn-sm" data-action="reopen-month">${icon('refresh', 'w-3.5 h-3.5')} Buka kembali</button>`
+          : `<button type="button" class="btn btn-primary btn-sm" data-action="close-month">${icon('check', 'w-3.5 h-3.5')} Tandai bulan ini ditutup</button>`}
+      </div>
+    </section>
 
     <div class="grid lg:grid-cols-5 gap-4">
       <section class="card lg:col-span-3">

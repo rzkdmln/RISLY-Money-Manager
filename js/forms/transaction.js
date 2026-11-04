@@ -13,6 +13,7 @@ import {
   formatMonth,
   monthKey,
   normalizeTime,
+  safeNumber,
   timeFromISO,
   todayISO,
 } from '../utils.js';
@@ -143,6 +144,22 @@ export function transactionForm(tx = null, defaults = {}) {
           ${accountOptions(accountId, null, accountOwner)}
         </select>
       </label>
+      ${!isTransfer && selectedAccount?.type === 'credit' ? (() => {
+        const creditLimit = safeNumber(selectedAccount.creditLimit);
+        const spent = store.creditSpent(selectedAccount.id);
+        const remaining = Math.max(0, creditLimit - spent);
+        const hasLimit = creditLimit > 0;
+        const resultAmount = expressionResult(displayAmount);
+        const overLimit = hasLimit && resultAmount !== null && resultAmount > remaining;
+        return `<div class="tx-credit-box">
+          <p class="text-[12px] text-slate-500 dark:text-slate-400">
+            ${hasLimit
+              ? `Limit kredit ${formatCurrency(creditLimit)} · terpakai ${formatCurrency(spent)} · sisa ${formatCurrency(remaining)}`
+              : 'Belum diatur batas kredit untuk akun ini.'}
+          </p>
+          ${overLimit ? `<p class="text-[12px] text-red-500 dark:text-red-400 mt-1">Nominal melebihi sisa limit kredit. Kurangi nominal atau pilih akun lain.</p>` : ''}
+        </div>`;
+      })() : ''}
 
       ${isTransfer ? `<label class="field-label">Ke akun
         <select class="field mt-1.5" name="toAccountId" required>

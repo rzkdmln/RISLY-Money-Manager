@@ -12,13 +12,8 @@
       }
     },
     "oauth_relay": {
-      ".read": true,
-      ".write": true,
-      "sessions": {
-        "$state": {
-          ".validate": "newData.hasChildren(['createdAt']) && newData.child('createdAt').isNumber()"
-        }
-      }
+      ".read": false,
+      ".write": false
     }
   }
 }
