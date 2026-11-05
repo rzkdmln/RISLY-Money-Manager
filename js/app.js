@@ -77,6 +77,7 @@ import {
   isStandalone,
   localDateISO,
   monthKey,
+  normalizeSearch,
   normalizeTime,
   nowISO,
   parseDateDMY,
@@ -630,6 +631,65 @@ function openNoteEditor(note = null, kind = 'note') {
     className: 'form-modal note-modal',
     html: noteEditorForm(note, kind),
   });
+}
+
+function renderGlobalSearchResults(query) {
+  const q = normalizeSearch(query || '');
+  if (!q) return '<p class="text-sm text-slate-500 dark:text-slate-400">Ketik untuk mencari transaksi, catatan, akun, dan kategori.</p>';
+  const txs = store.transactions().filter((tx) => {
+    const cat = store.categoryById(tx.categoryId);
+    const acc = store.accountById(tx.accountId);
+    return normalizeSearch([tx.note, cat?.name, acc?.name, tx.createdByName]).includes(q);
+  }).slice(0, 8);
+  const notes = (store.notes?.() || []).filter((note) => normalizeSearch([note.title, note.content]).includes(q)).slice(0, 6);
+  const accounts = store.activeAccounts().filter((acc) => normalizeSearch(acc.name).includes(q)).slice(0, 6);
+  const categories = store.categories('expense').concat(store.categories('income')).filter((cat) => normalizeSearch(cat.name).includes(q)).slice(0, 6);
+
+  let html = '';
+  if (txs.length) {
+    html += '<div class="space-y-1 mb-4"><p class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Transaksi</p>' +
+      txs.map((tx) => `<button type="button" class="tx-row" data-action="nav" data-route="transactions"><span class="tx-main"><span class="tx-title">${escapeHTML(tx.note || store.categoryById(tx.categoryId)?.name || 'Transaksi')}</span><span class="tx-meta">${escapeHTML(formatDate(tx.date))} · ${escapeHTML(store.accountName(tx.accountId))}</span></span><span class="tx-amount ${tx.type === 'income' ? 'amount-income' : tx.type === 'expense' ? 'amount-expense' : 'amount-transfer'}">${tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : ''}${money(tx.amount)}</span></button>`).join('') + '</div>';
+  }
+  if (notes.length) {
+    html += '<div class="space-y-1 mb-4"><p class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Catatan</p>' +
+      notes.map((note) => `<button type="button" class="settings-row" data-action="nav" data-route="notes"><span class="flex-1"><strong>${escapeHTML(note.title)}</strong><small>${escapeHTML(note.kind === 'todo' ? 'Tugas' : 'Catatan')}</small></span></button>`).join('') + '</div>';
+  }
+  if (accounts.length) {
+    html += '<div class="space-y-1 mb-4"><p class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Akun</p>' +
+      accounts.map((acc) => `<button type="button" class="settings-row" data-action="nav" data-route="accounts"><span class="flex-1"><strong>${escapeHTML(acc.name)}</strong><small>${escapeHTML(acc.type)}</small></span></button>`).join('') + '</div>';
+  }
+  if (categories.length) {
+    html += '<div class="space-y-1 mb-4"><p class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Kategori</p>' +
+      categories.map((cat) => `<button type="button" class="settings-row" data-action="nav" data-route="categories"><span class="flex-1"><strong>${escapeHTML(cat.name)}</strong><small>${escapeHTML(cat.type || '')}</small></span></button>`).join('') + '</div>';
+  }
+  if (!html) html = '<p class="text-sm text-slate-500 dark:text-slate-400">Tidak ada hasil.</p>';
+  return html;
+}
+
+function openGlobalSearch() {
+  openModal({
+    size: 'lg',
+    html: `<header class="modal-header">
+      <div>
+        <p class="modal-kicker">Pencarian</p>
+        <h2 class="modal-title">Cari di seluruh data</h2>
+      </div>
+      <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
+    </header>
+    <div class="modal-body">
+      <label class="field-label">Kata kunci
+        <input class="field mt-1.5" id="global-search-input" type="search" placeholder="Transaksi, catatan, akun, kategori" autofocus>
+      </label>
+      <div id="global-search-results" class="mt-4">${renderGlobalSearchResults('')}</div>
+    </div>`,
+  });
+  const input = document.getElementById('global-search-input');
+  if (input) {
+    input.addEventListener('input', () => {
+      const node = document.getElementById('global-search-results');
+      if (node) node.innerHTML = renderGlobalSearchResults(input.value);
+    });
+  }
 }
 
 function openProfileSheet() {
@@ -1741,6 +1801,9 @@ async function handleAction(action, element) {
       break;
     case 'open-profile':
       openProfileSheet();
+      break;
+    case 'open-global-search':
+      openGlobalSearch();
       break;
     case 'open-more':
       openMoreSheet();

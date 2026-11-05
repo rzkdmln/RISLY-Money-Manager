@@ -68,7 +68,10 @@ export function shellView(user, dueCount = 0) {
           </div>
         </div>
         <div class="topbar-right">
-          <button type="button" class="icon-btn topbar-cloud ${cloudColor}" data-action="sync-family-header" aria-label="Sinkronisasi cloud">
+          <button type="button" class="icon-btn" data-action="open-global-search" aria-label="Cari">
+          ${icon('search', 'w-[18px] h-[18px]')}
+        </button>
+        <button type="button" class="icon-btn topbar-cloud ${cloudColor}" data-action="sync-family-header" aria-label="Sinkronisasi cloud">
             ${icon('cloud', 'w-[18px] h-[18px]')}
           </button>
           <button type="button" class="icon-btn topbar-bell" data-action="open-tasks" aria-label="Tugas dan pengingat">
