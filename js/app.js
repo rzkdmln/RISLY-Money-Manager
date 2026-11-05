@@ -728,6 +728,35 @@ function openAutoLockModal() {
   });
 }
 
+function syncChoiceCount(input) {
+  const form = input.closest('form[data-form="game"]');
+  if (!form) return;
+  const count = Math.max(0, Math.min(20, Number(input.value) || 0));
+  const list = form.querySelector('#game-choices-list');
+  const existing = list.querySelectorAll('input[name^="choice_"]');
+
+  // Remove excess
+  for (let i = existing.length - 1; i >= count; i--) {
+    existing[i]?.closest('.flex.gap-1.items-center')?.remove();
+  }
+
+  // Add missing
+  for (let i = existing.length; i < count; i++) {
+    const color = gameColor(i);
+    const div = document.createElement('div');
+    div.className = 'flex gap-1 items-center bg-slate-50 dark:bg-slate-800/40 rounded-lg p-2';
+    div.innerHTML = `
+      <span class="w-2 h-2 rounded-full shrink-0" style="background:${escapeAttr(color)}"></span>
+      <input class="field flex-1" name="choice_${i}" value="" placeholder="Pilihan ${i + 1}">
+      <button type="button" class="icon-btn text-rose-500 shrink-0" data-action="remove-choice" data-index="${i}">${icon('x', 'w-3 h-3')}</button>
+    `;
+    list.appendChild(div);
+  }
+
+  const empty = form.querySelector('#game-choices-empty');
+  if (empty) empty.classList.toggle('hidden', count > 0);
+}
+
 function openThemeModal() {
   openModal({
     size: 'sm',
@@ -2392,6 +2421,8 @@ async function handleAction(action, element) {
           resultNode.textContent = winner ? winner.text : 'Tidak ada hasil';
           resultNode.classList.remove('hidden');
           resultNode.style.color = winner?.color || '#2563eb';
+          resultNode.classList.add('animate-pop');
+          requestAnimationFrame(() => resultNode.classList.remove('animate-pop'));
         }
         if (spinBtn) {
           spinBtn.disabled = false;
@@ -3916,6 +3947,10 @@ function bindEvents() {
         accountSelect.innerHTML = '<option value="">Pilih Akun</option>' +
           accounts.map((account) => `<option value="${escapeAttr(account.id)}" ${selected === account.id ? 'selected' : ''}>${escapeHTML(account.name)}${account.archived ? ' (arsip)' : ''}</option>`).join('');
       }
+      return;
+    }
+    if (target.matches('input[name="choiceCount"]')) {
+      syncChoiceCount(target);
       return;
     }
     if (target.dataset?.action) {

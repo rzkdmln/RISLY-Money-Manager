@@ -25,15 +25,20 @@ export function gamesView() {
             <button type="button" class="icon-btn shrink-0" data-action="delete-game" data-id="${escapeAttr(game.id)}" aria-label="Hapus roda">${icon('trash', 'w-3 h-3 text-rose-500')}</button>
           </div>
           <div class="flex-1 mb-3">
-            <div class="w-full h-12 bg-slate-200 dark:bg-slate-800/60 rounded-full overflow-hidden relative mb-2">
+            <div class="w-16 h-16 bg-slate-200 dark:bg-slate-800/60 rounded-full overflow-hidden relative mx-auto mb-2">
               ${(game.choices || []).slice(0, 8).map((c, i) => {
-                const deg = (i / Math.max(choiceCount, 1)) * 360;
-                return `<div class="absolute inset-0" style="clip-path:polygon(50% 50%, ${Math.cos((deg - 5) * Math.PI / 180) * 100 + 50}% ${Math.sin((deg - 5) * Math.PI / 180) * 100 + 50}%, ${Math.cos((deg + 5) * Math.PI / 180) * 100 + 50}% ${Math.sin((deg + 5) * Math.PI / 180) * 100 + 50}%); background:${escapeAttr(c.color || gameColor(i))}"></div>`;
+                const start = (i / Math.max(choiceCount, 1)) * 360;
+                const end = ((i + 1) / Math.max(choiceCount, 1)) * 360;
+                const p1 = (deg) => {
+                  const rad = (deg * Math.PI) / 180;
+                  return `${(Math.cos(rad) * 50 + 50).toFixed(1)}% ${(Math.sin(rad) * 50 + 50).toFixed(1)}%`;
+                };
+                return `<div class="absolute inset-0" style="clip-path: polygon(50% 50%, ${p1(start)}, ${p1(end)}); background:${escapeAttr(c.color || gameColor(i))}"></div>`;
               }).join('')}
               <div class="absolute inset-0 border-2 border-white rounded-full"></div>
-              <div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-red-600 rounded-full"></div>
+              <div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-rose-600 ring-1 ring-white shadow-sm rounded-full"></div>
             </div>
-            <p class="text-xs text-slate-500 dark:text-slate-400">${choiceCount} pilihan</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400 text-center">${choiceCount} pilihan</p>
           </div>
           <div class="flex gap-1 mt-auto">
             <button type="button" class="btn btn-primary flex-1 btn-sm" data-action="spin-game" data-id="${escapeAttr(game.id)}">${icon('refresh', 'w-3.5 h-3.5')} Putar</button>
@@ -67,16 +72,16 @@ export function gameEditor(game = null) {
       </label>
       <div class="flex items-center justify-between mt-2 mb-1">
         <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Jumlah pilihan</span>
-        <input type="number" name="choiceCount" min="1" max="20" value="${escapeAttr(choices.length || 3)}" class="field w-20 text-center" required>
+        <input type="number" name="choiceCount" min="1" max="20" value="${escapeAttr(choices.length > 0 ? choices.length : '')}" class="field w-20 text-center" required data-action="sync-choice-count">
       </div>
       <div class="space-y-1 mt-1" id="game-choices-list">
-        ${choices.map((c, i) => `
+        ${choices.length > 0 ? choices.map((c, i) => `
           <div class="flex gap-1 items-center bg-slate-50 dark:bg-slate-800/40 rounded-lg p-2">
             <span class="w-2 h-2 rounded-full shrink-0" style="background:${escapeAttr(c.color || gameColor(i))}"></span>
             <input class="field flex-1" name="choice_${i}" value="${escapeAttr(c.text || '')}" placeholder="Pilihan ${i + 1}">
             <button type="button" class="icon-btn text-rose-500 shrink-0" data-action="remove-choice" data-index="${i}">${icon('x', 'w-3 h-3')}</button>
-          </div>`).join('')}
-        <div id="game-choices-empty" class="text-[11px] text-slate-400 mt-1 hidden">${choices.length === 0 ? 'Tambahkan setidaknya satu pilihan.' : ''}</div>
+          </div>`).join('') : ''}
+        <div id="game-choices-empty" class="text-[11px] text-slate-400 mt-1 hidden">${choices.length === 0 ? 'Ketik jumlah pilihan di atas, lalu isi setiap opsi.' : ''}</div>
       </div>
       <button type="button" class="btn btn-secondary btn-sm w-full mt-2" data-action="add-choice">${icon('plus', 'w-3 h-3')} Tambah pilihan</button>
 
@@ -103,31 +108,36 @@ export function gameWheel(game) {
   const segmentCount = Math.max(choices.length, 1);
   const segmentDeg = 360 / segmentCount;
 
-  return `<div class="page-stack">
-    ${pageHeader({
-      eyebrow: 'Putar roda',
-      title: escapeHTML(game.name || 'Roda'),
-      actions: `<button type="button" class="btn btn-secondary btn-sm" data-action="open-game-editor" data-id="${escapeAttr(game.id)}">${icon('edit', 'w-3.5 h-3.5')} Ubah</button>`,
-    })}
+  const point = (deg) => {
+    const rad = (deg * Math.PI) / 180;
+    const x = Math.cos(rad) * 100 + 50;
+    const y = Math.sin(rad) * 100 + 50;
+    return `${x.toFixed(2)}% ${y.toFixed(2)}%`;
+  };
 
-    <div class="flex flex-col items-center justify-center min-h-[60vh] px-3">
-      <div class="relative w-full max-w-[260px] aspect-square">
-        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div class="w-1 h-4 bg-red-600"></div>
+  return `<div class="flex flex-col items-center justify-center min-h-[60vh] px-3 sm:px-6 gap-4">
+    <div class="relative w-full max-w-[280px] aspect-square">
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div class="w-1 h-5 bg-rose-600 shadow-[0_0_8px_rgba(220,38,38,0.4)]"></div>
+      </div>
+      <div class="wheel w-full h-full relative overflow-hidden rounded-full border-4 border-white dark:border-slate-800 shadow-lg transform transition-transform duration-[5s] ease-out" id="game-wheel" style="transform: rotate(0deg)">
+        ${choices.map((c, i) => {
+          const start = i * segmentDeg;
+          return `<div class="absolute inset-0" style="clip-path: polygon(50% 50%, ${point(start)}, ${point(start + segmentDeg)}); background:${escapeAttr(c.color || gameColor(i))}"></div>
+          <div class="absolute inset-0 flex items-center justify-center" style="transform: rotate(${start + segmentDeg / 2}deg) translateY(-72%) rotate(${-start - segmentDeg / 2}deg)">
+            <span class="text-white font-bold text-[11px] sm:text-xs leading-none whitespace-nowrap filter drop-shadow([0_0_3px_rgba(0,0,0,0.5)])">${escapeHTML(c.text)}</span>
+          </div>`;
+        }).join('')}
+        <div class="absolute inset-0 border-2 border-white rounded-full pointer-events-none z-10"></div>
+        <div class="absolute inset-0 w-full h-full bg-gradient-to-t from-transparent to-black/30 pointer-events-none rounded-full"></div>
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+          <div class="w-2 h-2 rounded-full bg-red-600 ring-2 ring-white ring-offset-2 shadow-sm"></div>
         </div>
-        <div class="wheel w-full h-full relative overflow-hidden rounded-full border-4 border-white dark:border-slate-800 shadow-lg transform transition-transform duration-[5s] ease-out" id="game-wheel" style="transform: rotate(0deg)">
-          ${choices.map((c, i) => {
-            const start = i * segmentDeg;
-            return `<div class="absolute inset-0" style="clip-path: polygon(50% 50%, ${Math.cos(start * Math.PI / 180) * 100 + 50}% ${Math.sin(start * Math.PI / 180) * 100 + 50}%, ${Math.cos((start + segmentDeg) * Math.PI / 180) * 100 + 50}% ${Math.sin((start + segmentDeg) * Math.PI / 180) * 100 + 50}%); background:${escapeAttr(c.color || gameColor(i))}"></div>
-            <div class="absolute inset-0 flex items-center justify-center" style="transform: rotate(${start + segmentDeg / 2}deg) translateY(-70%) rotate(${-start - segmentDeg / 2}deg)">
-              <span class="text-white font-bold text-xs leading-none whitespace-nowrap filter drop-shadow([0_0_2px_rgba(0,0,0,0.5)])">${escapeHTML(c.text)}</span>
-            </div>`;
-          }).join('')}
-          <div class="absolute inset-0 border-2 border-white rounded-full pointer-events-none"></div>
-          <div class="absolute inset-0 w-full h-full bg-gradient-to-t from-transparent to-black/20 pointer-events-none"></div>
-        </div>
-        <p id="game-result" class="mt-6 text-center text-2xl font-bold text-slate-900 dark:text-white hidden"></p>
-        <button type="button" class="btn btn-primary w-full mt-6 shrink-0" data-action="do-spin" data-id="${escapeAttr(game.id)}">
+      </div>
+
+      <div class="mt-5 flex flex-col items-center gap-2">
+        <p id="game-result" class="text-center text-xl font-bold text-slate-900 dark:text-white hidden animate-pop"></p>
+        <button type="button" class="btn btn-primary w-full sm:w-auto mt-2 shrink-0" data-action="do-spin" data-id="${escapeAttr(game.id)}">
           ${icon('rotate-ccw', 'w-5 h-5')} Putar Roda
         </button>
       </div>
