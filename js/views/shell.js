@@ -148,10 +148,9 @@ export function profileSheet(user) {
         </div>
         ${syncPill(status)}
       </div>` : ''}
-      <div class="grid ${user?.pinHash ? 'grid-cols-2' : 'grid-cols-1'} gap-2.5 mt-4">
-        ${user?.pinHash ? `<button type="button" class="btn btn-secondary" data-action="lock-app">${icon('lock', 'w-4 h-4')} Kunci</button>` : ''}
-        <button type="button" class="btn btn-danger-soft" data-action="logout">${icon('log-out', 'w-4 h-4')} Keluar</button>
-      </div>
+      ${user?.pinHash ? `<div class="mt-4">
+        <button type="button" class="btn btn-secondary w-full" data-action="lock-app">${icon('lock', 'w-4 h-4')} Kunci aplikasi</button>
+      </div>` : ''}
     </div>`;
 }
 

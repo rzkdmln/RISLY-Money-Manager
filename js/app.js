@@ -3826,6 +3826,13 @@ async function boot() {
     }
   }
 
+  // Sesi default permanen (tanpa kunci otomatis) agar tidak perlu login ulang.
+  try {
+    if (store.workspaceId && store.data?.settings?.autoLockMinutes === 15) {
+      store.updateSettings({ autoLockMinutes: 0 });
+    }
+  } catch { /* noop */ }
+
   setSplashStatus('Memeriksa pembaruan...');
   registerServiceWorker();
 
