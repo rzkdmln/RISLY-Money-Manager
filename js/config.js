@@ -61,6 +61,7 @@ export const DESKTOP_NAV = [
   'reports',
   'recurring',
   'categories',
+  'games',
   'settings',
 ];
 
