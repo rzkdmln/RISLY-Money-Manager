@@ -52,20 +52,16 @@ function googleDriveCard(user, driveConnected) {
         <button type="button" class="btn btn-ghost btn-sm" data-action="copy-invite" data-id="${escapeAttr(inviteCode)}">${icon('copy', 'w-3.5 h-3.5')} Salin</button>
         <button type="button" class="btn btn-ghost btn-sm" data-action="rotate-invite">${icon('refresh', 'w-3.5 h-3.5')} Baru</button>
       </div>
-      <div class="settings-row">
-        <span class="settings-row-icon">${icon('user', 'w-4 h-4')}</span>
-        <span class="flex-1"><strong>${escapeHTML(user?.name || 'Anggota')}</strong><small>${escapeHTML(user?.googleEmail || 'Belum terhubung Google')}</small></span>
-      </div>
+
       <div class="settings-row">
         <span class="settings-row-icon">${icon('cloud', 'w-4 h-4')}</span>
-        <span class="flex-1"><strong>Cloud ruang</strong><small>${escapeHTML(Cloud.getStatus().providerLabel)}${Cloud.getStatus().provider === 'local' ? ' — belum tersinkron' : ' (sinkron otomatis)'}</small></span>
+        <span class="flex-1"><strong>Cloud ruang</strong><small>${escapeHTML(Cloud.getStatus().providerLabel)}${Cloud.getStatus().provider === 'local' ? ' - belum tersinkron' : ''}</small></span>
       </div>
     </div>
 
     ${driveConnected ? `<div class="settings-actions mt-4">
       <button type="button" class="btn btn-secondary btn-sm" data-action="drive-backup" data-drive-requires-google>${icon('cloud', 'w-3.5 h-3.5')} Backup sekarang</button>
       <button type="button" class="btn btn-secondary btn-sm" data-action="drive-restore" data-drive-requires-google>${icon('upload', 'w-3.5 h-3.5')} Pulihkan</button>
-      <button type="button" class="btn btn-ghost btn-sm" data-action="sync-family">${icon('refresh', 'w-3.5 h-3.5')} Sinkron ruang</button>
       <button type="button" class="btn btn-ghost btn-sm" data-action="google-join">${icon('users', 'w-3.5 h-3.5')} Gabung ruang lain</button>
       <button type="button" class="btn btn-ghost btn-sm" data-action="gdrive-signout">${icon('log-out', 'w-3.5 h-3.5')} Ganti akun</button>
     </div>`
@@ -109,18 +105,8 @@ export function settingsView(user) {
           <div><p class="card-kicker">Keamanan</p><h2 class="section-title">PIN & sesi</h2></div>
           ${icon('shield', 'w-5 h-5 text-emerald-500')}
         </div>
-        <div class="settings-list">
-          ${user?.pinHash
-            ? `<button type="button" class="settings-row" data-action="change-pin"><span class="settings-row-icon">${icon('lock', 'w-4 h-4')}</span><span class="flex-1"><strong>Ubah PIN</strong><small>4–8 angka</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>
-          <button type="button" class="settings-row" data-action="remove-pin"><span class="settings-row-icon text-red-500">${icon('x', 'w-4 h-4')}</span><span class="flex-1"><strong class="text-red-500">Hapus PIN</strong><small>Login Google tetap bisa masuk</small></span></button>`
-            : `<button type="button" class="settings-row" data-action="change-pin"><span class="settings-row-icon">${icon('lock', 'w-4 h-4')}</span><span class="flex-1"><strong>Buat PIN</strong><small>Opsional — untuk kunci aplikasi</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>`}
-          <div class="settings-row">
-            <span class="settings-row-icon">${icon('clock', 'w-4 h-4')}</span>
-            <span class="flex-1"><strong>Kunci otomatis</strong><small>Setelah tidak ada aktivitas</small></span>
-            <select class="field field-compact w-32" data-setting="autoLockMinutes">
-              ${LOCK_OPTIONS.map((option) => `<option value="${option.value}" ${lockValue === option.value ? 'selected' : ''}>${escapeHTML(option.label)}</option>`).join('')}
-            </select>
-          </div>
+          <button type="button" class="settings-row" data-action="change-pin"><span class="settings-row-icon">${icon('lock', 'w-4 h-4')}</span><span class="flex-1"><strong>${user?.pinHash ? 'Ubah PIN' : 'Buat PIN'}</strong><small>${user?.pinHash ? '4-8 angka' : 'Opsional - untuk kunci aplikasi'}</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>
+          <button type="button" class="settings-row" data-action="open-auto-lock"><span class="settings-row-icon">${icon('clock', 'w-4 h-4')}</span><span class="flex-1"><strong>Kunci otomatis</strong><small>${escapeHTML(LOCK_OPTIONS.find((o) => o.value === lockValue)?.label || 'Tidak pernah')}</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>
           <button type="button" class="settings-row" data-action="notifications"><span class="settings-row-icon">${icon('bell', 'w-4 h-4')}</span><span class="flex-1"><strong>Notifikasi</strong><small>Pengingat tugas dan catatan</small></span>${badge(notification.label, notification.tone, 'badge-soft')}</button>
         </div>
       </section>
@@ -130,27 +116,16 @@ export function settingsView(user) {
           <div><p class="card-kicker">Tampilan</p><h2 class="section-title">Nuansa aplikasi</h2></div>
           ${icon('palette', 'w-5 h-5 text-violet-500')}
         </div>
-        <p class="field-label">Tema</p>
-        <div class="theme-options">
-          ${THEME_OPTIONS.map((option) => `<button type="button" class="theme-option ${prefs.theme === option.id ? 'is-active' : ''}" data-action="theme-set" data-theme="${option.id}">
-            ${icon(option.icon, 'w-4 h-4')}<span>${escapeHTML(option.label)}</span>
-          </button>`).join('')}
-        </div>
+        <button type="button" class="settings-row" data-action="open-theme-modal"><span class="settings-row-icon">${icon('palette', 'w-4 h-4')}</span><span class="flex-1"><strong>Tema</strong><small>${escapeHTML(THEME_OPTIONS.find((o) => o.id === prefs.theme)?.label || 'Sistem')}</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>
         <div class="settings-list mt-4">
           <button type="button" class="settings-row" data-action="toggle-privacy"><span class="settings-row-icon">${icon(prefs.hideAmounts ? 'eye-off' : 'eye', 'w-4 h-4')}</span><span class="flex-1"><strong>Sembunyikan nominal</strong><small>Samarkan angka saat dilihat orang</small></span><span class="switch ${prefs.hideAmounts ? 'is-on' : ''}"></span></button>
-          <div class="settings-row">
-            <span class="settings-row-icon">${icon('calendar', 'w-4 h-4')}</span>
-            <span class="flex-1"><strong>Awal pekan</strong><small>Untuk tampilan kalender</small></span>
-            <select class="field field-compact w-28" data-setting="weekStartsOn">
-              ${WEEK_OPTIONS.map((option) => `<option value="${option.value}" ${Number(store.data.settings.weekStartsOn) === option.value ? 'selected' : ''}>${escapeHTML(option.label)}</option>`).join('')}
-            </select>
-          </div>
+          <button type="button" class="settings-row" data-action="open-week-modal"><span class="settings-row-icon">${icon('calendar', 'w-4 h-4')}</span><span class="flex-1"><strong>Awal pekan</strong><small>${escapeHTML(WEEK_OPTIONS.find((o) => o.value === Number(store.data.settings.weekStartsOn))?.label || 'Senin')}</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>
         </div>
       </section>
 
       <form class="card" data-form="settings-household">
         <div class="card-heading">
-          <div><p class="card-kicker">Ruang</p><h2 class="section-title">Identitas & anggaran</h2></div>
+          <div><p class="card-kicker">Keluarga</p><h2 class="section-title">Identitas & anggaran</h2></div>
           ${icon('users', 'w-5 h-5 text-blue-500')}
         </div>
         <label class="field-label">Nama ruang
@@ -204,9 +179,9 @@ export function settingsView(user) {
           <div><span>Catatan</span><strong>${noteCount}</strong></div>
         </div>
         <div class="settings-actions">
-          <button type="button" class="btn btn-secondary btn-sm" data-action="export-backup">${icon('download', 'w-3.5 h-3.5')} Unduh backup</button>
-          <button type="button" class="btn btn-secondary btn-sm" data-action="import-backup">${icon('upload', 'w-3.5 h-3.5')} Pulihkan backup</button>
-          <button type="button" class="btn btn-danger-soft btn-sm" data-action="reset-app">${icon('trash', 'w-3.5 h-3.5')} Reset ruang</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-action="export-backup">${icon('download', 'w-3.5 h-3.5')} Backup</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-action="import-backup">${icon('upload', 'w-3.5 h-3.5')} Restore</button>
+          <button type="button" class="btn btn-danger-soft btn-sm" data-action="reset-app">${icon('trash', 'w-3.5 h-3.5')} Reset</button>
         </div>
       </section>
 
@@ -216,9 +191,7 @@ export function settingsView(user) {
           ${icon('device', 'w-5 h-5 text-slate-500')}
         </div>
         <div class="settings-list">
-          <div class="settings-row"><span class="settings-row-icon">${icon('cloud', 'w-4 h-4')}</span><span class="flex-1"><strong>Service Worker</strong><small>${swActive ? 'Aktif — app shell tersimpan offline' : 'Mendaftar…'}</small></span>${badge(swActive ? 'Offline siap' : 'Menunggu', swActive ? 'green' : 'amber', 'badge-soft')}</div>
           <div class="settings-row"><span class="settings-row-icon">${icon('device', 'w-4 h-4')}</span><span class="flex-1"><strong>Mode aplikasi</strong><small>${installed ? 'Berjalan sebagai PWA standalone' : isIos() ? 'Tambahkan ke Layar Utama lewat Safari' : 'Dapat dipasang dari menu browser'}</small></span>${badge(installed ? 'Terpasang' : 'Browser', installed ? 'green' : 'slate', 'badge-soft')}</div>
-          <button type="button" class="settings-row" data-action="install-help"><span class="settings-row-icon">${icon('info', 'w-4 h-4')}</span><span class="flex-1"><strong>Cara memasang di iPhone</strong><small>Safari → Bagikan → Tambahkan ke Layar Utama</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>
         </div>
         <button type="button" class="btn btn-secondary w-full mt-4" data-action="check-update">${icon('refresh', 'w-4 h-4')} Periksa pembaruan</button>
       </section>

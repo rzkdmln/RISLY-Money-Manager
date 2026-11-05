@@ -162,7 +162,7 @@ export function transactionsView() {
     <section class="card filter-card min-w-0 w-full overflow-hidden">
       <div class="filter-top min-w-0">
         <button type="button" class="link-button shrink-0" data-action="tx-toggle-filter" aria-expanded="${ui.txFilterOpen}">
-          ${icon('filter', 'w-4 h-4')} Filter
+          ${icon('filter', 'w-4 h-4')} Filter ${icon(ui.txFilterOpen ? 'chevron-up' : 'chevron-down', 'w-3.5 h-3.5')}
         </button>
         <button type="button" class="link-button shrink-0" data-action="reset-tx-filter">Reset</button>
       </div>
@@ -228,7 +228,6 @@ export function transactionsView() {
         </label>
       </div>
       <div class="filter-bottom min-w-0">
-        <span class="text-xs text-slate-500 dark:text-slate-400">Preset periode di atas akan menyesuaikan pilihan tahun &amp; bulan secara otomatis.</span>
         <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 min-w-0 overflow-hidden">
           ${badge(`${all.length} hasil`, 'slate', 'badge-soft')}
           ${summary.transfers ? `<span class="truncate">Transfer ${money(summary.transfers)}</span>` : ''}

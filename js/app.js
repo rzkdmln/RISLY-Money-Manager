@@ -9,8 +9,11 @@ import {
   APP,
   CLOUD_PROVIDERS,
   FREQUENCIES,
+  LOCK_OPTIONS,
   ROUTES,
+  THEME_OPTIONS,
   TX_TYPES,
+  WEEK_OPTIONS,
 } from './config.js';
 import { store } from './store.js';
 import { Cloud } from './cloud.js';
@@ -46,6 +49,7 @@ import {
   closeModal,
   confirmDialog,
   emptyState,
+  money,
   openModal,
   prefs,
   savePrefs,
@@ -690,6 +694,88 @@ function openGlobalSearch() {
       if (node) node.innerHTML = renderGlobalSearchResults(input.value);
     });
   }
+}
+
+function openAutoLockModal() {
+  const current = Number(store.data.settings.autoLockMinutes) || 0;
+  openModal({
+    size: 'sm',
+    html: `<form data-form="auto-lock" class="modal-form" novalidate>
+      <header class="modal-header">
+        <div>
+          <p class="modal-kicker">Keamanan sesi</p>
+          <h2 class="modal-title">Kunci otomatis</h2>
+        </div>
+        <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
+      </header>
+      <div class="modal-body">
+        <label class="field-label">Kunci setelah tidak ada aktivitas
+          <select class="field mt-1.5" name="autoLockMinutes">
+            ${LOCK_OPTIONS.map((option) => `<option value="${option.value}" ${current === option.value ? 'selected' : ''}>${escapeHTML(option.label)}</option>`).join('')}
+          </select>
+        </label>
+      </div>
+      <footer class="modal-footer">
+        <span></span>
+        <div class="flex gap-2 ml-auto">
+          <button type="button" class="btn btn-secondary" data-action="close-modal">Batal</button>
+          <button type="submit" class="btn btn-primary">${icon('check', 'w-4 h-4')} Simpan</button>
+        </div>
+      </footer>
+    </form>`,
+  });
+}
+
+function openThemeModal() {
+  openModal({
+    size: 'sm',
+    html: `<div class="modal-form">
+      <header class="modal-header">
+        <div>
+          <p class="modal-kicker">Tampilan</p>
+          <h2 class="modal-title">Tema</h2>
+        </div>
+        <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
+      </header>
+      <div class="modal-body">
+        <div class="theme-options">
+          ${THEME_OPTIONS.map((option) => `<button type="button" class="theme-option ${prefs.theme === option.id ? 'is-active' : ''}" data-action="theme-set" data-theme="${option.id}">
+            ${icon(option.icon, 'w-4 h-4')}<span>${escapeHTML(option.label)}</span>
+          </button>`).join('')}
+        </div>
+      </div>
+    </div>`,
+  });
+}
+
+function openWeekModal() {
+  const current = Number(store.data.settings.weekStartsOn) || 1;
+  openModal({
+    size: 'sm',
+    html: `<form data-form="week-start" class="modal-form" novalidate>
+      <header class="modal-header">
+        <div>
+          <p class="modal-kicker">Kalender</p>
+          <h2 class="modal-title">Awal pekan</h2>
+        </div>
+        <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
+      </header>
+      <div class="modal-body">
+        <label class="field-label">Hari pertama minggu
+          <select class="field mt-1.5" name="weekStartsOn">
+            ${WEEK_OPTIONS.map((option) => `<option value="${option.value}" ${current === option.value ? 'selected' : ''}>${escapeHTML(option.label)}</option>`).join('')}
+          </select>
+        </label>
+      </div>
+      <footer class="modal-footer">
+        <span></span>
+        <div class="flex gap-2 ml-auto">
+          <button type="button" class="btn btn-secondary" data-action="close-modal">Batal</button>
+          <button type="submit" class="btn btn-primary">${icon('check', 'w-4 h-4')} Simpan</button>
+        </div>
+      </footer>
+    </form>`,
+  });
 }
 
 function openProfileSheet() {
@@ -1805,6 +1891,18 @@ async function handleAction(action, element) {
     case 'open-global-search':
       openGlobalSearch();
       break;
+    case 'open-auto-lock': {
+      openAutoLockModal();
+      break;
+    }
+    case 'open-theme-modal': {
+      openThemeModal();
+      break;
+    }
+    case 'open-week-modal': {
+      openWeekModal();
+      break;
+    }
     case 'open-more':
       openMoreSheet();
       break;
@@ -2311,6 +2409,12 @@ async function handleAction(action, element) {
       renderApplication();
       break;
     case 'copy-budget': {
+      const ok = await confirmDialog({
+        title: 'Salin anggaran bulan lalu?',
+        message: 'Anggaran bulan ini akan ditimpa dengan anggaran bulan sebelumnya.',
+        confirmLabel: 'Salin',
+      });
+      if (!ok) break;
       const current = ui.budgetMonth || monthKey();
       const previous = shiftMonthKey(current, -1);
       const entries = {};
@@ -3305,6 +3409,22 @@ async function submitForm(form) {
     case 'login':
       await submitLogin(form);
       break;
+    case 'auto-lock': {
+      const value = Number(form.querySelector('[name="autoLockMinutes"]')?.value || 0);
+      store.updateSettings({ autoLockMinutes: Number.isFinite(value) ? value : 0 });
+      closeModal();
+      renderApplication();
+      toast('Pengaturan sesi disimpan.', 'success');
+      break;
+    }
+    case 'week-start': {
+      const value = Number(form.querySelector('[name="weekStartsOn"]')?.value || 1);
+      store.updateSettings({ weekStartsOn: Number.isFinite(value) ? value : 1 });
+      closeModal();
+      renderApplication();
+      toast('Pengaturan kalender disimpan.', 'success');
+      break;
+    }
     case 'join-workspace':
       await submitJoinWorkspace(form);
       break;

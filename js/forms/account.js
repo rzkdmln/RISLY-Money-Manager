@@ -211,10 +211,12 @@ export function changePinForm(user) {
       <p class="form-error hidden" data-form-error role="alert"></p>
     </div>
     <footer class="modal-footer">
-      <span></span>
+      <div class="flex gap-2">
+        ${user?.pinHash ? `<button type="button" class="btn btn-danger-soft" data-action="remove-pin" data-id="${escapeAttr(user.id)}">${icon('x', 'w-4 h-4')} Hapus PIN</button>` : ''}
+      </div>
       <div class="flex gap-2 ml-auto">
         <button type="button" class="btn btn-secondary" data-action="close-modal">Batal</button>
-        <button type="submit" class="btn btn-primary">${icon('lock', 'w-4 h-4')} Ubah PIN</button>
+        <button type="submit" class="btn btn-primary">${icon('lock', 'w-4 h-4')} ${user?.pinHash ? 'Ubah PIN' : 'Buat PIN'}</button>
       </div>
     </footer>
   </form>`;

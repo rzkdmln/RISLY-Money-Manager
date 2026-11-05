@@ -220,7 +220,7 @@ export function dashboardView(user) {
             </div>
           `}
         </div>
-        <button type="button" class="flex items-center justify-center gap-1 w-full mt-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors" data-action="nav" data-route="budgets">Detail anggaran</button>
+        <button type="button" class="flex items-center justify-center gap-1 w-full mt-4 py-2 text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 transition-colors" data-action="nav" data-route="budgets">Detail anggaran</button>
       </section>
     </div>
 

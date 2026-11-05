@@ -554,5 +554,5 @@ export function googleAccountBadge(account) {
   const avatar = account.picture
     ? `<img class="gdrive-avatar" src="${escapeAttr(account.picture)}" alt="" loading="lazy" referrerpolicy="no-referrer">`
     : `<span class="gdrive-avatar is-fallback">${icon('user', 'w-4 h-4')}</span>`;
-  return `<span class="gdrive-account">${avatar}<span class="min-w-0"><strong>${escapeHTML(account.email)}</strong><small>${escapeHTML(account.name || 'Terhubung')}</small></span>${icon('check-circle', 'w-4 h-4 text-emerald-500 shrink-0')}</span>`;
+  return `<span class="gdrive-account">${avatar}<span class="min-w-0"><strong>${escapeHTML(account.email)}</strong><small>${escapeHTML(account.name || 'Terhubung')}</small></span>${icon('check-circle', 'w-4 h-4 text-blue-500 shrink-0 ml-auto')}</span>`;
 }

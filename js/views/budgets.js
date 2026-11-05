@@ -31,7 +31,7 @@ export function budgetsView() {
       eyebrow: 'Rencana belanja',
       title: 'Anggaran',
       subtitle: '',
-      actions: '<button type="button" class="btn btn-secondary" data-action="copy-budget" title="Salin anggaran bulan sebelumnya">' + icon('copy', 'w-4 h-4') + ' Salin bulan lalu</button>',
+      actions: '',
     }) +
 
     '<section class="card">' +
@@ -48,6 +48,7 @@ export function budgetsView() {
           '<div>' +
             '<p class="card-kicker">Total anggaran ' + escapeHTML(formatMonth(month, { month: 'long' })) + '</p>' +
             '<p class="budget-hero-value">' + (hasBudget ? money(status.total) : 'Belum diatur') + '</p>' +
+            '<button type="button" class="btn btn-ghost btn-sm mt-2" data-action="copy-budget" title="Salin anggaran bulan sebelumnya">' + icon('copy', 'w-3.5 h-3.5') + ' Salin bulan lalu</button>' +
           '</div>' +
           '<form data-form="budget-total" class="budget-set-form">' +
             '<label class="field-label">Atur total' +

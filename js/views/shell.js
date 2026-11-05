@@ -149,7 +149,6 @@ export function profileSheet(user) {
           <p class="text-xs font-semibold text-slate-700 dark:text-slate-200">${escapeHTML(status.providerLabel)}</p>
           <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate">${escapeHTML(status.error || status.message || 'Data lokal di perangkat ini')}</p>
         </div>
-        ${syncPill(status)}
       </div>` : ''}
       ${user?.pinHash ? `<div class="mt-4">
         <button type="button" class="btn btn-secondary w-full" data-action="lock-app">${icon('lock', 'w-4 h-4')} Kunci aplikasi</button>
