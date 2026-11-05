@@ -137,17 +137,6 @@ export function settingsView(user) {
       <p class="text-[11px] text-slate-400 mt-3">Anggota baru bergabung lewat kode undangan di halaman masuk.</p>
     </section>
 
-      <section class="card">
-        <div class="card-heading">
-          <div><p class="card-kicker">Struktur</p><h2 class="section-title">Kategori & jadwal</h2></div>
-          ${icon('tag', 'w-5 h-5 text-pink-500')}
-        </div>
-        <div class="settings-list">
-          <a href="#/categories" class="settings-row" data-action="nav" data-route="categories"><span class="settings-row-icon">${icon('tag', 'w-4 h-4')}</span><span class="flex-1"><strong>Kategori</strong><small>${store.categories().length} kategori aktif</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</a>
-          <a href="#/recurring" class="settings-row" data-action="nav" data-route="recurring"><span class="settings-row-icon">${icon('repeat', 'w-4 h-4')}</span><span class="flex-1"><strong>Transaksi berulang</strong><small>${store.recurringRules().length} jadwal</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</a>
-          <a href="#/budgets" class="settings-row" data-action="nav" data-route="budgets"><span class="settings-row-icon">${icon('chart-pie', 'w-4 h-4')}</span><span class="flex-1"><strong>Anggaran</strong><small>Batas dan ambang peringatan</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</a>
-        </div>
-      </section>
     </div>
 
     ${googleDriveCard(user, driveConnected)}
