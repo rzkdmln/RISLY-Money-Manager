@@ -3932,8 +3932,8 @@ async function boot() {
     }).catch((error) => console.warn('Cloud bootstrap skipped:', error));
   }
 
-  // Hide splash after a short delay to ensure paint
-  setTimeout(hideSplash, 600);
+  // Sembunyikan splash setelah halaman target selesai dimuat.
+  hideSplash();
 
   window.__RISLY__ = { store, Cloud, navigate, version: APP.version };
 }

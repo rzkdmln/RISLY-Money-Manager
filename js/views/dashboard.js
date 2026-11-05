@@ -44,25 +44,8 @@ export function dashboardView(user) {
   const expense = scopedSummary.expense || 0;
   const cashflow = income - expense;
 
-  const baseBudget = store.budgetStatus(month);
-  const scopedBudgetCategories = baseBudget.categories.map((item) => {
-    const spentForCategory = scopedTransactions
-      .filter((tx) => tx.type === 'expense' && tx.categoryId === item.category.id)
-      .reduce((total, tx) => total + (Number(tx.amount) || 0), 0);
-    return {
-      ...item,
-      spent: spentForCategory,
-      remaining: item.limit - spentForCategory,
-      percent: item.limit > 0 ? (spentForCategory / item.limit) * 100 : 0,
-    };
-  });
-  const budget = {
-    ...baseBudget,
-    spent: expense,
-    remaining: baseBudget.total - expense,
-    percent: baseBudget.total > 0 ? (expense / baseBudget.total) * 100 : 0,
-    categories: scopedBudgetCategories,
-  };
+  // Anggaran adalah milik keluarga (shared), tidak mengikuti scope pribadi.
+  const budget = store.budgetStatus(month);
   const cashflowPrefix = cashflow > 0 ? '+' : '';
   const cashflowColor = cashflow >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400';
 
@@ -201,7 +184,7 @@ export function dashboardView(user) {
         <div>
           <div class="flex items-start justify-between gap-3 min-w-0">
             <div class="min-w-0">
-              <p class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Anggaran ${personalScope ? 'keluarga · ' : ''}${escapeHTML(formatMonth(month))}</p>
+              <p class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Anggaran keluarga · ${escapeHTML(formatMonth(month))}</p>
               <h2 class="text-2xl font-extrabold text-slate-900 dark:text-white mt-1 truncate">${budget.total > 0 ? formatPercent(budget.percent) : 'Belum diatur'}</h2>
             </div>
             <button type="button" class="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors shrink-0" data-action="nav" data-route="budgets" aria-label="Kelola anggaran">${icon('edit', 'w-4 h-4')}</button>
