@@ -136,12 +136,18 @@ export function transactionForm(tx = null, defaults = {}) {
           </div>
         </label>
         <label class="field-label">Jam
-          <input class="field mt-1.5" type="time" name="time" value="${escapeAttr(time)}" required>
+          <input class="field mt-1.5 w-full min-w-0 text-center appearance-none" type="time" name="time" value="${escapeAttr(time)}" required>
         </label>
       </div>
+      <label class="field-label">Pemilik akun
+        <select class="field mt-1.5" name="accountOwner">
+          <option value="all" ${accountOwner === 'all' ? 'selected' : ''}>Semua anggota</option>
+          ${store.activeUsers().map((u) => `<option value="${escapeAttr(u.id)}" ${accountOwner === u.id ? 'selected' : ''}>${escapeHTML(u.name)}</option>`).join('')}
+        </select>
+      </label>
       <label class="field-label">${isTransfer ? 'Dari akun' : 'Akun'}
         <select class="field mt-1.5" name="accountId" required>
-          ${accountOptions(accountId, null, accountOwner)}
+          ${accountOptions(accountId, null, accountOwner === 'all' ? null : accountOwner)}
         </select>
       </label>
       ${!isTransfer && selectedAccount?.type === 'credit' ? (() => {

@@ -3715,6 +3715,20 @@ function bindEvents() {
       if (display) display.value = target.value ? formatDateDMY(target.value) : '';
       return;
     }
+    if (target.matches('select[name="accountOwner"]')) {
+      const form = target.closest('form');
+      const accountSelect = form?.querySelector('select[name="accountId"]');
+      if (accountSelect) {
+        const ownerId = target.value === 'all' ? null : target.value;
+        const accounts = store.data.accounts
+          .filter((account) => !account.deletedAt)
+          .filter((account) => !ownerId || account.owner === ownerId);
+        const selected = accountSelect.value;
+        accountSelect.innerHTML = '<option value="">Pilih Akun</option>' +
+          accounts.map((account) => `<option value="${escapeAttr(account.id)}" ${selected === account.id ? 'selected' : ''}>${escapeHTML(account.name)}${account.archived ? ' (arsip)' : ''}</option>`).join('');
+      }
+      return;
+    }
     if (target.dataset?.action) {
       Promise.resolve(handleAction(target.dataset.action, target)).catch((error) => {
         console.error('Change action failed:', error);
