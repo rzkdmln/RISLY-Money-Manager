@@ -149,6 +149,8 @@ export function dashboardView(user) {
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 min-w-0 w-full items-stretch">
       <!-- KARTU KEKAYAAN (CLEAN & SWITCHABLE) -->
       <section class="accounts-hero lg:col-span-2 min-w-0 w-full overflow-hidden relative rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+        <div class="accounts-hero-ring"></div>
+        <div class="accounts-hero-ring accounts-hero-ring-two"></div>
 
         <!-- Header -->
         <div class="flex items-center justify-between min-w-0 mb-6">
