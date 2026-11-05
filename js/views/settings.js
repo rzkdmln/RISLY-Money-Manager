@@ -46,7 +46,7 @@ function googleDriveCard(user, driveConnected) {
       <div class="settings-row">
         <span class="settings-row-icon">${icon('users', 'w-4 h-4')}</span>
         <span class="flex-1">
-          <strong>Ruang ${escapeHTML(store.data.settings.workspaceName || store.data.settings.householdName)}</strong>
+          <strong>${escapeHTML(store.data.settings.workspaceName || store.data.settings.householdName)}</strong>
           <small>Kode undangan: ${escapeHTML(inviteCode)}</small>
         </span>
         <button type="button" class="btn btn-ghost btn-sm" data-action="copy-invite" data-id="${escapeAttr(inviteCode)}">${icon('copy', 'w-3.5 h-3.5')} Salin</button>
@@ -108,31 +108,34 @@ export function settingsView(user) {
           <button type="button" class="settings-row" data-action="change-pin"><span class="settings-row-icon">${icon('lock', 'w-4 h-4')}</span><span class="flex-1"><strong>${user?.pinHash ? 'Ubah PIN' : 'Buat PIN'}</strong><small>${user?.pinHash ? '4-8 angka' : 'Opsional - untuk kunci aplikasi'}</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>
           <button type="button" class="settings-row" data-action="open-auto-lock"><span class="settings-row-icon">${icon('clock', 'w-4 h-4')}</span><span class="flex-1"><strong>Kunci otomatis</strong><small>${escapeHTML(LOCK_OPTIONS.find((o) => o.value === lockValue)?.label || 'Tidak pernah')}</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>
           <button type="button" class="settings-row" data-action="notifications"><span class="settings-row-icon">${icon('bell', 'w-4 h-4')}</span><span class="flex-1"><strong>Notifikasi</strong><small>Pengingat tugas dan catatan</small></span>${badge(notification.label, notification.tone, 'badge-soft')}</button>
-        </div>
-      </section>
-
-      <section class="card">
-        <div class="card-heading">
-          <div><p class="card-kicker">Tampilan</p><h2 class="section-title">Nuansa aplikasi</h2></div>
-          ${icon('palette', 'w-5 h-5 text-violet-500')}
-        </div>
-        <button type="button" class="settings-row" data-action="open-theme-modal"><span class="settings-row-icon">${icon('palette', 'w-4 h-4')}</span><span class="flex-1"><strong>Tema</strong><small>${escapeHTML(THEME_OPTIONS.find((o) => o.id === prefs.theme)?.label || 'Sistem')}</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>
-        <div class="settings-list mt-4">
+          <button type="button" class="settings-row" data-action="open-theme-modal"><span class="settings-row-icon">${icon('palette', 'w-4 h-4')}</span><span class="flex-1"><strong>Tema</strong><small>${escapeHTML(THEME_OPTIONS.find((o) => o.id === prefs.theme)?.label || 'Sistem')}</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>
           <button type="button" class="settings-row" data-action="toggle-privacy"><span class="settings-row-icon">${icon(prefs.hideAmounts ? 'eye-off' : 'eye', 'w-4 h-4')}</span><span class="flex-1"><strong>Sembunyikan nominal</strong><small>Samarkan angka saat dilihat orang</small></span><span class="switch ${prefs.hideAmounts ? 'is-on' : ''}"></span></button>
           <button type="button" class="settings-row" data-action="open-week-modal"><span class="settings-row-icon">${icon('calendar', 'w-4 h-4')}</span><span class="flex-1"><strong>Awal pekan</strong><small>${escapeHTML(WEEK_OPTIONS.find((o) => o.value === Number(store.data.settings.weekStartsOn))?.label || 'Senin')}</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>
-        </div>
       </section>
 
-      <form class="card" data-form="settings-household">
+      <section class="card" id="family-card">
         <div class="card-heading">
           <div><p class="card-kicker">Keluarga</p><h2 class="section-title">Identitas & anggaran</h2></div>
           ${icon('users', 'w-5 h-5 text-blue-500')}
         </div>
+      <form data-form="settings-household">
         <label class="field-label">Nama ruang
           <input class="field mt-1.5" name="householdName" maxlength="60" value="${escapeAttr(store.data.settings.householdName)}" required>
         </label>
         <button type="submit" class="btn btn-primary w-full mt-4">${icon('save', 'w-4 h-4')} Simpan</button>
       </form>
+      <div class="settings-list mt-4">
+        ${store.activeUsers().map((member) => `<div class="settings-row">
+          <span class="settings-row-icon">${avatar(member, 'xs')}</span>
+          <span class="flex-1">
+            <strong>${escapeHTML(member.name)}</strong>
+            <small>${escapeHTML(member.googleEmail || 'Belum terhubung Google')}${member.id === user?.id ? ' · Anda' : ''}</small>
+          </span>
+          ${member.id !== user?.id ? `<button type="button" class="btn btn-danger-soft btn-sm" data-action="remove-member" data-id="${escapeAttr(member.id)}">${icon('x', 'w-3.5 h-3.5')} Keluarkan</button>` : ''}
+        </div>`).join('')}
+      </div>
+      <p class="text-[11px] text-slate-400 mt-3">Anggota baru bergabung lewat kode undangan di halaman masuk.</p>
+    </section>
 
       <section class="card">
         <div class="card-heading">
@@ -149,23 +152,6 @@ export function settingsView(user) {
 
     ${googleDriveCard(user, driveConnected)}
 
-    <section class="card" id="members">
-      <div class="card-heading">
-        <div><p class="card-kicker">Keluarga</p><h2 class="section-title">Anggota ruang</h2></div>
-        ${icon('users', 'w-5 h-5 text-blue-500')}
-      </div>
-      <div class="settings-list">
-        ${store.activeUsers().map((member) => `<div class="settings-row">
-          <span class="settings-row-icon">${avatar(member, 'xs')}</span>
-          <span class="flex-1">
-            <strong>${escapeHTML(member.name)}</strong>
-            <small>${escapeHTML(member.googleEmail || 'Belum terhubung Google')}${member.id === user?.id ? ' · Anda' : ''}</small>
-          </span>
-          ${member.id !== user?.id ? `<button type="button" class="btn btn-danger-soft btn-sm" data-action="remove-member" data-id="${escapeAttr(member.id)}">${icon('x', 'w-3.5 h-3.5')} Keluarkan</button>` : ''}
-        </div>`).join('')}
-      </div>
-      <p class="text-[11px] text-slate-400 mt-3">Anggota baru bergabung lewat kode undangan di halaman masuk. Hapus anggota akan menandainya sebagai keluar; data yang sudah dibuat tetap tersimpan.</p>
-    </section>
 
     <div class="settings-grid">
       <section class="card">

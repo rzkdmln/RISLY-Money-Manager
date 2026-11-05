@@ -652,19 +652,19 @@ function renderGlobalSearchResults(query) {
   let html = '';
   if (txs.length) {
     html += '<div class="space-y-1 mb-4"><p class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Transaksi</p>' +
-      txs.map((tx) => `<button type="button" class="tx-row" data-action="nav" data-route="transactions"><span class="tx-main"><span class="tx-title">${escapeHTML(tx.note || store.categoryById(tx.categoryId)?.name || 'Transaksi')}</span><span class="tx-meta">${escapeHTML(formatDate(tx.date))} · ${escapeHTML(store.accountName(tx.accountId))}</span></span><span class="tx-amount ${tx.type === 'income' ? 'amount-income' : tx.type === 'expense' ? 'amount-expense' : 'amount-transfer'}">${tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : ''}${money(tx.amount)}</span></button>`).join('') + '</div>';
+      txs.map((tx) => `<button type="button" class="tx-row" data-action="global-open" data-type="tx" data-id="${escapeAttr(tx.id)}"><span class="tx-main"><span class="tx-title">${escapeHTML(tx.note || store.categoryById(tx.categoryId)?.name || 'Transaksi')}</span><span class="tx-meta">${escapeHTML(formatDate(tx.date))} · ${escapeHTML(store.accountName(tx.accountId))}</span></span><span class="tx-amount ${tx.type === 'income' ? 'amount-income' : tx.type === 'expense' ? 'amount-expense' : 'amount-transfer'}">${tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : ''}${money(tx.amount)}</span></button>`).join('') + '</div>';
   }
   if (notes.length) {
     html += '<div class="space-y-1 mb-4"><p class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Catatan</p>' +
-      notes.map((note) => `<button type="button" class="settings-row" data-action="nav" data-route="notes"><span class="flex-1"><strong>${escapeHTML(note.title)}</strong><small>${escapeHTML(note.kind === 'todo' ? 'Tugas' : 'Catatan')}</small></span></button>`).join('') + '</div>';
+      notes.map((note) => `<button type="button" class="settings-row" data-action="global-open" data-type="note" data-id="${escapeAttr(note.id)}"><span class="flex-1"><strong>${escapeHTML(note.title)}</strong><small>${escapeHTML(note.kind === 'todo' ? 'Tugas' : 'Catatan')}</small></span></button>`).join('') + '</div>';
   }
   if (accounts.length) {
     html += '<div class="space-y-1 mb-4"><p class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Akun</p>' +
-      accounts.map((acc) => `<button type="button" class="settings-row" data-action="nav" data-route="accounts"><span class="flex-1"><strong>${escapeHTML(acc.name)}</strong><small>${escapeHTML(acc.type)}</small></span></button>`).join('') + '</div>';
+      accounts.map((acc) => `<button type="button" class="settings-row" data-action="global-open" data-type="account" data-id="${escapeAttr(acc.id)}"><span class="flex-1"><strong>${escapeHTML(acc.name)}</strong><small>${escapeHTML(acc.type)}</small></span></button>`).join('') + '</div>';
   }
   if (categories.length) {
     html += '<div class="space-y-1 mb-4"><p class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Kategori</p>' +
-      categories.map((cat) => `<button type="button" class="settings-row" data-action="nav" data-route="categories"><span class="flex-1"><strong>${escapeHTML(cat.name)}</strong><small>${escapeHTML(cat.type || '')}</small></span></button>`).join('') + '</div>';
+      categories.map((cat) => `<button type="button" class="settings-row" data-action="global-open" data-type="category" data-id="${escapeAttr(cat.id)}"><span class="flex-1"><strong>${escapeHTML(cat.name)}</strong><small>${escapeHTML(cat.type || '')}</small></span></button>`).join('') + '</div>';
   }
   if (!html) html = '<p class="text-sm text-slate-500 dark:text-slate-400">Tidak ada hasil.</p>';
   return html;
@@ -1891,6 +1891,24 @@ async function handleAction(action, element) {
     case 'open-global-search':
       openGlobalSearch();
       break;
+    case 'global-open': {
+      const kind = element.dataset.type;
+      const id = element.dataset.id;
+      closeModal();
+      if (kind === 'tx') {
+        const tx = store.transactionById(id);
+        if (tx) openTransactionModal(tx);
+      } else if (kind === 'account') {
+        const account = store.accountById(id);
+        if (account) openAccountModal(account);
+      } else if (kind === 'note') {
+        const note = store.noteById ? store.noteById(id) : null;
+        if (note) openNoteEditor(note, note.kind || 'note');
+      } else if (kind === 'category') {
+        navigate('categories');
+      }
+      break;
+    }
     case 'open-auto-lock': {
       openAutoLockModal();
       break;
