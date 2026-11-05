@@ -293,22 +293,37 @@ class GoogleDriveClient {
     return this.prepare().then((client) => this.openTokenClient(client, validPrompt));
   }
 
-  /** Adopts a session produced by the iOS relay callback. */
+  /**
+   * Adopts a session produced by Firebase Auth. An access token is optional:
+   * identity login must still work when the browser does not expose the OAuth
+   * token (for example after an iOS redirect). Drive actions will ask the user
+   * to reconnect when a token is actually needed.
+   */
   adoptSession({ account, accessToken, expiresAt } = {}) {
-    if (!account?.email || !accessToken) {
+    if (!account?.email) {
       throw new DriveAuthError('Sesi Google dari callback tidak lengkap.');
     }
+    const previousEmail = String(this.account?.email || '').toLowerCase();
+    const nextEmail = String(account.email).toLowerCase();
     this.account = {
       email: String(account.email),
       name: String(account.name || account.email),
       picture: String(account.picture || ''),
       clientId: this.clientId,
     };
-    this.accessToken = accessToken;
-    this.expiresAt = Number(expiresAt) || (Date.now() + 3600 * 1000);
+    this.accessToken = String(accessToken || '');
+    this.expiresAt = this.accessToken
+      ? (Number(expiresAt) || (Date.now() + 3600 * 1000))
+      : 0;
     gdriveStore(ACCOUNT_KEY, JSON.stringify(this.account), 30);
-    gdriveStore('risly_access_token', this.accessToken, 1);
-    gdriveStore('risly_token_expires_at', String(this.expiresAt), 1);
+    if (this.accessToken) {
+      gdriveStore('risly_access_token', this.accessToken, 1);
+      gdriveStore('risly_token_expires_at', String(this.expiresAt), 1);
+    } else if (previousEmail !== nextEmail) {
+      // Token lama bukan milik akun ini; jangan pernah dipakai ulang.
+      gdriveStore('risly_access_token', null);
+      gdriveStore('risly_token_expires_at', null);
+    }
     this.emit();
     return this.getAccount();
   }

@@ -16,10 +16,10 @@ import { store } from './store.js';
 import { Cloud } from './cloud.js';
 import { GoogleDrive, googleAccountBadge } from './gdrive.js';
 import {
+  clearGoogleAuthRedirectPending,
   clearPendingGoogleLogin,
   completeGoogleAuthLogin,
-  resumeGoogleAuthLogin,
-  shouldUseAuthRelay,
+  hasPendingGoogleAuthRedirect,
   startGoogleAuthRedirect,
   startGoogleAuthPopup,
 } from './google-auth-relay.js';
@@ -389,9 +389,27 @@ function enterApplication(user, { fresh = false } = {}) {
   runRecurring({ notify: true });
   try { store.recordNetWorthSnapshot(); } catch { /* ignore */ }
   setTimeout(checkReminders, 1_200);
-  // Cloud sync (Firebase) runs through the CloudSync engine.
+  // Cloud sync (Firebase) runs through the CloudSync engine. Setelah login,
+  // pastikan koneksi benar-benar dibuat lalu tarik data terbaru — jangan
+  // menunggu pengguna menekan ikon cloud.
   if (store.workspaceId) {
-    Cloud.push({ immediate: true }).catch(() => {});
+    void syncCloudAfterLogin();
+  }
+}
+
+async function syncCloudAfterLogin() {
+  try {
+    const status = Cloud.getStatus();
+    if (status.provider === 'local') return null;
+    if (!status.connected) {
+      const bootstrapped = await Cloud.bootstrap({ waitForAuth: true });
+      if (bootstrapped?.local || bootstrapped?.skipped) return bootstrapped;
+    }
+    if (!Cloud.canSync()) return null;
+    return await Cloud.syncNow({ silent: true });
+  } catch (error) {
+    console.warn('Sinkronisasi otomatis setelah login gagal:', error);
+    return null;
   }
 }
 
@@ -446,69 +464,29 @@ async function signInWithGoogleFlow() {
 
   if (useRedirect) {
     // iOS standalone PWA: gunakan redirect (popup tidak didukung di standalone).
-    // Peringatan: ITP Safari bisa memblokir sesi cross-domain.
+    // Penting: JANGAN memanggil getRedirectResult() setelah signInWithRedirect()
+    // di halaman yang sama. Itu menghapus state redirect sebelum browser sempat
+    // meninggalkan halaman, sehingga login Google berhasil tetapi aplikasi
+    // kembali ke layar login. Hasil redirect diproses saat boot berikutnya.
     const controller = new AbortController();
-    let waiting = null;
-    const session = await new Promise((resolve, reject) => {
-      let settled = false;
-      const finish = (fn, value) => {
-        if (settled) return;
-        settled = true;
-        waiting?.close();
-        fn(value);
-      };
-
-      waiting = showGoogleWaitingModal({
-        onCancel: () => {
-          controller.abort();
-          finish(reject, new Error('Masuk dengan Google dibatalkan.'));
-        },
-      });
-
-      startGoogleAuthRedirect({ signal: controller.signal }).then(
-        async () => {
-          const completed = await completeGoogleAuthLogin({ signal: controller.signal });
-          if (!completed) {
-            finish(reject, new Error('Sesi login Google tidak ditemukan. Silakan coba lagi dari aplikasi.'));
-            return;
-          }
-          GoogleDrive.adoptSession(completed);
-          finish(resolve, completed);
-        },
-        (error) => finish(reject, error),
-      );
+    const waiting = showGoogleWaitingModal({
+      onCancel: () => controller.abort(),
     });
-
-    return session.account;
+    try {
+      await startGoogleAuthRedirect({ signal: controller.signal });
+    } catch (error) {
+      waiting.close();
+      throw error;
+    }
+    // Halaman akan segera berpindah ke Google. Biarkan modal tetap terbuka
+    // (browser akan meng-unload halaman ini) dan jangan menampilkan error.
+    return new Promise(() => {});
   }
 
   // Desktop / iOS Safari browser / Android: gunakan popup Firebase Auth.
   const session = await startGoogleAuthPopup();
   GoogleDrive.adoptSession(session);
   return session.account;
-}
-
-function resumeGoogleLoginOnBoot() {
-  const controller = new AbortController();
-  const waiting = showGoogleWaitingModal({
-    onCancel: () => {
-      controller.abort();
-    },
-  });
-
-  resumeGoogleAuthLogin({ signal: controller.signal }).then(async (session) => {
-    waiting.close();
-    if (!session) return;
-    GoogleDrive.adoptSession(session);
-    const result = await store.signInWithGoogle(session.account);
-    enterApplication(result.user, { fresh: result.created });
-    toast(`Masuk sebagai ${result.user.name}.`, 'success');
-  }).catch((error) => {
-    waiting.close();
-    if (error?.name === 'AbortError') return;
-    console.error(error);
-    toast(error.message || 'Gagal menyelesaikan masuk dengan Google.', 'error');
-  });
 }
 
 function lockApplication({ expired = false } = {}) {
@@ -3715,10 +3693,15 @@ function bindStore() {
 }
 
 async function tryResumeRedirectLogin() {
+  // Hanya panggil getRedirectResult() bila browser memang baru kembali dari
+  // redirect Google. Memanggilnya di setiap boot dapat menghapus/mengganggu
+  // state redirect yang masih tertunda.
+  if (!hasPendingGoogleAuthRedirect()) return false;
+
   try {
     // 1. Tangkap hasil redirect yang tertunda (getRedirectResult) — penting untuk iOS
     const session = await completeGoogleAuthLogin();
-    if (session) {
+    if (session?.account?.email) {
       GoogleDrive.adoptSession(session);
       const result = await store.signInWithGoogle(session.account);
       enterApplication(result.user, { fresh: result.created });
@@ -3730,38 +3713,43 @@ async function tryResumeRedirectLogin() {
     console.warn('Gagal menangkap redirect result:', error);
   }
 
-  // 2. Tunggu onAuthStateChanged sebagai source of truth (untuk ITP iOS)
-  // Batasi waktu tunggu agar tidak memblokir boot terlalu lama (10 detik)
-  const uid = await Promise.race([
-    Cloud.waitForFirebaseUser(),
-    new Promise((resolve) => setTimeout(() => resolve(null), 10_000)),
-  ]);
+  try {
+    // 2. Tunggu onAuthStateChanged sebagai source of truth (untuk ITP iOS)
+    // Batasi waktu tunggu agar tidak memblokir boot terlalu lama (10 detik)
+    const uid = await Promise.race([
+      Cloud.waitForFirebaseUser(),
+      new Promise((resolve) => setTimeout(() => resolve(null), 10_000)),
+    ]);
 
-  if (uid) {
-    const user = Cloud.getCurrentFirebaseUser();
-    if (user) {
-      GoogleDrive.adoptSession({
-        account: {
+    if (uid) {
+      const user = Cloud.getCurrentFirebaseUser();
+      if (user?.email) {
+        GoogleDrive.adoptSession({
+          account: {
+            email: user.email || '',
+            name: user.displayName || '',
+            picture: user.photoURL || '',
+            clientId: APP.googleClientId,
+          },
+          accessToken: String(user.accessToken || ''),
+          expiresAt: Date.now() + 3600_000,
+        });
+        const result = await store.signInWithGoogle({
           email: user.email || '',
           name: user.displayName || '',
           picture: user.photoURL || '',
           clientId: APP.googleClientId,
-        },
-        accessToken: String(user.accessToken || ''),
-        expiresAt: Date.now() + 3600_000,
-      });
-      const result = await store.signInWithGoogle({
-        email: user.email || '',
-        name: user.displayName || '',
-        picture: user.photoURL || '',
-        clientId: APP.googleClientId,
-      });
-      enterApplication(result.user, { fresh: result.created });
-      toast(`Masuk sebagai ${result.user.name}.`, 'success');
-      return true;
+        });
+        enterApplication(result.user, { fresh: result.created });
+        toast(`Masuk sebagai ${result.user.name}.`, 'success');
+        return true;
+      }
     }
+  } catch (error) {
+    console.warn('Gagal melanjutkan sesi Firebase:', error);
   }
 
+  clearGoogleAuthRedirectPending();
   return false;
 }
 
@@ -3819,17 +3807,37 @@ async function boot() {
   registerServiceWorker();
 
   if (!store.currentUser) {
+    const hadPendingRedirect = hasPendingGoogleAuthRedirect();
     const resumed = await tryResumeRedirectLogin();
     if (!resumed) {
-      // Pada iOS, redirect login bisa gagal karena ITP memblokir sesi cross-domain.
-      // Tampilkan pesan yang membantu pengguna.
-      if (isIos() && isStandalone()) {
-        toast('Login Google di iOS standalone mungkin terhambat oleh keamanan Safari (ITP). Coba buka aplikasi di Safari biasa.', 'info');
+      if (hadPendingRedirect) {
+        // Pada iOS, redirect login bisa gagal karena ITP memblokir sesi cross-domain.
+        if (isIos() && isStandalone()) {
+          toast('Login Google di iOS standalone mungkin terhambat oleh keamanan Safari (ITP). Coba buka aplikasi di Safari biasa.', 'info');
+        } else {
+          toast('Login Google tidak dapat diselesaikan. Silakan coba lagi.', 'error');
+        }
       }
       renderAuth();
-      resumeGoogleLoginOnBoot();
     }
   } else {
+    // Pengguna sudah masuk tetapi baru kembali dari redirect Google (misalnya
+    // saat menghubungkan ulang Drive dari Pengaturan). Ambil sesi barunya tanpa
+    // mengganti akun aplikasi.
+    if (hasPendingGoogleAuthRedirect()) {
+      completeGoogleAuthLogin().then((session) => {
+        if (!session?.account?.email) {
+          clearGoogleAuthRedirectPending();
+          return;
+        }
+        GoogleDrive.adoptSession(session);
+        toast(`Google Drive terhubung sebagai ${session.account.email}.`, 'success');
+        renderApplication();
+      }).catch((error) => {
+        clearGoogleAuthRedirectPending();
+        console.warn('Gagal menyelesaikan redirect Google:', error);
+      });
+    }
     renderApplication();
     runRecurring({ notify: true });
     setTimeout(checkReminders, 1_500);

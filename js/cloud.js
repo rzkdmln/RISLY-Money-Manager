@@ -329,6 +329,7 @@ class CloudSync {
     this.pollTimer = null;
     this.pushTimer = null;
     this.syncing = false;
+    this.connectPromise = null;
     this.pendingPush = false;
     this.changeCounter = 0;
     this.lastRevision = 0;
@@ -458,17 +459,6 @@ class CloudSync {
   }
 
   async signInWithGoogle(accessToken) {
-    // Validasi ketat: accessToken harus berupa string non-kosong. Jangan
-    // melewatkan string kosong ke GoogleAuthProvider.credential karena
-    // Firebase akan melempar auth/argument-error.
-    if (
-      !accessToken ||
-      typeof accessToken !== 'string' ||
-      accessToken.trim().length === 0
-    ) {
-      console.warn('Token akses Google kosong, melewatkan sign-in Firebase.');
-      return null;
-    }
     if (this.config.provider !== 'firebase') return null;
     try {
       const auth = await getFirebaseAuth();
@@ -481,6 +471,17 @@ class CloudSync {
         this.firebaseUid = user.uid;
         await this.applyFirebaseUid(user.uid);
         return user.uid;
+      }
+      // Validasi ketat: accessToken harus berupa string non-kosong. Jangan
+      // melewatkan string kosong ke GoogleAuthProvider.credential karena
+      // Firebase akan melempar auth/argument-error.
+      if (
+        !accessToken ||
+        typeof accessToken !== 'string' ||
+        accessToken.trim().length === 0
+      ) {
+        console.warn('Token akses Google kosong, melewatkan sign-in Firebase.');
+        return null;
       }
       // Sebaliknya, tukarkan token akses Google via Firebase credential.
       const appMod = await import(FIREBASE_APP_URL);
@@ -511,15 +512,22 @@ class CloudSync {
 
   async applyFirebaseUid(uid) {
     if (!uid || this.config.provider !== 'firebase') return;
-    // If there is no saved cloud config yet, use a per-user household path.
-    let saved = null;
-    try { saved = JSON.parse(localStorage.getItem(APP.cloudKey) || 'null'); } catch { saved = null; }
-    const hasPath = Boolean(saved?.firebase?.path) && saved.firebase.path !== `households/${APP.householdId}`;
-    if (!saved || !saved.firebase?.path || !hasPath) {
-      const next = { provider: 'firebase', firebase: { path: `households/${uid}` } };
-      localStorage.setItem(APP.cloudKey, JSON.stringify(next));
-      this.config = next;
-      await this.connect(this.config, { initial: true });
+    // Catat UID dan path per-rumah tangga. Koneksi sebenarnya dibuat setelah
+    // workspace lokal dibuka (lihat syncCloudAfterLogin di app.js), agar data
+    // placeholder layar login tidak sempat terunggah ke cloud.
+    const next = { provider: 'firebase', firebase: { path: `households/${uid}` } };
+    const changed = this.config?.provider !== 'firebase'
+      || this.config?.firebase?.path !== next.firebase.path;
+    localStorage.setItem(APP.cloudKey, JSON.stringify(next));
+    this.config = next;
+    this.firebaseUid = uid;
+    if (changed) {
+      this.connected = false;
+      this.setStatus('idle', 'Menunggu sinkronisasi…');
+    } else if (this.connected) {
+      this.setStatus('synced', 'Terhubung.');
+    } else {
+      this.setStatus('idle', 'Menunggu sinkronisasi…');
     }
   }
 
@@ -637,7 +645,16 @@ class CloudSync {
     }
   }
 
-  async connect(config, { initial = false } = {}) {
+  async connect(config, options = {}) {
+    // Cegah dua proses connect berjalan bersamaan (mis. boot + login redirect
+    // sama-sama memanggil bootstrap dalam waktu berdekatan).
+    if (this.connectPromise) return this.connectPromise;
+    this.connectPromise = this._connect(config, options)
+      .finally(() => { this.connectPromise = null; });
+    return this.connectPromise;
+  }
+
+  async _connect(config, { initial = false } = {}) {
     this.stopEngine();
     if (this.adapter?.destroy) {
       try { await this.adapter.destroy(); } catch { /* noop */ }
@@ -885,16 +902,23 @@ class CloudSync {
   }
 
   async syncNow({ silent = false } = {}) {
-    if (!this.adapter || this.config.provider === 'local') {
+    if (this.config.provider === 'local') {
       if (!silent) this.setStatus('local', 'Sinkronisasi cloud belum diaktifkan.');
       return { ok: false, local: true };
     }
     if (this.config.provider === 'firebase' && !this.firebaseUid) {
-      // Belum ada Firebase Auth user yang terkonfirmasi; tunda sinkronisasi.
-      return { ok: false, skipped: true };
+      // Coba pulihkan user Firebase dari IndexedDB sebelum menyerah. Ini
+      // penting setelah login redirect di mana listener auth belum sempat
+      // mengisi firebaseUid saat tombol sync pertama kali ditekan.
+      try { await this.getFirebaseUid(); } catch { /* noop */ }
+      if (!this.firebaseUid) return { ok: false, skipped: true };
     }
-    if (!this.connected) {
-      return this.connect(this.config);
+    if (!this.adapter || !this.connected) {
+      // Jangan pernah melaporkan "lokal" hanya karena adapter belum dibuat.
+      // Provider Firebase tetap harus mencoba connect secara otomatis.
+      const connected = await this.connect(this.config);
+      if (connected?.skipped) return { ok: false, skipped: true };
+      return connected;
     }
     await this.pull();
     const result = await this.push({ immediate: true, force: true });

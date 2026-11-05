@@ -22,6 +22,8 @@ const RELAY_HEADERS = {
 };
 const USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
 const PENDING_KEY = 'risly.mm.oauth.pending.v1';
+const REDIRECT_PENDING_KEY = 'risly.mm.oauth.redirect.v1';
+const REDIRECT_PENDING_MAX_AGE_MS = 15 * 60 * 1000;
 const CALLBACK_FILE = 'oauth-callback.html';
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 
@@ -405,14 +407,49 @@ function createGoogleProvider(GoogleAuthProvider) {
   return provider;
 }
 
+/**
+ * Tandai bahwa browser sedang menuju Google lewat redirect. Marker ini dipakai
+ * saat aplikasi dibuka kembali agar getRedirectResult() hanya dipanggil ketika
+ * memang ada redirect yang tertunda.
+ */
+export function markGoogleAuthRedirectPending() {
+  try {
+    localStorage.setItem(REDIRECT_PENDING_KEY, String(Date.now()));
+  } catch { /* noop */ }
+}
+
+export function clearGoogleAuthRedirectPending() {
+  try {
+    localStorage.removeItem(REDIRECT_PENDING_KEY);
+  } catch { /* noop */ }
+}
+
+export function hasPendingGoogleAuthRedirect() {
+  try {
+    const startedAt = Number(localStorage.getItem(REDIRECT_PENDING_KEY) || 0);
+    if (!startedAt) return false;
+    // Abaikan marker basi agar aplikasi tidak menunggu selamanya.
+    if (Date.now() - startedAt > REDIRECT_PENDING_MAX_AGE_MS) {
+      localStorage.removeItem(REDIRECT_PENDING_KEY);
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Convert a Firebase user into the session shape used by GoogleDrive. */
-function sessionFromFirebaseUser(user) {
+function sessionFromFirebaseUser(user, credential = null) {
   if (!user) return null;
-  const accessToken = String(user.accessToken || '');
-  if (!accessToken) return null;
+  // OAuth access token tidak selalu tersedia setelah redirect di iOS. Login
+  // identitas tetap harus berhasil; Drive akan meminta izin ulang saat dipakai.
+  const accessToken = String(user.accessToken || credential?.accessToken || '');
   const rawExpiry = user.expiresAt;
   const parsedExpiry = Number(rawExpiry?.toMillis?.() ?? rawExpiry ?? 0);
-  const expiresAt = parsedExpiry > Date.now() ? parsedExpiry : Date.now() + 3600_000;
+  const expiresAt = accessToken
+    ? (parsedExpiry > Date.now() ? parsedExpiry : Date.now() + 3600_000)
+    : 0;
   const account = {
     email: String(user.email || ''),
     name: String(user.displayName || ''),
@@ -431,10 +468,24 @@ export async function startGoogleAuthRedirect({ signal = null } = {}) {
   const appMod = await import(FIREBASE_APP_URL);
   const authMod = await import(FIREBASE_AUTH_URL);
   const { initializeApp, getApps, getApp } = appMod;
-  const { getAuth, GoogleAuthProvider, signInWithRedirect } = authMod;
+  const {
+    getAuth,
+    GoogleAuthProvider,
+    signInWithRedirect,
+    setPersistence,
+    browserLocalPersistence,
+  } = authMod;
   const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
   const auth = getAuth(app);
-  await signInWithRedirect(auth, createGoogleProvider(GoogleAuthProvider));
+  // Pastikan state redirect disimpan permanen sebelum browser meninggalkan app.
+  try { await setPersistence(auth, browserLocalPersistence); } catch { /* noop */ }
+  markGoogleAuthRedirectPending();
+  try {
+    await signInWithRedirect(auth, createGoogleProvider(GoogleAuthProvider));
+  } catch (error) {
+    clearGoogleAuthRedirectPending();
+    throw error;
+  }
   return { started: true };
 }
 
@@ -450,8 +501,8 @@ export async function startGoogleAuthPopup({ signal = null } = {}) {
   const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
   const auth = getAuth(app);
   const result = await signInWithPopup(auth, createGoogleProvider(GoogleAuthProvider));
-  const session = sessionFromFirebaseUser(result?.user);
-  if (!session) throw new Error('Token Google dari Firebase Auth tidak tersedia.');
+  const session = sessionFromFirebaseUser(result?.user, result?.credential);
+  if (!session) throw new Error('Hasil login Google tidak tersedia dari popup.');
   return session;
 }
 
@@ -467,13 +518,23 @@ export async function completeGoogleAuthLogin({ signal = null } = {}) {
   const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
   const auth = getAuth(app);
 
-  // Cek apakah user sudah tersedia (ITP iOS bisa memblokir getRedirectResult,
-  // tetapi auth.currentUser mungkin masih ada di IndexedDB).
-  const current = sessionFromFirebaseUser(auth.currentUser);
-  if (current) return current;
-
+  // getRedirectResult() harus didahulukan agar hasil akun yang baru dipilih
+  // tidak tertutup oleh auth.currentUser lama yang masih tersimpan.
   const result = await getRedirectResult(auth);
-  return sessionFromFirebaseUser(result?.user);
+  const redirected = sessionFromFirebaseUser(result?.user, result?.credential);
+  if (redirected) {
+    clearGoogleAuthRedirectPending();
+    return redirected;
+  }
+
+  // Fallback untuk ITP iOS: getRedirectResult() bisa null, tetapi user mungkin
+  // sudah dipulihkan oleh Firebase dari IndexedDB.
+  const current = sessionFromFirebaseUser(auth.currentUser);
+  if (current) {
+    clearGoogleAuthRedirectPending();
+    return current;
+  }
+  return null;
 }
 
 /**
