@@ -137,23 +137,21 @@ export function settingsView(user) {
       <p class="text-[11px] text-slate-400 mt-3">Anggota baru bergabung lewat kode undangan di halaman masuk.</p>
     </section>
 
+      <section class="card">
+        <div class="card-heading">
+          <div><p class="card-kicker">Struktur</p><h2 class="section-title">Kategori & jadwal</h2></div>
+          ${icon('tag', 'w-5 h-5 text-pink-500')}
+        </div>
+        <div class="settings-list">
+          <a href="#/categories" class="settings-row" data-action="nav" data-route="categories"><span class="settings-row-icon">${icon('tag', 'w-4 h-4')}</span><span class="flex-1"><strong>Kategori</strong><small>${store.categories().length} kategori aktif</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</a>
+          <a href="#/recurring" class="settings-row" data-action="nav" data-route="recurring"><span class="settings-row-icon">${icon('repeat', 'w-4 h-4')}</span><span class="flex-1"><strong>Transaksi berulang</strong><small>${store.recurringRules().length} jadwal</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</a>
+          <a href="#/budgets" class="settings-row" data-action="nav" data-route="budgets"><span class="settings-row-icon">${icon('chart-pie', 'w-4 h-4')}</span><span class="flex-1"><strong>Anggaran</strong><small>Batas dan ambang peringatan</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</a>
+        </div>
+      </section>
     </div>
 
     ${googleDriveCard(user, driveConnected)}
 
-    <section class="card">
-      <div class="card-heading">
-        <div><p class="card-kicker">AI &amp; integrasi</p><h2 class="section-title">OpenRouter</h2></div>
-        ${icon('circle-dot', 'w-5 h-5 text-violet-500')}
-      </div>
-      <div class="settings-list">
-        <label class="field-label">API Key OpenRouter
-          <input class="field mt-1.5" type="password" name="openRouterKey" value="${escapeAttr(store.data.settings?.openRouterKey || '')}" placeholder="sk-or-v1...">
-        </label>
-        <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Kunci disimpan hanya di perangkat ini. Digunakan untuk menghasilkan pilihan roda via AI (model nvidia/nemotron-3.5-super-vl:free). Jangan bagikan kunci Anda.</p>
-        <button type="button" class="btn btn-secondary btn-sm w-full" data-action="save-openrouter-key">${icon('save', 'w-4 h-4')} Simpan kunci</button>
-      </div>
-    </section>
 
     <div class="settings-grid">
       <section class="card">

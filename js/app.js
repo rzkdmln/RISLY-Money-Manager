@@ -103,7 +103,6 @@ import { budgetsView } from './views/budgets.js';
 import { recurringView } from './views/recurring.js';
 import { categoriesView } from './views/categories.js';
 import { goalsView, goalForm } from './views/goals.js';
-import { gamesView, gameEditor, gameWheel, aiGenerateChoices, gameColor } from './views/games.js';
 import { reportsView } from './views/reports.js';
 import { settingsView } from './views/settings.js';
 import { loginView } from './views/auth.js';
@@ -154,7 +153,6 @@ const ROUTE_VIEWS = {
   recurring: () => recurringView(),
   categories: () => categoriesView(),
   goals: () => goalsView(),
-  games: () => gamesView(),
   reports: () => reportsView(),
   settings: () => settingsView(store.currentUser),
 };
@@ -726,35 +724,6 @@ function openAutoLockModal() {
       </footer>
     </form>`,
   });
-}
-
-function syncChoiceCount(input) {
-  const form = input.closest('form[data-form="game"]');
-  if (!form) return;
-  const count = Math.max(0, Math.min(20, Number(input.value) || 0));
-  const list = form.querySelector('#game-choices-list');
-  const existing = list.querySelectorAll('input[name^="choice_"]');
-
-  // Remove excess
-  for (let i = existing.length - 1; i >= count; i--) {
-    existing[i]?.closest('.flex.gap-1.items-center')?.remove();
-  }
-
-  // Add missing
-  for (let i = existing.length; i < count; i++) {
-    const color = gameColor(i);
-    const div = document.createElement('div');
-    div.className = 'flex gap-1 items-center bg-slate-50 dark:bg-slate-800/40 rounded-lg p-2';
-    div.innerHTML = `
-      <span class="w-2 h-2 rounded-full shrink-0" style="background:${escapeAttr(color)}"></span>
-      <input class="field flex-1" name="choice_${i}" value="" placeholder="Pilihan ${i + 1}">
-      <button type="button" class="icon-btn text-rose-500 shrink-0" data-action="remove-choice" data-index="${i}">${icon('x', 'w-3 h-3')}</button>
-    `;
-    list.appendChild(div);
-  }
-
-  const empty = form.querySelector('#game-choices-empty');
-  if (empty) empty.classList.toggle('hidden', count > 0);
 }
 
 function openThemeModal() {
@@ -2321,175 +2290,6 @@ async function handleAction(action, element) {
       renderApplication();
       break;
     }
-    case 'open-game-editor': {
-      const game = id ? store.gameById(id) : null;
-      closeModal({ silent: true });
-      openModal({ size: 'lg', className: 'form-modal', html: gameEditor(game) });
-      break;
-    }
-    case 'game': {
-      const form = element.closest('form');
-      const gameId = form?.dataset.id || '';
-      const name = form.querySelector('[name="name"]')?.value || '';
-      const context = form.querySelector('[name="context"]')?.value || '';
-      const choiceCount = Number(form.querySelector('[name="choiceCount"]')?.value || 3);
-      const choices = [];
-      for (let i = 0; i < choiceCount; i++) {
-        const input = form.querySelector(`[name="choice_${i}"]`);
-        if (input) choices.push({ text: input.value, color: gameColor(i) });
-      }
-      if (!name.trim()) {
-        showFormError(form, 'Nama roda wajib diisi.');
-        break;
-      }
-      store.saveGame({ name, context, choices }, gameId || null);
-      closeModal();
-      toast(gameId ? 'Roda diperbarui.' : 'Roda dibuat.', 'success');
-      renderApplication();
-      break;
-    }
-    case 'add-choice': {
-      const form = element.closest('form[data-form="game"]');
-      if (!form) break;
-      const list = form.querySelector('#game-choices-list');
-      const index = list.querySelectorAll('input[name^="choice_"]').length;
-      const color = gameColor(index);
-      const div = document.createElement('div');
-      div.className = 'flex gap-1 items-center bg-slate-50 dark:bg-slate-800/40 rounded-lg p-2';
-      div.innerHTML = `
-        <span class="w-2 h-2 rounded-full shrink-0" style="background:${escapeAttr(color)}"></span>
-        <input class="field flex-1" name="choice_${index}" value="" placeholder="Pilihan ${index + 1}">
-        <button type="button" class="icon-btn text-rose-500 shrink-0" data-action="remove-choice" data-index="${index}">${icon('x', 'w-3 h-3')}</button>
-      `;
-      list.appendChild(div);
-      const empty = form.querySelector('#game-choices-empty');
-      if (empty) empty.classList.add('hidden');
-      break;
-    }
-    case 'remove-choice': {
-      const index = Number(element.dataset.index);
-      const form = element.closest('form[data-form="game"]');
-      if (!form) break;
-      const input = form.querySelector(`[name="choice_${index}"]`);
-      if (input) {
-        input.closest('.flex.gap-1.items-center')?.remove();
-        const empty = form.querySelector('#game-choices-empty');
-        const remaining = form.querySelectorAll('input[name^="choice_"]').length;
-        if (empty) empty.classList.toggle('hidden', remaining > 0);
-      }
-      break;
-    }
-    case 'spin-game': {
-      const game = store.gameById(id);
-      if (!game) break;
-      closeModal({ silent: true });
-      openModal({ size: 'lg', className: 'sheet-panel', html: gameWheel(game) });
-      break;
-    }
-    case 'do-spin': {
-      const game = store.gameById(id);
-      if (!game) break;
-      const choices = game.choices || [];
-      if (!choices.length) {
-        toast('Roda belum punya pilihan.', 'error');
-        break;
-      }
-      const segmentCount = choices.length;
-      const segmentDeg = 360 / segmentCount;
-      // Acak putaran minimal 5 putaran penuh + segmen acak
-      const extra = Math.floor(Math.random() * segmentCount);
-      const targetDeg = 1800 + extra * segmentDeg + segmentDeg / 2;
-      const wheel = document.getElementById('game-wheel');
-      const resultNode = document.getElementById('game-result');
-      const spinBtn = document.querySelector('[data-action="do-spin"]');
-      if (wheel) {
-        wheel.style.transition = 'transform 5s cubic-bezier(0.23, 1, 0.32, 1)';
-        wheel.style.transform = `rotate(${targetDeg}deg)`;
-      }
-      if (spinBtn) {
-        spinBtn.disabled = true;
-        spinBtn.innerHTML = 'Memutar...';
-      }
-      if (resultNode) {
-        resultNode.classList.add('hidden');
-        resultNode.textContent = '';
-      }
-      setTimeout(() => {
-        const winningIndex = Math.floor(((targetDeg % 360) + segmentDeg / 2) / segmentDeg) % segmentCount;
-        const winner = choices[winningIndex];
-        if (resultNode) {
-          resultNode.textContent = winner ? winner.text : 'Tidak ada hasil';
-          resultNode.classList.remove('hidden');
-          resultNode.style.color = winner?.color || '#2563eb';
-          resultNode.classList.add('animate-pop');
-          requestAnimationFrame(() => resultNode.classList.remove('animate-pop'));
-        }
-        if (spinBtn) {
-          spinBtn.disabled = false;
-          spinBtn.innerHTML = `${icon('rotate-ccw', 'w-5 h-5')} Putar lagi`;
-        }
-      }, 5100);
-      break;
-    }
-    case 'delete-game': {
-      const game = store.gameById(id);
-      if (!game) break;
-      const ok = await confirmDialog({
-        title: 'Hapus roda?',
-        message: `Roda "${game.name}" akan dihapus.`,
-      });
-      if (!ok) return;
-      store.deleteGame(id);
-      toast('Roda dihapus.', 'success');
-      renderApplication();
-      break;
-    }
-    case 'save-openrouter-key': {
-      const key = document.querySelector('input[name="openRouterKey"]')?.value || '';
-      store.updateSettings({ openRouterKey: key.trim() });
-      toast('Kunci OpenRouter disimpan.', 'success');
-      break;
-    }
-    case 'ai-generate-choices': {
-      const form = element.closest('form[data-form="game"]');
-      if (!form) break;
-      const context = form.querySelector('[name="context"]')?.value || '';
-      const count = Number(form.querySelector('[name="choiceCount"]')?.value || 3);
-      const apiKey = store.data.settings?.openRouterKey || '';
-      if (!apiKey) {
-        toast('API Key OpenRouter belum diatur di Pengaturan.', 'error');
-        break;
-      }
-      const btn = element;
-      const orig = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = `Memuat...`;
-      try {
-        const choices = await aiGenerateChoices(context, count, apiKey);
-        const list = form.querySelector('#game-choices-list');
-        list.innerHTML = '';
-        choices.forEach((text, i) => {
-          const div = document.createElement('div');
-          div.className = 'flex gap-1 items-center bg-slate-50 dark:bg-slate-800/40 rounded-lg p-2';
-          div.innerHTML = `
-            <span class="w-2 h-2 rounded-full shrink-0" style="background:${escapeAttr(gameColor(i))}"></span>
-            <input class="field flex-1" name="choice_${i}" value="${escapeAttr(text)}" placeholder="Pilihan ${i + 1}">
-            <button type="button" class="icon-btn text-rose-500 shrink-0" data-action="remove-choice" data-index="${i}">${icon('x', 'w-3 h-3')}</button>
-          `;
-          list.appendChild(div);
-        });
-        const empty = form.querySelector('#game-choices-empty');
-        if (empty) empty.classList.add('hidden');
-        toast(`${choices.length} pilihan dibuat oleh AI.`, 'success');
-      } catch (error) {
-        console.error(error);
-        toast(error.message || 'Gagal menghasilkan pilihan.', 'error');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = orig;
-      }
-      break;
-    }
     case 'restore-account': {
       const account = store.accountById(id);
       if (!account) break;
@@ -3658,26 +3458,6 @@ async function submitForm(form) {
     case 'goal':
       submitGoal(form);
       break;
-    case 'game': {
-      const gameId = form.dataset.id || '';
-      const name = form.querySelector('[name="name"]')?.value || '';
-      const context = form.querySelector('[name="context"]')?.value || '';
-      const choiceCount = Number(form.querySelector('[name="choiceCount"]')?.value || 3);
-      const choices = [];
-      for (let i = 0; i < choiceCount; i++) {
-        const input = form.querySelector(`[name="choice_${i}"]`);
-        if (input) choices.push({ text: input.value, color: gameColor(i) });
-      }
-      if (!name.trim()) {
-        showFormError(form, 'Nama roda wajib diisi.');
-        break;
-      }
-      store.saveGame({ name, context, choices }, gameId || null);
-      closeModal();
-      toast(gameId ? 'Roda diperbarui.' : 'Roda dibuat.', 'success');
-      renderApplication();
-      break;
-    }
     case 'category':
       submitCategory(form);
       break;
@@ -3947,10 +3727,6 @@ function bindEvents() {
         accountSelect.innerHTML = '<option value="">Pilih Akun</option>' +
           accounts.map((account) => `<option value="${escapeAttr(account.id)}" ${selected === account.id ? 'selected' : ''}>${escapeHTML(account.name)}${account.archived ? ' (arsip)' : ''}</option>`).join('');
       }
-      return;
-    }
-    if (target.matches('input[name="choiceCount"]')) {
-      syncChoiceCount(target);
       return;
     }
     if (target.dataset?.action) {

@@ -1123,62 +1123,6 @@ class Store {
     });
   }
 
-  games({ includeDeleted = false } = {}) {
-    const list = Array.isArray(this.data?.games) ? this.data.games : [];
-    return list.filter((item) => includeDeleted || !item?.deletedAt);
-  }
-
-  gameById(id) {
-    return (this.data.games || []).find((item) => item.id === id && !item.deletedAt) || null;
-  }
-
-  saveGame(payload, id = null) {
-    return this.commit(id ? 'game:update' : 'game:add', (data, now) => {
-      if (!Array.isArray(data.games)) data.games = [];
-      const choices = Array.isArray(payload.choices)
-        ? payload.choices
-            .filter((c) => String(c.text || '').trim())
-            .map((c, i) => ({
-              id: c.id || uid('choice'),
-              text: String(c.text).trim(),
-              color: c.color || `hsl(${(i * 137.508) % 360}, 70%, 60%)`,
-            }))
-        : [];
-      if (id) {
-        const game = data.games.find((item) => item.id === id);
-        if (!game) throw new Error('Game tidak ditemukan.');
-        Object.assign(game, {
-          name: String(payload.name || game.name).trim() || game.name,
-          context: payload.context !== undefined ? String(payload.context || '').trim() : game.context,
-          choices,
-          updatedAt: now,
-        });
-        return game;
-      }
-      const game = {
-        id: uid('game'),
-        name: String(payload.name || 'Rodaku').trim(),
-        context: String(payload.context || '').trim(),
-        choices,
-        createdBy: this.currentUserId || data.users?.[0]?.id || 'owner',
-        createdAt: now,
-        updatedAt: now,
-      };
-      data.games.push(game);
-      return game;
-    });
-  }
-
-  deleteGame(id) {
-    return this.commit('game:delete', (data, now) => {
-      const game = data.games.find((item) => item.id === id);
-      if (!game) throw new Error('Game tidak ditemukan.');
-      game.deletedAt = now;
-      game.updatedAt = now;
-      return game;
-    });
-  }
-
   netWorthHistory() {
     return (this.data.netWorthHistory || []).slice().sort((a, b) => a.month.localeCompare(b.month));
   }
