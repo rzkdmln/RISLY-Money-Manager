@@ -1,3 +1,4 @@
+import { Cloud } from '../cloud.js';
 import { store } from '../store.js';
 import { icon } from '../icons.js';
 import {
@@ -26,6 +27,23 @@ import { accountIcon, txRow } from './common.js';
 
 export function dashboardView(user) {
   const month = monthKey();
+  const netWorth = store.totalBalance();
+  const myNetWorth = store.personalBalance();
+
+  if (!ui.networthFilter) ui.networthFilter = prefs.networthFilter || 'all';
+  const personalScope = ui.networthFilter === 'mine';
+  const personalAccountIds = new Set(store.accountsByOwner().map((account) => account.id));
+  const cloudStatus = Cloud.getStatus();
+  const isPersonalTx = (tx) => personalAccountIds.has(tx.accountId) || personalAccountIds.has(tx.toAccountId);
+  const scopedTransactions = personalScope
+    ? store.transactionsForMonth(month).filter(isPersonalTx)
+    : store.transactionsForMonth(month);
+  const scopedSummary = store.summaryForTransactions(scopedTransactions);
+
+  const income = scopedSummary.income || 0;
+  const expense = scopedSummary.expense || 0;
+  const cashflow = income - expense;
+
   const baseBudget = store.budgetStatus(month);
   const scopedBudgetCategories = baseBudget.categories.map((item) => {
     const spentForCategory = scopedTransactions
@@ -45,21 +63,6 @@ export function dashboardView(user) {
     percent: baseBudget.total > 0 ? (expense / baseBudget.total) * 100 : 0,
     categories: scopedBudgetCategories,
   };
-  const netWorth = store.totalBalance();
-  const myNetWorth = store.personalBalance();
-
-  if (!ui.networthFilter) ui.networthFilter = prefs.networthFilter || 'all';
-  const personalScope = ui.networthFilter === 'mine';
-  const personalAccountIds = new Set(store.accountsByOwner().map((account) => account.id));
-  const isPersonalTx = (tx) => personalAccountIds.has(tx.accountId) || personalAccountIds.has(tx.toAccountId);
-  const scopedTransactions = personalScope
-    ? store.transactionsForMonth(month).filter(isPersonalTx)
-    : store.transactionsForMonth(month);
-  const scopedSummary = store.summaryForTransactions(scopedTransactions);
-
-  const income = scopedSummary.income || 0;
-  const expense = scopedSummary.expense || 0;
-  const cashflow = income - expense;
   const cashflowPrefix = cashflow > 0 ? '+' : '';
   const cashflowColor = cashflow >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400';
 
@@ -151,6 +154,14 @@ export function dashboardView(user) {
         <button type="button" class="${personalScope ? 'is-active' : ''}" data-action="set-networth-filter" data-scope="mine">Saya</button>
       </div>`,
     })}
+
+    ${!cloudStatus.connected && cloudStatus.provider !== 'local' ? `<div class="rounded-2xl border border-amber-200 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 flex items-center justify-between gap-3">
+      <div class="min-w-0">
+        <p class="text-sm font-semibold text-amber-800 dark:text-amber-200">Sinkronisasi belum aktif</p>
+        <p class="text-xs text-amber-700 dark:text-amber-300/80">Hubungkan Google Drive/database di Pengaturan agar data tersinkron.</p>
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm shrink-0" data-action="nav" data-route="settings">Hubungkan</button>
+    </div>` : ''}
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 min-w-0 w-full items-stretch">
       <!-- KARTU KEKAYAAN (CLEAN & SWITCHABLE) -->
