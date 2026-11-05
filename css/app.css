@@ -1011,6 +1011,7 @@ body.is-auth { background: var(--bg); }
   padding: 6px 9px; border: 0; border-radius: 8px;
   background: transparent; color: var(--muted);
   font-size: 10px; font-weight: 700;
+  flex-shrink: 0;
 }
 .notes-tab span { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 5px; background: var(--surface-3); font-size: 10px; color: var(--muted-2); }
 .notes-tab:hover { background: var(--surface-2); color: var(--text); }

@@ -132,7 +132,7 @@ export function dashboardView(user) {
     ${pageHeader({
       eyebrow: `Ringkasan ${escapeHTML(formatMonth(month))}`,
       title: `${escapeHTML(greeting())}, ${escapeHTML(user?.name || '')} <span class="wave">👋</span>`,
-      actions: `<div class="view-toggle shrink-0" role="group" aria-label="Scope kekayaan">
+      actions: `<div class="segmented-control shrink-0" role="group" aria-label="Scope kekayaan">
         <button type="button" class="${!personalScope ? 'is-active' : ''}" data-action="set-networth-filter" data-scope="all">Keluarga</button>
         <button type="button" class="${personalScope ? 'is-active' : ''}" data-action="set-networth-filter" data-scope="mine">Saya</button>
       </div>`,

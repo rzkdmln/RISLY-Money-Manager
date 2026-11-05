@@ -3925,15 +3925,17 @@ async function boot() {
       console.error('DEBUG timeform failed', e);
     }
   }
+  // Sembunyikan splash setelah halaman target DAN sinkronisasi selesai,
+  // agar banner "Sinkronisasi belum aktif" tidak sempat muncul.
+  const finishSplash = () => { try { hideSplash(); } catch { /* noop */ } };
   if (store.hasWorkspace) {
-    Cloud.bootstrap({ waitForAuth: true }).then(() => {
-      if (store.currentUser && !ui.locked) renderApplication();
-      else renderAuth();
-    }).catch((error) => console.warn('Cloud bootstrap skipped:', error));
+    Cloud.bootstrap({ waitForAuth: true })
+      .then(() => { if (store.currentUser && !ui.locked) renderApplication(); })
+      .catch((error) => console.warn('Cloud bootstrap skipped:', error))
+      .finally(finishSplash);
+  } else {
+    finishSplash();
   }
-
-  // Sembunyikan splash setelah halaman target selesai dimuat.
-  hideSplash();
 
   window.__RISLY__ = { store, Cloud, navigate, version: APP.version };
 }
