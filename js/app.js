@@ -22,6 +22,7 @@ import {
   hasPendingGoogleAuthRedirect,
   startGoogleAuthRedirect,
   startGoogleAuthPopup,
+  warmUpGoogleAuth,
 } from './google-auth-relay.js';
 import { initPullToRefresh } from './pull-to-refresh.js';
 import {
@@ -73,7 +74,6 @@ import {
   formatMonth,
   getInitials,
   isIos,
-  isMobile,
   isStandalone,
   localDateISO,
   monthKey,
@@ -455,38 +455,48 @@ function showGoogleWaitingModal({ onCancel }) {
   };
 }
 
-async function signInWithGoogleFlow() {
-  // Mobile (iOS PWA/Safari, Android, tablet) SELALU memakai Firebase Auth
-  // redirect. signInWithPopup tidak andal di mobile browser (terutama iOS
-  // Safari) dan tidak didukung di iOS standalone PWA. Redirect + persistence
-  // lokal permanen + global loading state menutup celah ITP dan race condition.
-  const useRedirect = isMobile();
+function canFallbackToRedirect(error) {
+  const code = String(error?.code || '');
+  return code === 'auth/popup-blocked'
+    || code === 'auth/operation-not-supported-in-this-environment'
+    || code === 'auth/web-storage-unsupported'
+    || code === 'auth/timeout';
+}
 
-  if (useRedirect) {
-    // iOS standalone PWA: gunakan redirect (popup tidak didukung di standalone).
-    // Penting: JANGAN memanggil getRedirectResult() setelah signInWithRedirect()
-    // di halaman yang sama. Itu menghapus state redirect sebelum browser sempat
-    // meninggalkan halaman, sehingga login Google berhasil tetapi aplikasi
-    // kembali ke layar login. Hasil redirect diproses saat boot berikutnya.
-    const controller = new AbortController();
-    const waiting = showGoogleWaitingModal({
-      onCancel: () => controller.abort(),
-    });
-    try {
-      await startGoogleAuthRedirect({ signal: controller.signal });
-    } catch (error) {
-      waiting.close();
-      throw error;
-    }
-    // Halaman akan segera berpindah ke Google. Biarkan modal tetap terbuka
-    // (browser akan meng-unload halaman ini) dan jangan menampilkan error.
-    return new Promise(() => {});
+async function startGoogleRedirectFlow() {
+  // Redirect adalah opsi terakhir. Firebase redirect bergantung pada
+  // penyimpanan lintas-origin dan gagal di browser yang mempartisi storage
+  // ("missing initial state"), jadi popup selalu dicoba lebih dulu.
+  // Penting: JANGAN memanggil getRedirectResult() setelah signInWithRedirect()
+  // di halaman yang sama. Hasil redirect diproses saat boot berikutnya.
+  const controller = new AbortController();
+  const waiting = showGoogleWaitingModal({
+    onCancel: () => controller.abort(),
+  });
+  try {
+    await startGoogleAuthRedirect({ signal: controller.signal });
+  } catch (error) {
+    waiting.close();
+    throw error;
   }
+  // Halaman akan segera berpindah ke Google. Biarkan modal tetap terbuka
+  // (browser akan meng-unload halaman ini) dan jangan menampilkan error.
+  return new Promise(() => {});
+}
 
-  // Desktop / iOS Safari browser / Android: gunakan popup Firebase Auth.
-  const session = await startGoogleAuthPopup();
-  GoogleDrive.adoptSession(session);
-  return session.account;
+async function signInWithGoogleFlow() {
+  // Popup lebih tahan terhadap browser yang memblokir/mempartisi third-party
+  // storage. Banyak browser mobile tidak lagi bisa menyelesaikan
+  // signInWithRedirect karena state OAuth lintas-origin hilang.
+  try {
+    const session = await startGoogleAuthPopup();
+    GoogleDrive.adoptSession(session);
+    return session.account;
+  } catch (error) {
+    if (!canFallbackToRedirect(error)) throw error;
+    console.warn('Popup Google tidak tersedia, memakai redirect:', error);
+  }
+  return startGoogleRedirectFlow();
 }
 
 function lockApplication({ expired = false } = {}) {
@@ -3766,9 +3776,10 @@ async function boot() {
   bindStore();
   bindEvents();
   initPullToRefresh();
-  // Warm up Google Identity Services so the sign-in window can be opened
-  // synchronously from the button tap (required by Safari/iOS).
+  // Warm up Google Identity Services and Firebase Auth so the sign-in window
+  // can be opened synchronously from the button tap (required by Safari/iOS).
   GoogleDrive.prepare().catch(() => {});
+  void warmUpGoogleAuth();
 
   if (!location.hash) history.replaceState(null, '', '#/dashboard');
 

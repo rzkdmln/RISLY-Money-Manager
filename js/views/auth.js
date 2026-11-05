@@ -1,10 +1,10 @@
 import { APP } from '../config.js';
 import { getLockRemaining } from '../auth.js';
-import { GoogleDrive, googleGlyph } from '../gdrive.js';
+import { googleGlyph } from '../gdrive.js';
 import { icon } from '../icons.js';
 import { store } from '../store.js';
 import { ui } from '../ui.js';
-import { escapeAttr, escapeHTML, isIos, isStandalone } from '../utils.js';
+import { escapeAttr, escapeHTML } from '../utils.js';
 
 function lastAccount() {
   try {
@@ -34,16 +34,6 @@ function googleButton(label, action = 'google-login', ghost = false) {
   </button>`;
 }
 
-function installTip() {
-  if (!isIos() || isStandalone()) return '';
-  return `<p class="auth-install-tip">${icon('info', 'w-3.5 h-3.5')} Buka di Safari, lalu pilih <strong>Bagikan → Tambahkan ke Layar Utama</strong>.</p>`;
-}
-
-function iosLoginTip() {
-  if (!isIos()) return '';
-  return `<p class="auth-install-tip">${icon('info', 'w-3.5 h-3.5')} Jendela Google akan terbuka. Setelah memilih akun, kembali ke aplikasi ini — proses masuk selesai otomatis.</p>`;
-}
-
 function welcomeView() {
   const last = lastAccount();
   return `<div class="auth-screen">
@@ -61,7 +51,6 @@ function welcomeView() {
         </div>
 
         ${googleButton('Masuk dengan Google')}
-        ${iosLoginTip()}
         <div class="auth-divider"><span>atau</span></div>
 
         <div class="auth-stack">
@@ -75,12 +64,6 @@ function welcomeView() {
           </button>` : ''}
         </div>
 
-        <div class="auth-links">
-          <button type="button" data-action="google-restore">
-            ${googleGlyph('w-3.5 h-3.5')} Pulihkan dari Drive
-          </button>
-        </div>
-        ${installTip()}
       </section>
 
       <footer class="auth-footer">

@@ -489,6 +489,23 @@ export async function startGoogleAuthRedirect({ signal = null } = {}) {
   return { started: true };
 }
 
+let warmUpPromise = null;
+
+/**
+ * Preload Firebase Auth at boot so signInWithPopup() can run immediately in
+ * the click handler. On mobile Safari a delayed popup is treated as programmatic
+ * and blocked by the browser.
+ */
+export function warmUpGoogleAuth() {
+  if (!warmUpPromise) {
+    warmUpPromise = Promise.all([
+      import(FIREBASE_APP_URL),
+      import(FIREBASE_AUTH_URL),
+    ]).catch(() => null);
+  }
+  return warmUpPromise;
+}
+
 /**
  * Mulai login Google lewat Firebase Auth popup (desktop / non-iOS).
  * Mengembalikan session yang kompatibel dengan GoogleDrive.adoptSession() dan store.

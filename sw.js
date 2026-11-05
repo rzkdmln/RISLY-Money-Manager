@@ -9,7 +9,7 @@
  *  - Cloud/API traffic is never cached.
  */
 
-const VERSION = 'risly-1.2.27';
+const VERSION = 'risly-1.2.28';
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 
@@ -17,6 +17,7 @@ const APP_SHELL = [
   './',
   './index.html',
   './manifest.json',
+  './privacy.html',
   './css/app.css',
   './js/app.js',
   './js/colors.js',
@@ -71,6 +72,27 @@ const CDN_URLS = new Set(CDN_ASSETS);
 
 const isCdnRequest = (url) => CDN_URLS.has(url.href);
 
+/**
+ * A response produced by fetch() after following a redirect has
+ * `redirected === true`. Browsers reject such a response when the original
+ * request uses `redirect: "manual"` (common for navigations), and cached
+ * redirected responses keep failing forever. Rebuild the response so the
+ * redirect flag is cleared while preserving its body and headers.
+ */
+function stripRedirectedResponse(response) {
+  if (!response || !response.redirected) return response;
+  const headers = new Headers(response.headers);
+  // The body returned by fetch() is already decoded, so these encoding
+  // headers would be wrong (and can corrupt the rebuilt response).
+  headers.delete('content-encoding');
+  headers.delete('content-length');
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(SHELL_CACHE);
@@ -78,7 +100,7 @@ self.addEventListener('install', (event) => {
     // is never precached with stale files from the previous version.
     await Promise.allSettled(APP_SHELL.map(async (url) => {
       try {
-        const response = await fetch(url, { cache: 'reload' });
+        const response = stripRedirectedResponse(await fetch(url, { cache: 'reload' }));
         if (response && response.ok) await cache.put(url, response);
       } catch { /* optional asset */ }
     }));
@@ -110,7 +132,10 @@ self.addEventListener('message', (event) => {
 async function networkFirstNavigation(request) {
   const cache = await caches.open(SHELL_CACHE);
   try {
-    const response = await fetch(request, { cache: 'no-cache' });
+    // Cloudflare Pages may redirect /privacy.html to another path. Strip the
+    // redirected flag before returning or caching, otherwise Chrome rejects
+    // the navigation with "redirected response ... redirect mode is not follow".
+    const response = stripRedirectedResponse(await fetch(request, { cache: 'no-cache' }));
     if (response && response.ok) {
       // Only app-shell navigations may refresh the cached index.html.
       // Other pages (e.g. oauth-callback.html) must not overwrite it.
@@ -118,6 +143,9 @@ async function networkFirstNavigation(request) {
       try { pathname = new URL(request.url).pathname; } catch { pathname = ''; }
       if (pathname.endsWith('/') || pathname.endsWith('/index.html')) {
         cache.put('./index.html', response.clone());
+      }
+      if (pathname.endsWith('/privacy.html')) {
+        cache.put('./privacy.html', response.clone());
       }
       if (pathname.endsWith('/oauth-callback.html')) {
         cache.put('./oauth-callback.html', response.clone());
@@ -128,16 +156,20 @@ async function networkFirstNavigation(request) {
   } catch {
     let pathname = '';
     try { pathname = new URL(request.url).pathname; } catch { pathname = ''; }
+    if (pathname.endsWith('/privacy.html')) {
+      const cachedPrivacy = await cache.match('./privacy.html');
+      if (cachedPrivacy) return stripRedirectedResponse(cachedPrivacy);
+    }
     if (pathname.endsWith('/oauth-callback.html')) {
-      const cachedCallback = await cache.match('./oauth-callback.html');
+      const cachedCallback = stripRedirectedResponse(await cache.match('./oauth-callback.html'));
       if (cachedCallback) return cachedCallback;
       return new Response('Halaman login Google sedang dimuat. Coba ulangi login.', {
         status: 503,
         headers: { 'Content-Type': 'text/plain; charset=utf-8' },
       });
     }
-    return (await cache.match('./index.html')) ||
-      (await cache.match('./')) ||
+    return stripRedirectedResponse(await cache.match('./index.html')) ||
+      stripRedirectedResponse(await cache.match('./')) ||
       new Response('RISLY sedang offline.', {
         status: 503,
         headers: { 'Content-Type': 'text/plain; charset=utf-8' },
@@ -149,8 +181,9 @@ const offlineResponse = () => new Response('', { status: 504, statusText: 'Offli
 
 async function staleWhileRevalidate(request) {
   const cache = await caches.open(RUNTIME_CACHE);
-  const cached = await cache.match(request);
-  const network = fetch(request, { cache: 'no-cache' }).then((response) => {
+  const cached = stripRedirectedResponse(await cache.match(request));
+  const network = fetch(request, { cache: 'no-cache' }).then((raw) => {
+    const response = stripRedirectedResponse(raw);
     if (response && (response.ok || response.type === 'opaque')) {
       cache.put(request, response.clone()).catch(() => {});
     }
@@ -160,11 +193,11 @@ async function staleWhileRevalidate(request) {
 }
 
 async function cacheFirst(request) {
-  const cached = await caches.match(request);
+  const cached = stripRedirectedResponse(await caches.match(request));
   if (cached) return cached;
   try {
     const cache = await caches.open(RUNTIME_CACHE);
-    const response = await fetch(request);
+    const response = stripRedirectedResponse(await fetch(request));
     if (response && (response.ok || response.type === 'opaque')) {
       cache.put(request, response.clone()).catch(() => {});
     }
