@@ -63,7 +63,7 @@ export function dashboardView(user) {
         spendingMap.set(key, {
           categoryId: key,
           name: cat?.name || 'Tanpa kategori',
-          color: cat?.color || '#94A3B8',
+          color: cat?.color || 'var(--muted-2)',
           icon: cat?.icon || 'tag',
           total: 0,
         });
@@ -107,7 +107,7 @@ export function dashboardView(user) {
     ? upcoming.map((rule) => {
       const category = store.categoryById(rule.categoryId);
       return `<button type="button" class="mini-list-row min-w-0 w-full p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl transition-colors flex items-center gap-3" data-action="edit-rec" data-id="${escapeAttr(rule.id)}">
-        <span class="mini-list-icon shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white" style="background-color:${escapeAttr(category?.color || '#3B82F6')}">${icon(rule.type === 'transfer' ? 'repeat' : category?.icon || 'receipt', 'w-3.5 h-3.5')}</span>
+        <span class="mini-list-icon shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white" style="background-color:${escapeAttr(category?.color || 'var(--brand)')}">${icon(rule.type === 'transfer' ? 'repeat' : category?.icon || 'receipt', 'w-3.5 h-3.5')}</span>
         <span class="min-w-0 flex-1 text-left">
           <span class="block text-xs font-bold text-slate-800 dark:text-slate-100 truncate">${escapeHTML(rule.title)}</span>
           <span class="block text-[12px] text-slate-500 dark:text-slate-400 truncate mt-0.5">${escapeHTML(relativeDay(rule.nextDate))} · ${escapeHTML(formatDate(rule.nextDate))}</span>
@@ -287,3 +287,4 @@ export function dashboardView(user) {
     </div>
   </div>`;
 }
+

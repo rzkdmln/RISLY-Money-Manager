@@ -82,10 +82,11 @@ export function calendarView() {
       <div class="calendar-grid">${cellHtml}</div>
 
       <div class="calendar-legend">
-        <span><b class="legend-dot" style="--legend-color:#16A34A"></b> Pemasukan</span>
-        <span><b class="legend-dot" style="--legend-color:#F04452"></b> Pengeluaran</span>
+        <span><b class="legend-dot" style="--legend-color:var(--green)"></b> Pemasukan</span>
+        <span><b class="legend-dot" style="--legend-color:var(--red)"></b> Pengeluaran</span>
         <span>${icon('check-square', 'w-3 h-3')} Jatuh tempo tugas</span>
       </div>
     </section>
   </div>`;
 }
+

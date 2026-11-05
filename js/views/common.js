@@ -60,7 +60,7 @@ export function txRow(tx, { showDate = false, showCreator = true, compact = fals
   const category = categoryOf(tx);
   const account = store.accountById(tx.accountId);
   const creator = store.getUser(tx.createdBy);
-  const color = tx.type === 'transfer' ? '#3B82F6' : category?.color || type.color;
+  const color = tx.type === 'transfer' ? 'var(--brand)' : category?.color || type.color;
   const iconName = tx.type === 'transfer' ? 'arrow-left-right' : category?.icon || type.icon;
   const amountClass = tx.type === 'income' ? 'amount-income' : tx.type === 'expense' ? 'amount-expense' : 'amount-transfer';
   const sign = tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : '';
@@ -76,12 +76,12 @@ export function txRow(tx, { showDate = false, showCreator = true, compact = fals
         ${showDate ? `<span>${escapeHTML(formatDate(tx.date))}</span>` : ''}
         ${time ? `<span class="tx-time">${escapeHTML(time)}</span>` : ''}
         <span>${escapeHTML(txSubtitle(tx))}</span>
-        ${showCreator ? `<span class="tx-creator" style="--creator-color:${escapeAttr(creator?.color || '#64748B')}">${escapeHTML(tx.createdByName || creator?.name || '—')}</span>` : ''}
+        ${showCreator ? `<span class="tx-creator" style="--creator-color:${escapeAttr(creator?.color || 'var(--muted)')}">${escapeHTML(tx.createdByName || creator?.name || '—')}</span>` : ''}
       </span>
     </span>
     <span class="tx-side">
       <span class="tx-amount ${amountClass}">${sign}${money(tx.amount)}</span>
-      ${!compact && account ? `<span class="tx-account-dot" style="--dot-color:${escapeAttr(account.color || '#64748B')}">${escapeHTML(account.name)}</span>` : ''}
+      ${!compact && account ? `<span class="tx-account-dot" style="--dot-color:${escapeAttr(account.color || 'var(--muted)')}">${escapeHTML(account.name)}</span>` : ''}
     </span>
   </button>`;
 }
@@ -247,7 +247,7 @@ export function recurringRow(rule, { embedded = false } = {}) {
 
 export function categoryChip(category, subcategory = null) {
   if (!category) return '';
-  return `<span class="category-chip" style="--chip-color:${escapeAttr(category.color || '#64748B')}">${icon(category.icon || 'tag', 'w-3 h-3')}${escapeHTML(category.name)}${subcategory ? ` · ${escapeHTML(subcategory.name)}` : ''}</span>`;
+  return `<span class="category-chip" style="--chip-color:${escapeAttr(category.color || 'var(--muted)')}">${icon(category.icon || 'tag', 'w-3 h-3')}${escapeHTML(category.name)}${subcategory ? ` · ${escapeHTML(subcategory.name)}` : ''}</span>`;
 }
 
 export function statCard({ label, value, iconName, tone = 'blue', hint = '', action = '' }) {
@@ -270,3 +270,4 @@ export function insightBar(label, value, total, tone = 'info') {
 export function budgetTone(percent, warning = 75, danger = 90) {
   return toneForPercent(percent, warning, danger);
 }
+

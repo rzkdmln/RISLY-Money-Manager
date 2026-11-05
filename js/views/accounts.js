@@ -32,7 +32,7 @@ function accountCard(account, archived = false) {
       const tone = usedPercent >= 90 ? 'text-red-500' : usedPercent >= 60 ? 'text-amber-500' : 'text-slate-400';
       return `<div class="min-w-0">
         <div class="text-[12px] ${tone}">Limit ${money(creditLimit)} · Sisa ${money(remaining)} · Terpakai ${usedPercent}%</div>
-        <div class="account-bar min-w-0 w-full"><span style="width:${Math.min(100, usedPercent)}%; background:${usedPercent >= 90 ? '#EF4444' : undefined}"></span></div>
+        <div class="account-bar min-w-0 w-full"><span style="width:${Math.min(100, usedPercent)}%; background:${usedPercent >= 90 ? 'var(--red)' : undefined}"></span></div>
       </div>`;
     })() : ''}
     <div class="account-meta min-w-0 flex justify-end gap-2 text-xs">
@@ -54,7 +54,7 @@ function ownerNetWorth(accounts) {
 }
 
 function memberCard({ id, user, name, accounts, netWorth, isCurrent }) {
-  const person = user || { name, color: '#94A3B8' };
+  const person = user || { name, color: 'var(--muted-2)' };
   return `<button type="button" class="member-card ${isCurrent ? 'is-current' : ''}" data-action="open-member" data-id="${escapeAttr(id)}">
     ${avatar(person, 'md')}
     <span class="member-main">
@@ -241,3 +241,4 @@ export function accountsView() {
   }
   return memberOverview();
 }
+

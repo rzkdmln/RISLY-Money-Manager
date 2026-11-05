@@ -73,3 +73,4 @@ export function categoriesView() {
     </section>
   </div>`;
 }
+

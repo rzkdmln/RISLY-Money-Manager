@@ -152,7 +152,7 @@ export function reportsView() {
         </div>
         <div class="space-y-3">
           ${creators.length ? creators.map((creator) => `<div class="creator-row">
-            <span class="creator-avatar" style="--creator-color:${escapeAttr(store.getUser(creator.userId)?.color || '#64748B')}">${escapeHTML(creator.name.slice(0, 1))}</span>
+            <span class="creator-avatar" style="--creator-color:${escapeAttr(store.getUser(creator.userId)?.color || 'var(--muted)')}">${escapeHTML(creator.name.slice(0, 1))}</span>
             <div class="min-w-0 flex-1">
               <div class="flex items-center justify-between gap-2"><span class="text-sm font-semibold text-slate-800 dark:text-slate-100">${escapeHTML(creator.name)}</span><span class="text-xs text-slate-500">${creator.count} transaksi</span></div>
               <div class="flex items-center gap-3 mt-1 text-[11px]">
@@ -252,3 +252,4 @@ export function reportsView() {
     <p class="text-[11px] text-slate-400 text-center">Laporan dibuat pada ${escapeHTML(formatDate(todayISO(), { day: 'numeric', month: 'long', year: 'numeric' }))} · ${escapeHTML(store.data.settings.householdName)}</p>
   </div>`;
 }
+
