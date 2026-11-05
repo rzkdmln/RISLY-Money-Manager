@@ -1864,6 +1864,14 @@ async function handleAction(action, element) {
       renderApplication();
       break;
     }
+    case 'set-networth-filter': {
+      const next = element.dataset.scope === 'mine' ? 'mine' : 'all';
+      savePrefs({ networthFilter: next });
+      if (!ui.networthFilter) ui.networthFilter = next;
+      ui.networthFilter = next;
+      renderApplication();
+      break;
+    }
     case 'theme-set':
       setTheme(element.dataset.theme);
       renderApplication();
@@ -3820,6 +3828,32 @@ async function boot() {
 
   setSplashStatus('Memeriksa pembaruan...');
   registerServiceWorker();
+
+  // Buka data terakhir otomatis (tanpa Google) agar aplikasi cepat diakses.
+  // Sinkronisasi/backup Google Drive tetap bisa dilakukan dari Pengaturan.
+  if (!store.currentUser && !getSession()?.workspaceId) {
+    const opened = store.openLastWorkspace();
+    if (opened) {
+      if (opened.hasPin) {
+        store.setCurrentUser(opened.user.id);
+        ui.currentUser = opened.user;
+        ui.selectedUser = opened.user.id;
+        ui.locked = true;
+        ui.appMounted = false;
+      } else {
+        store.setCurrentUser(opened.user.id);
+        ui.currentUser = opened.user;
+        ui.selectedUser = opened.user.id;
+        ui.locked = false;
+        ui.appMounted = false;
+        savePrefs({ lastUser: opened.user.id });
+        createSession(opened.user.id, store.workspaceId);
+        if (!location.hash || !ROUTES[String(location.hash).replace(/^#\//, '')]) {
+          try { history.replaceState(null, '', '#/dashboard'); } catch { /* noop */ }
+        }
+      }
+    }
+  }
 
   if (!store.currentUser) {
     const hadPendingRedirect = hasPendingGoogleAuthRedirect();

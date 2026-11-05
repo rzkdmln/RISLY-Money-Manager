@@ -15,6 +15,7 @@ const DEFAULT_PREFS = {
   notesView: 'grid',
   accountsView: 'grid',
   categoriesView: 'grid',
+  networthFilter: 'all',
   calendarMode: 'month',
   lastUser: null,
   installDismissed: false,

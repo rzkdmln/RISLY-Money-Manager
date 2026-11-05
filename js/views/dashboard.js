@@ -9,6 +9,7 @@ import {
   progressBar,
   sectionHeading,
   toneForPercent,
+  ui,
 } from '../ui.js';
 import {
   escapeAttr,
@@ -25,21 +26,67 @@ import { accountIcon, txRow } from './common.js';
 
 export function dashboardView(user) {
   const month = monthKey();
-  const summary = store.monthSummary(month);
-  const budget = store.budgetStatus(month);
+  const baseBudget = store.budgetStatus(month);
+  const scopedBudgetCategories = baseBudget.categories.map((item) => {
+    const spentForCategory = scopedTransactions
+      .filter((tx) => tx.type === 'expense' && tx.categoryId === item.category.id)
+      .reduce((total, tx) => total + (Number(tx.amount) || 0), 0);
+    return {
+      ...item,
+      spent: spentForCategory,
+      remaining: item.limit - spentForCategory,
+      percent: item.limit > 0 ? (spentForCategory / item.limit) * 100 : 0,
+    };
+  });
+  const budget = {
+    ...baseBudget,
+    spent: expense,
+    remaining: baseBudget.total - expense,
+    percent: baseBudget.total > 0 ? (expense / baseBudget.total) * 100 : 0,
+    categories: scopedBudgetCategories,
+  };
   const netWorth = store.totalBalance();
   const myNetWorth = store.personalBalance();
 
-  const income = summary?.income || 0;
-  const expense = summary?.expense || 0;
+  if (!ui.networthFilter) ui.networthFilter = prefs.networthFilter || 'all';
+  const personalScope = ui.networthFilter === 'mine';
+  const personalAccountIds = new Set(store.accountsByOwner().map((account) => account.id));
+  const isPersonalTx = (tx) => personalAccountIds.has(tx.accountId) || personalAccountIds.has(tx.toAccountId);
+  const scopedTransactions = personalScope
+    ? store.transactionsForMonth(month).filter(isPersonalTx)
+    : store.transactionsForMonth(month);
+  const scopedSummary = store.summaryForTransactions(scopedTransactions);
+
+  const income = scopedSummary.income || 0;
+  const expense = scopedSummary.expense || 0;
   const cashflow = income - expense;
   const cashflowPrefix = cashflow > 0 ? '+' : '';
   const cashflowColor = cashflow >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400';
 
-  const recent = store.transactions().slice(0, 6);
-  const spending = store.expenseByCategory(month);
+  const recentSource = personalScope
+    ? store.transactions().filter(isPersonalTx)
+    : store.transactions();
+  const recent = recentSource.slice(0, 6);
+  const spendingMap = new Map();
+  scopedTransactions
+    .filter((tx) => tx.type === 'expense')
+    .forEach((tx) => {
+      const cat = store.categoryById(tx.categoryId);
+      const key = tx.categoryId || 'uncategorized';
+      if (!spendingMap.has(key)) {
+        spendingMap.set(key, {
+          categoryId: key,
+          name: cat?.name || 'Tanpa kategori',
+          color: cat?.color || '#94A3B8',
+          icon: cat?.icon || 'tag',
+          total: 0,
+        });
+      }
+      spendingMap.get(key).total += (Number(tx.amount) || 0);
+    });
+  const spending = [...spendingMap.values()].sort((a, b) => b.total - a.total);
   const spendingTotal = spending.reduce((total, item) => total + item.total, 0);
-  const upcoming = store.upcomingRecurring(3, 30);
+  const upcoming = store.upcomingRecurring(3, 30).filter((rule) => !personalScope || personalAccountIds.has(rule.accountId));
   const tasks = store.tasksDue(7).slice(0, 4);
   const dueRecurring = store.dueRecurring().length;
   const dueTasks = store.tasksDue(0).length;
@@ -99,7 +146,10 @@ export function dashboardView(user) {
     ${pageHeader({
       eyebrow: `Ringkasan ${escapeHTML(formatMonth(month))}`,
       title: `${escapeHTML(greeting())}, ${escapeHTML(user?.name || '')} <span class="wave">👋</span>`,
-      actions: ``,
+      actions: `<div class="view-toggle shrink-0" role="group" aria-label="Scope kekayaan">
+        <button type="button" class="${!personalScope ? 'is-active' : ''}" data-action="set-networth-filter" data-scope="all">Keluarga</button>
+        <button type="button" class="${personalScope ? 'is-active' : ''}" data-action="set-networth-filter" data-scope="mine">Saya</button>
+      </div>`,
     })}
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 min-w-0 w-full items-stretch">
@@ -108,7 +158,7 @@ export function dashboardView(user) {
 
         <!-- Header -->
         <div class="flex items-center justify-between min-w-0 mb-6">
-          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Kekayaan Pribadi</p>
+          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">${personalScope ? 'Kekayaan Pribadi' : 'Total Kekayaan Keluarga'}</p>
           <button type="button" class="p-2 text-slate-400 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-colors shrink-0" data-action="toggle-privacy" aria-label="Sembunyikan nominal">
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>
           </button>
@@ -116,8 +166,8 @@ export function dashboardView(user) {
 
         <!-- Area Nominal Besar -->
         <div class="mb-8 min-w-0">
-          <h2 class="text-4xl sm:text-5xl font-extrabold text-white truncate tracking-tight">${money(myNetWorth)}</h2>
-          <p class="mt-1 text-xs text-slate-400">Kekayaan Keluarga: ${money(netWorth)}</p>
+          <h2 class="text-4xl sm:text-5xl font-extrabold text-white truncate tracking-tight">${money(personalScope ? myNetWorth : netWorth)}</h2>
+          <p class="mt-1 text-xs text-slate-400">${personalScope ? 'Kekayaan Keluarga' : 'Kekayaan Pribadi'}: ${money(personalScope ? netWorth : myNetWorth)}</p>
         </div>
 
         <!-- Arus Kas -->
@@ -140,7 +190,7 @@ export function dashboardView(user) {
         <div>
           <div class="flex items-start justify-between gap-3 min-w-0">
             <div class="min-w-0">
-              <p class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Anggaran ${escapeHTML(formatMonth(month))}</p>
+              <p class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Anggaran ${personalScope ? 'keluarga · ' : ''}${escapeHTML(formatMonth(month))}</p>
               <h2 class="text-2xl font-extrabold text-slate-900 dark:text-white mt-1 truncate">${budget.total > 0 ? formatPercent(budget.percent) : 'Belum diatur'}</h2>
             </div>
             <button type="button" class="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors shrink-0" data-action="nav" data-route="budgets" aria-label="Kelola anggaran">${icon('edit', 'w-4 h-4')}</button>
