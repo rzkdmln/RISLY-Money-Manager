@@ -215,6 +215,7 @@ export function createDefaultData(owner = null) {
       budgetDanger: 90,
       weekStartsOn: 1,
       autoLockMinutes: APP.defaultAutoLockMinutes,
+      openRouterKey: '',
       updatedAt: now,
     },
     users: [ownerUser],
@@ -225,6 +226,7 @@ export function createDefaultData(owner = null) {
     recurring: [],
     notes: [],
     goals: [],
+    games: [],
     netWorthHistory: [],
     closedMonths: [],
   };

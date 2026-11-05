@@ -152,6 +152,19 @@ export function settingsView(user) {
 
     ${googleDriveCard(user, driveConnected)}
 
+    <section class="card">
+      <div class="card-heading">
+        <div><p class="card-kicker">AI &amp; integrasi</p><h2 class="section-title">OpenRouter</h2></div>
+        ${icon('circle-dot', 'w-5 h-5 text-violet-500')}
+      </div>
+      <div class="settings-list">
+        <label class="field-label">API Key OpenRouter
+          <input class="field mt-1.5" type="password" name="openRouterKey" value="${escapeAttr(store.data.settings?.openRouterKey || '')}" placeholder="sk-or-v1...">
+        </label>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Kunci disimpan hanya di perangkat ini. Digunakan untuk menghasilkan pilihan roda via AI (model nvidia/nemotron-3.5-super-vl:free). Jangan bagikan kunci Anda.</p>
+        <button type="button" class="btn btn-secondary btn-sm w-full" data-action="save-openrouter-key">${icon('save', 'w-4 h-4')} Simpan kunci</button>
+      </div>
+    </section>
 
     <div class="settings-grid">
       <section class="card">

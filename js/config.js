@@ -46,6 +46,7 @@ export const ROUTES = Object.freeze({
   reports: { label: 'Laporan', icon: 'file-text' },
   recurring: { label: 'Berulang', icon: 'repeat' },
   goals: { label: 'Target', icon: 'piggy-bank' },
+  games: { label: 'Games', icon: 'circle-dot' },
   categories: { label: 'Kategori', icon: 'tag' },
   settings: { label: 'Pengaturan', icon: 'settings' },
 });
@@ -69,6 +70,7 @@ export const MORE_NAV = [
   'calendar',
   'notes',
   'goals',
+  'games',
   'reports',
   'recurring',
   'categories',
