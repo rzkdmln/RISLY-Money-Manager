@@ -247,7 +247,7 @@ export function reportsView() {
     </section>
     <section class="card">
       <div class="card-heading"><div><p class="card-kicker">Riwayat</p><h2 class="section-title">Kekayaan bersih per bulan</h2></div></div>
-      ${store.netWorthHistory().length ? `<div class="space-y-2">${store.netWorthHistory().slice(-12).reverse().map((entry) => `<div class="flex items-center justify-between text-sm"><span class="text-slate-600 dark:text-slate-300">${escapeHTML(entry.month)}</span><strong class="text-slate-900 dark:text-white">${money(entry.value)}</strong></div>`).join('')}</div>` : '<p class="text-sm text-slate-500">Belum ada riwayat. Snapshot dicatat otomatis saat aplikasi dibuka.</p>'}
+      ${store.netWorthHistory().length ? `<div class="space-y-2">${store.netWorthHistory().slice(-12).reverse().map((entry) => `<div class="flex items-center justify-between text-sm"><span class="text-slate-600 dark:text-slate-300">${escapeHTML(entry.month)}</span><strong class="text-slate-900 dark:text-white">${money(entry.value)}</strong></div>`).join('')}</div>` : ''}
     </section>
     <p class="text-[11px] text-slate-400 text-center">Laporan dibuat pada ${escapeHTML(formatDate(todayISO(), { day: 'numeric', month: 'long', year: 'numeric' }))} · ${escapeHTML(store.data.settings.householdName)}</p>
   </div>`;

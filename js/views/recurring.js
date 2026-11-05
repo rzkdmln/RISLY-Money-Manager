@@ -21,7 +21,7 @@ export function recurringView() {
     ${pageHeader({
       eyebrow: 'Otomatisasi',
       title: 'Transaksi berulang',
-      subtitle: 'Tagihan bulanan, gaji, dan transfer rutin dapat dicatat otomatis.',
+      subtitle: '',
       actions: `<button type="button" class="btn btn-primary" data-action="add-rec">${icon('plus', 'w-4 h-4')} Jadwal baru</button>`,
     })}
 

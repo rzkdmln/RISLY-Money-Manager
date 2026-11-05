@@ -31,7 +31,6 @@ export function categoriesView() {
         <span>${type === 'expense' ? 'Total pengeluaran' : 'Total pemasukan'}</span>
         <strong class="${type === 'expense' ? 'amount-expense' : 'amount-income'}">${money(type === 'expense' ? spent : earned)}</strong>
       </div>
-      ${usedCategories.has(category.id) ? `<p class="category-note">${icon('info', 'w-3 h-3')} Kategori tetap tersimpan di riwayat meski dihapus.</p>` : ''}
     </article>`;
   }).join('');
 

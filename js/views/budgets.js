@@ -87,7 +87,7 @@ export function budgetsView() {
         '<div>' +
           '<p class="card-kicker">Batas per kategori</p>' +
           '<h2 class="section-title">Kendali pengeluaran</h2>' +
-          '<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kosongkan atau isi 0 jika tidak ingin memakai batas kategori.</p>' +
+
         '</div>' +
         '<button type="submit" class="btn btn-secondary btn-sm">' + icon('save', 'w-3.5 h-3.5') + ' Simpan</button>' +
       '</div>' +

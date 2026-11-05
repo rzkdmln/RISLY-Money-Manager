@@ -85,7 +85,6 @@ export function calendarView() {
         <span><b class="legend-dot" style="--legend-color:#16A34A"></b> Pemasukan</span>
         <span><b class="legend-dot" style="--legend-color:#F04452"></b> Pengeluaran</span>
         <span>${icon('check-square', 'w-3 h-3')} Jatuh tempo tugas</span>
-        <span class="ml-auto hidden sm:inline">${badge('Ketuk tanggal untuk rincian', 'slate', 'badge-soft')}</span>
       </div>
     </section>
   </div>`;

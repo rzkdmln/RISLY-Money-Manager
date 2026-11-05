@@ -132,6 +132,7 @@ export function profileSheet(user) {
           <p class="text-xs font-semibold uppercase tracking-[.16em] text-slate-400">Masuk sebagai</p>
           <h2 class="text-xl font-bold text-slate-900 dark:text-white">${escapeHTML(user?.name || 'Pengguna')}</h2>
           <p class="text-sm text-slate-500 dark:text-slate-400">${escapeHTML(APP.fullName)}</p>
+          <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Versi ${escapeHTML(APP.version)}</p>
         </div>
       </div>
       <div class="profile-menu mt-6">
@@ -147,8 +148,8 @@ export function profileSheet(user) {
         </div>
         ${syncPill(status)}
       </div>` : ''}
-      <div class="grid grid-cols-2 gap-2.5 mt-4">
-        <button type="button" class="btn btn-secondary" data-action="lock-app">${icon('lock', 'w-4 h-4')} Kunci</button>
+      <div class="grid ${user?.pinHash ? 'grid-cols-2' : 'grid-cols-1'} gap-2.5 mt-4">
+        ${user?.pinHash ? `<button type="button" class="btn btn-secondary" data-action="lock-app">${icon('lock', 'w-4 h-4')} Kunci</button>` : ''}
         <button type="button" class="btn btn-danger-soft" data-action="logout">${icon('log-out', 'w-4 h-4')} Keluar</button>
       </div>
     </div>`;

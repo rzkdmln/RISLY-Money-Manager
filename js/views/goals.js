@@ -12,7 +12,7 @@ export function goalsView() {
     ${pageHeader({
       eyebrow: 'Rencana',
       title: 'Target keuangan',
-      subtitle: 'Dana darurat, tabungan, dan tujuan keluarga.',
+      subtitle: '',
       actions: `<button type="button" class="btn btn-primary" data-action="add-goal">${icon('plus', 'w-4 h-4')} Target baru</button>`,
     })}
 
@@ -49,7 +49,7 @@ export function goalsView() {
         ${progressBar(percent, percent >= 100 ? 'green' : 'blue')}
         <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">${Math.round(percent)}% tercapai</p>
       </section>`;
-    }).join('')}</div>` : emptyState('target', 'Belum ada target', 'Tambah target keuangan untuk melacak progres tabungan.', `<button type="button" class="btn btn-primary btn-sm" data-action="add-goal">${icon('plus', 'w-3.5 h-3.5')} Target baru</button>`)}
+    }).join('')}</div>` : emptyState('target', 'Belum ada target', 'Tambah target keuangan untuk melacak progres tabungan.', '')}
   </div>`;
 }
 

@@ -36,11 +36,8 @@ export function txSubtitle(tx) {
     return `${store.accountName(tx.accountId)} → ${store.accountName(tx.toAccountId)}`;
   }
   const category = categoryOf(tx);
-  const sub = subcategoryOf(tx);
   const parts = [];
-  if (category && sub) parts.push(`${category.name} · ${sub.name}`);
-  else if (category) parts.push(category.name);
-  parts.push(store.accountName(tx.accountId));
+  if (category) parts.push(category.name);
   return parts.join(' · ');
 }
 
@@ -107,7 +104,7 @@ export function dayGroupHeader(date, summary) {
   return `<div class="day-group-head">
     <div>
       <span class="day-group-label">${escapeHTML(label)}</span>
-      <span class="day-group-date">${escapeHTML(formatDate(date, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' }))}</span>
+      <span class="day-group-date">${escapeHTML(formatDate(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}</span>
     </div>
     <div class="day-group-totals">
       ${summary.income ? `<span class="amount-income">+${money(summary.income)}</span>` : ''}
