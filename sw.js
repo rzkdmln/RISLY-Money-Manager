@@ -9,7 +9,7 @@
  *  - Cloud/API traffic is never cached.
  */
 
-const VERSION = 'risly-1.2.25';
+const VERSION = 'risly-1.2.26';
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 
@@ -43,6 +43,7 @@ const APP_SHELL = [
   './js/views/categories.js',
   './js/views/common.js',
   './js/views/dashboard.js',
+  './js/views/goals.js',
   './js/views/notes.js',
   './js/views/recurring.js',
   './js/views/reports.js',
@@ -66,18 +67,9 @@ const CDN_ASSETS = [
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js',
 ];
 
-const API_HOSTS = [
-  'api.jsonbin.io',
-  'jsonblob.com',
-  'supabase.co',
-  'firebaseio.com',
-  'firebasedatabase.app',
-  'googleapis.com',
-  'accounts.google.com',
-  'oauth2.googleapis.com',
-];
+const CDN_URLS = new Set(CDN_ASSETS);
 
-const isApiRequest = (url) => API_HOSTS.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`));
+const isCdnRequest = (url) => CDN_URLS.has(url.href);
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
@@ -194,7 +186,12 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (!/^https?:$/.test(url.protocol)) return;
-  if (isApiRequest(url)) return;
+
+  // Only this app's own pages and the known CDN libraries are handled by the
+  // service worker. Every other cross-origin request (Google Sign-In, Firebase
+  // Auth, gapi, fonts, REST APIs) must go straight to the network: intercepting
+  // them used to return the offline fallback and broke Google login.
+  if (url.origin !== self.location.origin && !isCdnRequest(url)) return;
 
   // Let the browser handle the OAuth callback directly. Intercepting it with
   // the service worker can turn a normal online navigation into an offline

@@ -10,7 +10,7 @@
  */
 
 import { APP, FIREBASE_CONFIG } from './config.js';
-import { DRIVE_SCOPE } from './gdrive.js';
+import { DRIVE_API_SCOPE, DRIVE_SCOPE } from './gdrive.js';
 import { isIos } from './utils.js';
 
 const FIREBASE_VERSION = '10.12.5';
@@ -396,6 +396,32 @@ export async function completeGoogleRelayFromFragment() {
   return { account };
 }
 
+function createGoogleProvider(GoogleAuthProvider) {
+  const provider = new GoogleAuthProvider();
+  // Firebase only asks for profile/email by default. Drive backup needs the
+  // appdata scope, otherwise the access token cannot read/write backups.
+  provider.addScope(DRIVE_API_SCOPE);
+  provider.setCustomParameters({ prompt: 'select_account' });
+  return provider;
+}
+
+/** Convert a Firebase user into the session shape used by GoogleDrive. */
+function sessionFromFirebaseUser(user) {
+  if (!user) return null;
+  const accessToken = String(user.accessToken || '');
+  if (!accessToken) return null;
+  const rawExpiry = user.expiresAt;
+  const parsedExpiry = Number(rawExpiry?.toMillis?.() ?? rawExpiry ?? 0);
+  const expiresAt = parsedExpiry > Date.now() ? parsedExpiry : Date.now() + 3600_000;
+  const account = {
+    email: String(user.email || ''),
+    name: String(user.displayName || ''),
+    picture: String(user.photoURL || ''),
+    clientId: APP.googleClientId,
+  };
+  return { account, accessToken, expiresAt, user };
+}
+
 /**
  * Mulai login Google lewat Firebase Auth redirect (alur utama, termasuk iOS).
  * Menggantikan mekanisme relay custom. Setelah redirect selesai, caller harus
@@ -408,8 +434,7 @@ export async function startGoogleAuthRedirect({ signal = null } = {}) {
   const { getAuth, GoogleAuthProvider, signInWithRedirect } = authMod;
   const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
   const auth = getAuth(app);
-  const provider = new GoogleAuthProvider();
-  await signInWithRedirect(auth, provider);
+  await signInWithRedirect(auth, createGoogleProvider(GoogleAuthProvider));
   return { started: true };
 }
 
@@ -424,20 +449,10 @@ export async function startGoogleAuthPopup({ signal = null } = {}) {
   const { getAuth, GoogleAuthProvider, signInWithPopup } = authMod;
   const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
   const auth = getAuth(app);
-  const provider = new GoogleAuthProvider();
-  const result = await signInWithPopup(auth, provider);
-  const user = result?.user;
-  if (!user) throw new Error('Hasil login Google tidak tersedia dari popup.');
-  const accessToken = String(user.accessToken || '');
-  if (!accessToken) throw new Error('Token Google dari Firebase Auth tidak tersedia.');
-  const expiresAt = Date.now() + (Number(user.expiresAt?.toMillis?.() || Date.now()) + 3600_000 - Date.now());
-  const account = {
-    email: String(user.email || ''),
-    name: String(user.displayName || ''),
-    picture: String(user.photoURL || ''),
-    clientId: APP.googleClientId,
-  };
-  return { account, accessToken, expiresAt, user };
+  const result = await signInWithPopup(auth, createGoogleProvider(GoogleAuthProvider));
+  const session = sessionFromFirebaseUser(result?.user);
+  if (!session) throw new Error('Token Google dari Firebase Auth tidak tersedia.');
+  return session;
 }
 
 /**
@@ -454,34 +469,11 @@ export async function completeGoogleAuthLogin({ signal = null } = {}) {
 
   // Cek apakah user sudah tersedia (ITP iOS bisa memblokir getRedirectResult,
   // tetapi auth.currentUser mungkin masih ada di IndexedDB).
-  if (auth.currentUser?.uid) {
-    const user = auth.currentUser;
-    const accessToken = String(user.accessToken || '');
-    if (accessToken) {
-      const expiresAt = Date.now() + (Number(user.expiresAt?.toMillis?.() || Date.now()) + 3600_000 - Date.now());
-      const account = {
-        email: String(user.email || ''),
-        name: String(user.displayName || ''),
-        picture: String(user.photoURL || ''),
-        clientId: APP.googleClientId,
-      };
-      return { account, accessToken, expiresAt, user };
-    }
-  }
+  const current = sessionFromFirebaseUser(auth.currentUser);
+  if (current) return current;
 
   const result = await getRedirectResult(auth);
-  const user = result?.user;
-  if (!user) return null;
-  const accessToken = String(user.accessToken || '');
-  if (!accessToken) return null;
-  const expiresAt = Date.now() + (Number(user.expiresAt?.toMillis?.() || Date.now()) + 3600_000 - Date.now());
-  const account = {
-    email: String(user.email || ''),
-    name: String(user.displayName || ''),
-    picture: String(user.photoURL || ''),
-    clientId: APP.googleClientId,
-  };
-  return { account, accessToken, expiresAt, user };
+  return sessionFromFirebaseUser(result?.user);
 }
 
 /**

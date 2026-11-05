@@ -65,11 +65,13 @@ function gdriveLoad(key) {
   try { return localStorage.getItem(key); } catch { return null; }
 }
 
+export const DRIVE_API_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
+
 export const DRIVE_SCOPE = [
   'openid',
   'email',
   'profile',
-  'https://www.googleapis.com/auth/drive.appdata',
+  DRIVE_API_SCOPE,
 ].join(' ');
 
 /** Error raised when Google needs the user to sign in again. */
