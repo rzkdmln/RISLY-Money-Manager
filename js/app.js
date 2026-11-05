@@ -384,6 +384,9 @@ function enterApplication(user, { fresh = false } = {}) {
   ui.appMounted = false;
   savePrefs({ lastUser: user.id });
   createSession(user.id, store.workspaceId);
+  if (!location.hash || !ROUTES[String(location.hash).replace(/^#\//, '')]) {
+    try { history.replaceState(null, '', '#/dashboard'); } catch { /* noop */ }
+  }
   renderApplication();
   if (fresh) toast(`Selamat datang, ${user.name}.`, 'success');
   runRecurring({ notify: true });
@@ -3781,8 +3784,9 @@ async function boot() {
   GoogleDrive.prepare().catch(() => {});
   void warmUpGoogleAuth();
 
-  if (!location.hash) history.replaceState(null, '', '#/dashboard');
-
+  // Jangan paksa #/dashboard sebelum status login diketahui. Jika hash dipaksa
+  // lebih awal, URL bisa nyangkut di #/dashboard padahal layar yang tampil
+  // adalah halaman login.
   setSplashStatus('Memeriksa sesi...');
   const session = getSession();
   if (session?.workspaceId) {
@@ -3830,8 +3834,13 @@ async function boot() {
         }
       }
       renderAuth();
+      // Bersihkan hash agar URL tidak nyangkut di #/dashboard saat layar login.
+      try { history.replaceState(null, '', location.pathname + location.search); } catch { /* noop */ }
     }
   } else {
+    if (!location.hash) {
+      try { history.replaceState(null, '', '#/dashboard'); } catch { /* noop */ }
+    }
     // Pengguna sudah masuk tetapi baru kembali dari redirect Google (misalnya
     // saat menghubungkan ulang Drive dari Pengaturan). Ambil sesi barunya tanpa
     // mengganti akun aplikasi.
