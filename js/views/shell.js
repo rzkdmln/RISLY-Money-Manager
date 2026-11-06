@@ -160,16 +160,10 @@ export function profileSheet(user, mode = 'modal') {
       <button type="button" class="profile-menu-item" data-action="notifications">${icon('bell', 'w-4 h-4')} Izin notifikasi</button>
       <button type="button" class="profile-menu-item" data-action="toggle-privacy">${icon('eye-off', 'w-4 h-4')} ${prefs.hideAmounts ? 'Tampilkan nominal' : 'Sembunyikan nominal'}</button>
     </div>
-    ${status.provider !== 'local' ? `<div class="mt-2 rounded-xl bg-slate-50 dark:bg-white/[.04] px-3 py-2 flex items-center justify-between gap-3">
-        <div class="min-w-0">
-          <p class="text-xs font-semibold text-slate-700 dark:text-slate-200">${escapeHTML(status.providerLabel)}</p>
-          <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate">${escapeHTML(status.error || status.message || 'Data lokal di perangkat ini')}</p>
-        </div>
-      </div>` : ''}
-      ${user?.pinHash ? `<div class="mt-2">
-        <button type="button" class="btn btn-secondary w-full btn-sm" data-action="lock-app">${icon('lock', 'w-4 h-4')} Kunci aplikasi</button>
-      </div>` : ''}
-      ${footer}
+    ${user?.pinHash ? `<div class="mt-2">
+      <button type="button" class="btn btn-secondary w-full btn-sm" data-action="lock-app">${icon('lock', 'w-4 h-4')} Kunci aplikasi</button>
+    </div>` : ''}
+    ${footer}
     </div>`;
 }
 
