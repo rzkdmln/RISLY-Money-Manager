@@ -16,6 +16,7 @@ export const APP = Object.freeze({
   backupKey: 'risly.mm.backup.v3',
   prefsKey: 'risly.mm.prefs.v1',
   cloudKey: 'risly.mm.cloud.v1',
+  cloudHouseholdsKey: 'risly.mm.cloudhouseholds.v1',
   syncMetaKey: 'risly.mm.syncmeta.v1',
   sessionKey: 'risly.mm.session.v1',
   lockoutKey: 'risly.mm.lockout.v1',

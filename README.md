@@ -17,6 +17,7 @@
 - **Laporan & Visualisasi Grafis:** Laporan arus kas harian/bulanan dengan visualisasi diagram interaktif.
 - **PWA & Offline-First Mode:** Dapatkan pengalaman seperti aplikasi native di Android & iOS (dapat di-install ke Home Screen) dengan kapabilitas luring penuh.
 - **Awan / Cloud Sync (opsional):** Sinkronisasi data antar perangkat lewat JSONBin, Supabase, atau Firebase bagi yang membutuhkannya.
+- **Ruang Keluarga Bersama:** Satu household Firebase bisa dipakai beberapa akun Google lewat kode undangan; transaksi dan anggota tergabung otomatis.
 - **Google Drive:** Masuk dengan akun Google di halaman depan, lalu backup/pemulihan manual ke Drive pribadi. Tidak ada sinkron otomatis ke Google.
 
 ---

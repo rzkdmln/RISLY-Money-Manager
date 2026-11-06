@@ -11,7 +11,7 @@
 1. Firebase Console → Authentication → Sign-in method → **Google** → aktifkan.
 2. Firebase Console → Realtime Database → Rules → paste isi file `firebase-security-rules.json` → **Publish**.
 
-Aturan ini mengizinkan baca/tulis hanya anggota (`members/<uid>`) atau owner (`owner`) milik household. Pengguna baru yang menulis pertama kali harus menetapkan `owner` ke UID Firebase-nya sendiri (`newData.child('owner').val() === auth.uid`).
+Aturan ini mengizinkan baca/tulis hanya anggota (`members/<uid>` yang belum ditandai `removed`) atau owner (`owner`) milik household. Pengguna baru yang menulis pertama kali harus menetapkan `owner` ke UID Firebase-nya sendiri (`newData.child('owner').val() === auth.uid`). Kode undangan dipublikasikan owner ke `inviteCodes/<KODE>` agar bisa ditemukan lintas perangkat.
 
 `oauth_relay` kini dibaca/tulisnya `false` — tidak ada lagi path publik untuk hasil login.
 

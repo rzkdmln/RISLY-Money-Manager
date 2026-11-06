@@ -2,11 +2,14 @@
   "rules": {
     "households": {
       "$householdId": {
-        ".read": "auth != null && (root.child('households').child($householdId).child('members').child(auth.uid).exists() || root.child('households').child($householdId).child('owner').val() === auth.uid)",
-        ".write": "auth != null && (root.child('households').child($householdId).child('members').child(auth.uid).exists() || root.child('households').child($householdId).child('owner').val() === auth.uid || (!root.child('households').child($householdId).child('owner').exists() && newData.child('owner').val() === auth.uid))",
+        ".read": "auth != null && ((root.child('households').child($householdId).child('members').child(auth.uid).exists() && root.child('households').child($householdId).child('members').child(auth.uid).child('removed').val() !== true) || root.child('households').child($householdId).child('owner').val() === auth.uid)",
+        ".write": "auth != null && ((root.child('households').child($householdId).child('members').child(auth.uid).exists() && root.child('households').child($householdId).child('members').child(auth.uid).child('removed').val() !== true) || root.child('households').child($householdId).child('owner').val() === auth.uid || (!root.child('households').child($householdId).child('owner').exists() && newData.child('owner').val() === auth.uid))",
+        "owner": {
+          ".write": "auth != null && (!data.exists() || data.val() === auth.uid)"
+        },
         "members": {
           "$uid": {
-            ".write": "auth != null && (root.child('households').child($householdId).child('owner').val() === auth.uid || auth.uid === $uid)"
+            ".write": "auth != null && (root.child('households').child($householdId).child('owner').val() === auth.uid || (auth.uid === $uid && !data.exists()))"
           }
         }
       }

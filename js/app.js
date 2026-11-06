@@ -1967,13 +1967,20 @@ async function handleAction(action, element) {
       });
       if (!ok) return;
       try {
+        let cloudRemoved = true;
         if (member.firebaseUid) {
-          await Cloud.removeHouseholdMember(member.firebaseUid);
+          const result = await Cloud.removeHouseholdMember(member.firebaseUid);
+          cloudRemoved = Boolean(result?.ok);
         }
         store.removeMember(id);
         ui.appMounted = false;
         renderApplication();
-        toast(`${member.name} dikeluarkan.`, 'success');
+        toast(
+          cloudRemoved
+            ? `${member.name} dikeluarkan.`
+            : `${member.name} dikeluarkan lokal. Akses cloud dicabut saat perangkat kembali online.`,
+          'success',
+        );
       } catch (error) {
         toast(error.message || 'Gagal mengeluarkan anggota.', 'error');
       }
