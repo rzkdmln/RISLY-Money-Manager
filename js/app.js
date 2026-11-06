@@ -814,19 +814,31 @@ function openProfileSheet() {
     dropdown.className = 'profile-dropdown absolute z-50 w-72 mt-2';
     dropdown.innerHTML = profileSheet(user, 'dropdown');
 
+    const backdrop = document.createElement('div');
+    backdrop.className = 'fixed inset-0 z-40 bg-black/20 backdrop-blur-sm';
+    backdrop.addEventListener('click', closeDropdown);
+
+    document.body.appendChild(backdrop);
     document.body.appendChild(dropdown);
 
     const rect = btn.getBoundingClientRect();
-    dropdown.style.top = `${rect.bottom + window.scrollY}px`;
-    dropdown.style.left = `${Math.max(0, rect.right - window.scrollX - dropdown.offsetWidth)}px`;
+
+    // Tunggu layout selesai baru hitung posisi, karena elemen baru baru di-append.
+    requestAnimationFrame(() => {
+      const dRect = dropdown.getBoundingClientRect();
+      dropdown.style.position = 'fixed';
+      dropdown.style.top = `${Math.max(8, rect.bottom + window.scrollY + 8)}px`;
+      dropdown.style.left = `${Math.max(8, rect.right + window.scrollX - dRect.width - 8)}px`;
+    });
 
     const closeDropdown = () => {
       dropdown.remove();
+      backdrop.remove();
       document.removeEventListener('click', outsideClick);
     };
 
     const outsideClick = (e) => {
-      if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+      if (!dropdown.contains(e.target) && !btn.contains(e.target) && !backdrop.contains(e.target)) {
         closeDropdown();
       }
     };
