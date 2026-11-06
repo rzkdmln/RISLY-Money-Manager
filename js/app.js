@@ -804,7 +804,7 @@ function openWeekModal() {
 }
 
 function openProfileSheet() {
-  openModal({ size: 'md', className: 'sheet-panel', html: profileSheet(store.currentUser) });
+  openModal({ size: 'md', className: 'sheet-panel modal-center', html: profileSheet(store.currentUser) });
 }
 
 function openMoreSheet() {

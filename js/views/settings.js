@@ -60,8 +60,8 @@ function googleDriveCard(user, driveConnected) {
     ${driveConnected ? `<div class="settings-actions mt-4">
       <button type="button" class="btn btn-secondary btn-sm" data-action="drive-backup" data-drive-requires-google>${icon('cloud', 'w-3.5 h-3.5')} Backup sekarang</button>
       <button type="button" class="btn btn-secondary btn-sm" data-action="drive-restore" data-drive-requires-google>${icon('upload', 'w-3.5 h-3.5')} Pulihkan</button>
-      <button type="button" class="btn btn-ghost btn-sm" data-action="google-join">${icon('users', 'w-3.5 h-3.5')} Gabung ruang lain</button>
-      <button type="button" class="btn btn-ghost btn-sm" data-action="gdrive-signout">${icon('log-out', 'w-3.5 h-3.5')} Ganti akun</button>
+      <button type="button" class="btn btn-secondary btn-sm" data-action="google-join">${icon('users', 'w-3.5 h-3.5')} Gabung ruang lain</button>
+      <button type="button" class="btn btn-secondary btn-sm" data-action="gdrive-signout">${icon('log-out', 'w-3.5 h-3.5')} Ganti akun</button>
     </div>`
       : `<button type="button" class="btn btn-secondary w-full mt-4" data-action="gdrive-signin">${googleGlyph('w-4 h-4')} Masuk dengan Google</button>`}
   </section>`;

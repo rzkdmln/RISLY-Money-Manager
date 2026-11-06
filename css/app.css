@@ -1425,7 +1425,7 @@ body.is-auth { background: var(--bg); }
   padding: 16px 18px; border: 1px solid var(--border); border-radius: var(--radius);
   background: var(--surface); box-shadow: var(--shadow-sm);
 }
-.settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
 .settings-list { display: flex; flex-direction: column; }
 .settings-row { display: flex; align-items: center; gap: 9px; width: 100%; padding: 9px 2px; border: 0; border-bottom: 1px solid var(--border); background: transparent; text-align: left; color: inherit; }
 .settings-row:last-child { border-bottom: 0; }
@@ -1501,7 +1501,6 @@ body.is-auth { background: var(--bg); }
 .modal-xl { max-width: 900px; }
 .modal-full { max-width: 1080px; }
 .form-modal { overflow: hidden; display: flex; flex-direction: column; max-height: calc(100dvh - 40px); }
-.form-modal.modal-panel { overflow-y: auto; }
 .modal-form { display: flex; flex-direction: column; min-height: 0; }
 .modal-header {
   position: sticky; top: 0; z-index: 3;
@@ -1520,6 +1519,10 @@ body.is-auth { background: var(--bg); }
 }
 .sheet-handle { width: 38px; height: 4px; margin: 8px auto 0; border-radius: 999px; background: var(--border-strong); }
 .sheet-panel { max-width: 520px; }
+.modal-center { align-self: center; }
+@media (max-width: 767px) {
+  .modal-center { align-self: flex-end; }
+}
 .confirm-icon { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; flex: 0 0 auto; border-radius: 11px; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
