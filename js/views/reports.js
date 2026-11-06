@@ -107,10 +107,18 @@ export function reportsView() {
           <div class="stat-hint truncate">${closing.transfers ? `Transfer ${money(closing.transfers)}` : 'Tanpa transfer'}</div>
         </div>
       </div>
-      <div class="flex flex-wrap items-center justify-end gap-2 mt-4">
-        ${closing.closed
-          ? `<button type="button" class="btn btn-secondary btn-sm" data-action="reopen-month">${icon('refresh', 'w-3.5 h-3.5')} Buka kembali</button>`
-          : `<button type="button" class="btn btn-primary btn-sm" data-action="close-month">${icon('check', 'w-3.5 h-3.5')} Tandai bulan ini ditutup</button>`}
+      <div class="flex flex-wrap items-center justify-between gap-2 mt-4">
+        <div class="flex flex-wrap items-center gap-2">
+          ${closing.closed
+            ? `<span class="badge badge-soft">Buku tertutup</span>`
+            : `<span class="badge badge-soft">Buku masih terbuka</span>`}
+          ${store.isMonthLocked(month) ? `<span class="badge badge-soft" title="${store.lockedMonths().find((e) => e.month === month)?.lockedBy || '—'}">${icon('lock', 'w-3 h-3')} Terkunci</span>` : ''}
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          ${closing.closed
+            ? `<button type="button" class="btn btn-secondary btn-sm" data-action="reopen-month">${icon('unlock', 'w-3.5 h-3.5')} Buka kembali</button>`
+            : `<button type="button" class="btn btn-primary btn-sm" data-action="close-month">${icon('lock', 'w-3.5 h-3.5')} Tutup buku</button>`}
+        </div>
       </div>
     </section>
 

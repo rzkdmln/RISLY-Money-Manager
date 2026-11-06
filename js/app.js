@@ -2638,6 +2638,10 @@ async function handleAction(action, element) {
     case 'delete-tx': {
       const tx = store.transactionById(id);
       if (!tx) break;
+      if (store.isMonthLocked(tx.date.slice(0, 7))) {
+        toast(`Bulan ${formatMonth(tx.date.slice(0, 7))} sudah ditutup. Buka buku kembali sebelum menghapus transaksi.`, 'error');
+        break;
+      }
       const ok = await confirmDialog({
         title: 'Hapus transaksi?',
         message: 'Saldo akun dan laporan akan langsung disesuaikan. Transaksi yang dihapus tidak dapat dikembalikan dari aplikasi.',
@@ -3303,16 +3307,59 @@ async function handleAction(action, element) {
     case 'export-backup':
       backupNow();
       break;
-    case 'close-month':
-      store.closeMonth(ui.reportMonth || monthKey());
+    case 'close-month': {
+      const month = ui.reportMonth || monthKey();
+      const ok = await confirmDialog({
+        title: 'Tutup buku bulan ini?',
+        message: 'Bulan ' + escapeHTML(formatMonth(month)) + ' akan dikunci. Transaksi dan anggaran bulan ini tidak dapat diubah hingga buku dibuka kembali.',
+        confirmLabel: 'Tutup buku',
+        cancelLabel: 'Batal',
+        danger: false,
+        iconName: 'lock',
+      });
+      if (!ok) break;
+      store.lockMonth(month, 'Penutupan buku bulanan');
       renderApplication();
-      toast('Bulan ditutup sebagai buku buku.', 'success');
+      toast('Buku bulan ' + escapeHTML(formatMonth(month)) + ' ditutup.', 'success');
       break;
-    case 'reopen-month':
-      store.reopenMonth(ui.reportMonth || monthKey());
+    }
+    case 'reopen-month': {
+      const month = ui.reportMonth || monthKey();
+      const ok = await confirmDialog({
+        title: 'Buka kembali buku?',
+        message: 'Bulan ' + escapeHTML(formatMonth(month)) + ' akan dibuka kembali sehingga transaksi dapat diubah lagi.',
+        confirmLabel: 'Buka kembali',
+        cancelLabel: 'Batal',
+        danger: false,
+        iconName: 'unlock',
+      });
+      if (!ok) break;
+      store.unlockMonth(month);
       renderApplication();
-      toast('Bulan dibuka kembali ke transaksi aktif.', 'info');
+      toast('Buku bulan ' + escapeHTML(formatMonth(month)) + ' dibuka kembali.', 'info');
       break;
+    }
+    case 'carry-budget': {
+      const from = shiftMonthKey(ui.budgetMonth || monthKey(), -1);
+      const to = ui.budgetMonth || monthKey();
+      const ok = await confirmDialog({
+        title: 'Salin anggaran dari ' + escapeHTML(formatMonth(from)) + '?',
+        message: 'Batas anggaran per kategori akan disalin ke bulan ' + escapeHTML(formatMonth(to)) + '. Anggaran yang sudah ada di bulan tujuan akan ditimpa.',
+        confirmLabel: 'Salin',
+        cancelLabel: 'Batal',
+        danger: false,
+        iconName: 'copy',
+      });
+      if (!ok) break;
+      const result = store.carryBudgets(from, to);
+      if (result.carried === 0) {
+        toast('Bulan asal belum memiliki anggaran.', 'info');
+        break;
+      }
+      toast('Anggaran dari ' + escapeHTML(formatMonth(from)) + ' telah disalin (' + result.carried + ' kategori).', 'success');
+      renderApplication();
+      break;
+    }
     case 'loan-schedule':
       openLoanScheduleModal(element.dataset.id);
       break;
@@ -3627,6 +3674,11 @@ function submitTransaction(form) {
   }
   if (!date) {
     showFormError(form, 'Tanggal tidak valid. Gunakan format dd/mm/yyyy.');
+    return;
+  }
+  const txMonth = String(date).slice(0, 7);
+  if (store.isMonthLocked(txMonth)) {
+    showFormError(form, `Bulan ${formatMonth(txMonth)} sudah ditutup. Buka buku kembali sebelum mencatat atau mengubah transaksi.`);
     return;
   }
   if (!time) {

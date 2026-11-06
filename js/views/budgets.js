@@ -49,6 +49,7 @@ export function budgetsView() {
             '<p class="card-kicker">Total anggaran ' + escapeHTML(formatMonth(month, { month: 'long' })) + '</p>' +
             '<p class="budget-hero-value">' + (hasBudget ? money(status.total) : 'Belum diatur') + '</p>' +
             '<button type="button" class="btn btn-ghost btn-sm mt-2" data-action="copy-budget" title="Salin anggaran bulan sebelumnya">' + icon('copy', 'w-3.5 h-3.5') + ' Salin bulan lalu</button>' +
+            '<button type="button" class="btn btn-ghost btn-sm mt-2" data-action="carry-budget" title="Bawa anggaran bulan sebelumnya">' + icon('arrow-left', 'w-3.5 h-3.5') + ' Bawa dari bulan lalu</button>' +
           '</div>' +
           '<form data-form="budget-total" class="budget-set-form">' +
             '<label class="field-label">Atur total' +

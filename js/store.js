@@ -15,7 +15,9 @@ import {
   currentTimeHHMM,
   deepClone,
   formatDate,
+  formatMonth,
   localDateISO,
+  monthFromDateISO,
   monthKey,
   monthRange,
   normalizeTime,
@@ -704,6 +706,96 @@ class Store {
     this.persist();
     this.emit({ source: 'local', reason: 'data:closing' });
     return { month };
+  }
+
+  lockMonth(month = monthKey(), reason = null) {
+    const monthKeyStr = String(month || monthKey());
+    const existing = this.closingMonths().find((entry) => entry.month === monthKeyStr);
+    const now = nowISO();
+    let entry;
+    if (existing) {
+      entry = existing;
+      entry.lockedAt = now;
+      entry.lockedBy = this.currentUserId || null;
+      entry.lockReason = reason || null;
+    } else {
+      const closing = this.closingForMonth(monthKeyStr);
+      entry = {
+        ...closing,
+        month: monthKeyStr,
+        closedAt: now,
+        closedBy: this.currentUserId || null,
+        lockedAt: now,
+        lockedBy: this.currentUserId || null,
+        lockReason: reason || null,
+      };
+      const list = this.closingMonths().filter((e) => e.month !== monthKeyStr);
+      list.unshift(entry);
+      this.data.closedMonths = list.slice(0, 24);
+    }
+    this.persist();
+    this.emit({ source: 'local', reason: 'data:closing' });
+    return entry;
+  }
+
+  unlockMonth(month = monthKey()) {
+    const monthKeyStr = String(month || monthKey());
+    const list = this.closingMonths().filter((entry) => entry.month !== monthKeyStr);
+    this.data.closedMonths = list;
+    this.persist();
+    this.emit({ source: 'local', reason: 'data:closing' });
+    return { month: monthKeyStr };
+  }
+
+  isMonthLocked(month = monthKey()) {
+    return this.closingMonths().some((entry) => entry.month === String(month));
+  }
+
+  lockedMonths() {
+    return this.closingMonths().filter((entry) => entry.lockedAt);
+  }
+
+  carryBudgets(fromMonth, toMonth) {
+    const from = String(fromMonth);
+    const to = String(toMonth);
+    if (from === to) throw new Error('Bulan tujuan harus berbeda dari bulan asal.');
+    const entries = {};
+    this.budgetStatus(from).categories.forEach((item) => {
+      if (item.limit > 0) entries[item.category.id] = item.limit;
+    });
+    const total = this.totalBudget(from);
+    if (total > 0) entries.__total__ = total;
+    if (!Object.keys(entries).length) {
+      return { carried: 0, total: 0 };
+    }
+    const now = nowISO();
+    this.commit('budget:carry', (data) => {
+      Object.entries(entries).forEach(([categoryId, amount]) => {
+        const id = categoryId || '__total__';
+        let record = data.budgets.find((budget) => budget.month === to && budget.categoryId === id);
+        if (record) {
+          record.amount = Math.max(0, Math.round(safeNumber(amount)));
+          record.updatedAt = now;
+          record.carriedFrom = from;
+          record.carriedAt = now;
+          delete record.deletedAt;
+        } else {
+          data.budgets.push({
+            id: uid('budget'),
+            month: to,
+            categoryId: id,
+            amount: Math.max(0, Math.round(safeNumber(amount))),
+            createdAt: now,
+            updatedAt: now,
+            carriedFrom: from,
+            carriedAt: now,
+          });
+        }
+      });
+    });
+    this.persist();
+    this.emit({ source: 'local', reason: 'budget:carry' });
+    return { carried: Object.keys(entries).length, total: safeNumber(total) };
   }
 
   monthlyTrend(months = 6, endMonth = monthKey()) {
