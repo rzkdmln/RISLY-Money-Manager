@@ -137,14 +137,8 @@ export function settingsView(user) {
       <p class="text-[11px] text-slate-400 mt-3">Anggota baru bergabung lewat kode undangan di halaman masuk.</p>
     </section>
 
-      <section class="card">
-        <div class="card-heading">
-    </div>
+      ${googleDriveCard(user, driveConnected)}
 
-    ${googleDriveCard(user, driveConnected)}
-
-
-    <div class="settings-grid">
       <section class="card">
         <div class="card-heading">
           <div><p class="card-kicker">Cadangan</p><h2 class="section-title">Data & pemulihan</h2></div>

@@ -9,7 +9,7 @@
 import { store } from './store.js';
 import { money, openModal, closeModal, toast, ui } from './ui.js';
 import { icon } from './icons.js';
-import { escapeAttr, escapeHTML } from './utils.js';
+import { downloadBlob, escapeAttr, escapeHTML } from './utils.js';
 import { TX_TYPES } from './config.js';
 
 /* ------------------------------------------------------------------------ */
@@ -296,6 +296,77 @@ export function openImportPreviewModal() {
       <footer class="modal-footer">
         <button type="button" class="btn btn-secondary" data-action="close-modal">Batal</button>
         <button type="submit" class="btn btn-primary">${icon('upload', 'w-4 h-4')} Import terpilih</button>
+      </footer>
+    </form>`
+  });
+}
+
+export function downloadImportTemplate(format = 'csv') {
+  const headers = ['Tanggal', 'Jenis', 'Nominal', 'Akun', 'Kategori', 'Catatan'];
+  const rows = [
+    ['05/11/2026', 'Pengeluaran', '50000', 'Dompet Tunai', 'Makanan & Minuman', 'Belanja harian'],
+    ['06/11/2026', 'Pemasukan', '100000', 'BCA', 'Gaji', 'Gaji bulan ini'],
+    ['07/11/2026', 'Pengeluaran', '25000', 'Dompet Digital', 'Transportasi', 'Bensin motor'],
+  ];
+
+  if (format === 'xlsx' && window.XLSX) {
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template');
+    XLSX.writeFile(wb, 'template-import-risly.xlsx');
+    return;
+  }
+
+  const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  downloadBlob(blob, 'template-import-risly.csv');
+}
+
+export function openImportFormModal() {
+  openModal({
+    size: 'md',
+    className: 'form-modal',
+    html: `<form data-form="import-form" class="modal-form" novalidate>
+      <header class="modal-header">
+        <div>
+          <p class="modal-kicker">Import transaksi</p>
+          <h2 class="modal-title">Impor dari file</h2>
+        </div>
+        <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
+      </header>
+      <div class="modal-body">
+        <p class="text-sm text-slate-600 dark:text-slate-300 mb-4">
+          Impor transaksi dari file Excel (.xlsx) atau CSV. Kolom yang dibutuhkan:
+          <strong>Tanggal, Jenis, Nominal, Akun, Kategori, Catatan</strong>.
+        </p>
+
+        <div class="space-y-3">
+          <div class="border rounded p-3 bg-slate-50 dark:bg-slate-800/50">
+            <p class="text-xs font-semibold text-slate-700 dark:text-slate-200 mb-2">Unduh template contoh</p>
+            <div class="flex gap-2">
+              <button type="button" class="btn btn-secondary btn-sm" data-action="download-template-csv">${icon('file-text', 'w-3 h-3')} CSV</button>
+              <button type="button" class="btn btn-secondary btn-sm" data-action="download-template-xlsx">${icon('file-text', 'w-3 h-3')} Excel</button>
+            </div>
+            <p class="text-[10px] text-slate-500 mt-2">Template berisi kolom contoh yang bisa diisi dan diimpor kembali.</p>
+          </div>
+
+          <div class="border rounded p-3 bg-blue-50 dark:bg-blue-500/10">
+            <p class="text-xs font-semibold text-blue-700 dark:text-blue-200 mb-2">Format yang didukung</p>
+            <ul class="text-[11px] text-slate-600 dark:text-slate-400 list-disc pl-4 mb-0 space-y-1">
+              <li>.xlsx, .xls (Excel)</li>
+              <li>.csv, .txt, .tsv (teks dipisah koma/tab)</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <button type="button" class="btn btn-primary w-full" data-action="choose-import-file">${icon('upload', 'w-3.5 h-3.5')} Pilih file &amp; mulai impor</button>
+        </div>
+
+        <p class="form-error hidden" data-form-error role="alert"></p>
+      </div>
+      <footer class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-action="close-modal">Batal</button>
       </footer>
     </form>`
   });

@@ -147,7 +147,7 @@ export function notesView() {
       ? `<div class="notes-grid ${ui.notesView === 'list' ? 'notes-list-view' : ''} grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0 w-full">
           ${notes.map((note) => noteCard(note, { view: ui.notesView })).join('')}
         </div>`
-      : emptyState(...emptyCopy, ui.notesTab === 'trashed' || filtered ? '' : `<div class="flex gap-2 justify-center"><button type="button" class="btn btn-secondary btn-sm" data-action="add-note">Catatan</button><button type="button" class="btn btn-primary btn-sm" data-action="add-todo">Tugas</button></div>`)}
+      : emptyState(...emptyCopy, '')}
   </div>`;
 }
 

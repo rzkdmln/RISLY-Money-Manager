@@ -136,8 +136,7 @@ export function transactionsView() {
     ${pageHeader({
       eyebrow: 'Buku kas',
       title: 'Transaksi',
-      actions: `<button type="button" class="btn btn-secondary btn-sm" data-action="import-transactions">${icon('upload', 'w-3.5 h-3.5')} Import</button>
-        <button type="button" class="btn btn-primary btn-sm" data-action="add-tx" data-type="expense">${icon('plus', 'w-3.5 h-3.5')} Catat</button>`,
+      actions: `<button type="button" class="btn btn-secondary btn-sm" data-action="import-transactions">${icon('upload', 'w-3.5 h-3.5')} Import</button>`,
     })}
 
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 min-w-0 w-full">

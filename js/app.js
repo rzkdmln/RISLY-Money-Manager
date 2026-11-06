@@ -131,6 +131,8 @@ import { noteEditorForm, todoItemRow } from './forms/note.js';
 import { cloudProviderFields } from './forms/cloud.js';
 import {
   openImportFilePicker,
+  openImportFormModal,
+  downloadImportTemplate,
   submitImport,
   typeLabel,
 } from './import.js';
@@ -2969,6 +2971,16 @@ async function handleAction(action, element) {
       break;
     }
     case 'import-transactions':
+      openImportFormModal();
+      break;
+    case 'download-template-csv':
+      downloadImportTemplate('csv');
+      break;
+    case 'download-template-xlsx':
+      downloadImportTemplate('xlsx');
+      break;
+    case 'choose-import-file':
+      closeModal({ silent: true });
       openImportFilePicker();
       break;
     case 'export-xlsx-all':
