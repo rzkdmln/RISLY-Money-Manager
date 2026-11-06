@@ -37,7 +37,6 @@ export function reportsView() {
     ${pageHeader({
       eyebrow: 'Analisis & ekspor',
       title: 'Laporan',
-      subtitle: 'Rangkuman bulanan siap dibaca, dicetak, dan dibagikan.',
       actions: `<button type="button" class="btn btn-secondary" data-action="open-export-modal">${icon('download', 'w-4 h-4')} Ekspor & cetak</button>`,
     })}
 

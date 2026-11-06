@@ -134,7 +134,6 @@ export function transactionsView() {
 
   return `<div class="page-stack min-w-0 w-full overflow-hidden">
     ${pageHeader({
-      eyebrow: 'Buku kas',
       title: 'Transaksi',
       actions: `<button type="button" class="btn btn-secondary btn-sm" data-action="import-transactions">${icon('upload', 'w-3.5 h-3.5')} Import</button>`,
     })}
