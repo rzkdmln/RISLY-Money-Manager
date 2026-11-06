@@ -793,73 +793,7 @@ function openWeekModal() {
 }
 
 function openProfileSheet() {
-  const user = store.currentUser;
-  if (!user) {
-    toast('Pengguna tidak ditemukan. Masuk kembali.', 'error');
-    return;
-  }
-  const isDesktop = window.innerWidth >= 768;
-
-  if (isDesktop) {
-    const btn = document.querySelector('[data-action="open-profile"]');
-    if (!btn) return;
-
-    const existing = document.querySelector('.profile-dropdown');
-    if (existing) {
-      existing.remove();
-      return;
-    }
-
-    const dropdown = document.createElement('div');
-    dropdown.className = 'profile-dropdown absolute z-50 w-72 mt-2';
-    dropdown.innerHTML = profileSheet(user, 'dropdown');
-
-    const backdrop = document.createElement('div');
-    backdrop.className = 'fixed inset-0 z-40 bg-black/20 backdrop-blur-sm';
-
-    document.body.appendChild(backdrop);
-    document.body.appendChild(dropdown);
-
-    const rect = btn.getBoundingClientRect();
-
-    const closeDropdown = () => {
-      dropdown.remove();
-      backdrop.remove();
-      document.removeEventListener('click', outsideClick);
-    };
-
-    // Tunggu layout selesai baru hitung posisi, karena elemen baru baru di-append.
-    // position: fixed + getBoundingClientRect() = sudah viewport-relative,
-    // jangan tambahkan scrollY/scrollX biar tidak double-count.
-    requestAnimationFrame(() => {
-      const dRect = dropdown.getBoundingClientRect();
-      dropdown.style.position = 'fixed';
-      dropdown.style.top = `${Math.max(8, rect.bottom + 8)}px`;
-      dropdown.style.left = `${Math.max(8, rect.right - dRect.width - 8)}px`;
-    });
-
-    const outsideClick = (e) => {
-      if (!dropdown.contains(e.target) && !btn.contains(e.target) && !backdrop.contains(e.target)) {
-        closeDropdown();
-      }
-    };
-
-    backdrop.addEventListener('click', closeDropdown);
-
-    dropdown.addEventListener('click', () => {
-      setTimeout(closeDropdown, 50);
-    });
-
-    document.addEventListener('click', outsideClick);
-    return;
-  }
-
-  try {
-    openModal({ size: 'md', className: 'sheet-panel', html: profileSheet(user) });
-  } catch (error) {
-    console.error(error);
-    toast('Gagal membuka profil.', 'error');
-  }
+  openModal({ size: 'md', className: 'sheet-panel', html: profileSheet(store.currentUser) });
 }
 
 function openMoreSheet() {
