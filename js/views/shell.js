@@ -125,34 +125,51 @@ export function updateSyncSlots(status) {
   });
 }
 
-export function profileSheet(user) {
+export function profileSheet(user, mode = 'modal') {
   const status = Cloud.getStatus();
-  return `<div class="sheet-handle"></div>
-    <div class="p-5 sm:p-6">
-      <div class="flex items-center gap-4">
+  const isDesktop = mode === 'dropdown';
+  const wrapperCls = isDesktop ? 'profile-dropdown absolute z-50 w-72 mt-2' : 'sheet-handle';
+  const headerCls = isDesktop ? 'p-3 sm:p-4 border-b border-slate-200 dark:border-slate-800/30' : 'p-5 sm:p-6';
+  const menuCls = isDesktop ? 'mt-2' : 'mt-6';
+  const closeBtn = isDesktop ? '' : `<button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>`;
+  const footer = `
+    <div class="mt-4 rounded-xl bg-slate-50 dark:bg-white/[.04] px-3 py-2 flex items-center justify-between gap-3">
+      <div class="min-w-0">
+        <p class="text-xs font-semibold text-slate-700 dark:text-slate-200">${escapeHTML(status.providerLabel)}</p>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate">${escapeHTML(status.error || status.message || 'Data lokal di perangkat ini')}</p>
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm" data-action="check-update">${icon('refresh', 'w-3.5 h-3.5')} Periksa pembaruan</button>
+    </div>
+  `;
+  return `<div class="${wrapperCls}">
+    <div class="${headerCls} flex items-center justify-between">
+      <div class="flex items-center gap-3 min-w-0">
         ${avatar(user, 'xl')}
         <div class="min-w-0">
           <p class="text-xs font-semibold uppercase tracking-[.16em] text-slate-400">Masuk sebagai</p>
-          <h2 class="text-xl font-bold text-slate-900 dark:text-white">${escapeHTML(user?.name || 'Pengguna')}</h2>
-          <p class="text-sm text-slate-500 dark:text-slate-400">${escapeHTML(APP.fullName)}</p>
-          <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Versi ${escapeHTML(APP.version)}</p>
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">${escapeHTML(user?.name || 'Pengguna')}</h2>
+          <p class="text-[10px] text-slate-500 dark:text-slate-400">${escapeHTML(APP.fullName)}</p>
+          <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Versi ${escapeHTML(APP.version)}</p>
         </div>
       </div>
-      <div class="profile-menu mt-6">
-        <a href="#/settings" class="profile-menu-item" data-action="nav" data-route="settings">${icon('settings', 'w-4.5 h-4.5')} Pengaturan akun</a>
-        <button type="button" class="profile-menu-item" data-action="change-pin">${icon('lock', 'w-4.5 h-4.5')} Ubah PIN</button>
-        <button type="button" class="profile-menu-item" data-action="notifications">${icon('bell', 'w-4.5 h-4.5')} Izin notifikasi</button>
-        <button type="button" class="profile-menu-item" data-action="toggle-privacy">${icon('eye-off', 'w-4.5 h-4.5')} ${prefs.hideAmounts ? 'Tampilkan nominal' : 'Sembunyikan nominal'}</button>
-      </div>
-      ${status.provider !== 'local' ? `<div class="mt-4 rounded-2xl bg-slate-50 dark:bg-white/[.04] px-4 py-3 flex items-center justify-between gap-3">
+      ${!isDesktop ? closeBtn : ''}
+    </div>
+    <div class="profile-menu ${menuCls}">
+      <a href="#/settings" class="profile-menu-item" data-action="nav" data-route="settings">${icon('settings', 'w-4 h-4')} Pengaturan akun</a>
+      <button type="button" class="profile-menu-item" data-action="change-pin">${icon('lock', 'w-4 h-4')} Ubah PIN</button>
+      <button type="button" class="profile-menu-item" data-action="notifications">${icon('bell', 'w-4 h-4')} Izin notifikasi</button>
+      <button type="button" class="profile-menu-item" data-action="toggle-privacy">${icon('eye-off', 'w-4 h-4')} ${prefs.hideAmounts ? 'Tampilkan nominal' : 'Sembunyikan nominal'}</button>
+    </div>
+    ${status.provider !== 'local' ? `<div class="mt-2 rounded-xl bg-slate-50 dark:bg-white/[.04] px-3 py-2 flex items-center justify-between gap-3">
         <div class="min-w-0">
           <p class="text-xs font-semibold text-slate-700 dark:text-slate-200">${escapeHTML(status.providerLabel)}</p>
           <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate">${escapeHTML(status.error || status.message || 'Data lokal di perangkat ini')}</p>
         </div>
       </div>` : ''}
-      ${user?.pinHash ? `<div class="mt-4">
-        <button type="button" class="btn btn-secondary w-full" data-action="lock-app">${icon('lock', 'w-4 h-4')} Kunci aplikasi</button>
+      ${user?.pinHash ? `<div class="mt-2">
+        <button type="button" class="btn btn-secondary w-full btn-sm" data-action="lock-app">${icon('lock', 'w-4 h-4')} Kunci aplikasi</button>
       </div>` : ''}
+      ${footer}
     </div>`;
 }
 

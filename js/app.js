@@ -786,7 +786,49 @@ function openWeekModal() {
 }
 
 function openProfileSheet() {
-  openModal({ size: 'md', className: 'sheet-panel', html: profileSheet(store.currentUser) });
+  const user = store.currentUser;
+  const isDesktop = window.innerWidth >= 768;
+
+  if (isDesktop) {
+    const btn = document.querySelector('[data-action="open-profile"]');
+    if (!btn) return;
+
+    const existing = document.querySelector('.profile-dropdown');
+    if (existing) {
+      existing.remove();
+      return;
+    }
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'profile-dropdown absolute z-50 w-72 mt-2';
+    dropdown.innerHTML = profileSheet(user, 'dropdown');
+
+    document.body.appendChild(dropdown);
+
+    const rect = btn.getBoundingClientRect();
+    dropdown.style.top = `${rect.bottom + window.scrollY}px`;
+    dropdown.style.left = `${Math.max(0, rect.right - window.scrollX - dropdown.offsetWidth)}px`;
+
+    const closeDropdown = () => {
+      dropdown.remove();
+      document.removeEventListener('click', outsideClick);
+    };
+
+    const outsideClick = (e) => {
+      if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+        closeDropdown();
+      }
+    };
+
+    dropdown.addEventListener('click', () => {
+      setTimeout(closeDropdown, 50);
+    });
+
+    document.addEventListener('click', outsideClick);
+    return;
+  }
+
+  openModal({ size: 'md', className: 'sheet-panel', html: profileSheet(user) });
 }
 
 function openMoreSheet() {

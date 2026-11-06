@@ -20,8 +20,6 @@ import {
   escapeHTML,
   formatBytes,
   formatDateTime,
-  isIos,
-  isStandalone,
 } from '../utils.js';
 
 function notificationStatus() {
@@ -71,11 +69,9 @@ function googleDriveCard(user, driveConnected) {
 
 export function settingsView(user) {
   const notification = notificationStatus();
-  const installed = isStandalone();
   const dataSize = new Blob([JSON.stringify(store.data)]).size;
   const txCount = store.transactions().length;
   const noteCount = store.notes().length;
-  const swActive = Boolean(navigator.serviceWorker?.controller);
   const lockValue = Number(store.data.settings.autoLockMinutes);
   const driveConnected = GoogleDrive.isConnected();
 
@@ -141,7 +137,7 @@ export function settingsView(user) {
 
       <section class="card">
         <div class="card-heading">
-          <div><p class="card-kicker">Cadangan</p><h2 class="section-title">Data & pemulihan</h2></div>
+          <div><p class="card-kicker">Sistem</p><h2 class="section-title">Data & aplikasi</h2></div>
           ${icon('database', 'w-5 h-5 text-cyan-500')}
         </div>
         <div class="data-usage">
@@ -154,17 +150,6 @@ export function settingsView(user) {
           <button type="button" class="btn btn-secondary btn-sm" data-action="import-backup">${icon('upload', 'w-3.5 h-3.5')} Restore</button>
           <button type="button" class="btn btn-danger-soft btn-sm" data-action="reset-app">${icon('trash', 'w-3.5 h-3.5')} Reset</button>
         </div>
-      </section>
-
-      <section class="card">
-        <div class="card-heading">
-          <div><p class="card-kicker">Aplikasi</p><h2 class="section-title">Instalasi & offline</h2></div>
-          ${icon('device', 'w-5 h-5 text-slate-500')}
-        </div>
-        <div class="settings-list">
-          <div class="settings-row"><span class="settings-row-icon">${icon('device', 'w-4 h-4')}</span><span class="flex-1"><strong>Mode aplikasi</strong><small>${installed ? 'Berjalan sebagai PWA standalone' : isIos() ? 'Tambahkan ke Layar Utama lewat Safari' : 'Dapat dipasang dari menu browser'}</small></span>${badge(installed ? 'Terpasang' : 'Browser', installed ? 'green' : 'slate', 'badge-soft')}</div>
-        </div>
-        <button type="button" class="btn btn-secondary w-full mt-4" data-action="check-update">${icon('refresh', 'w-4 h-4')} Periksa pembaruan</button>
       </section>
     </div>
 
