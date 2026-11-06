@@ -880,6 +880,7 @@ body.is-auth { background: var(--bg); }
 .tx-status-pending { padding: 1px 5px; border-radius: 999px; background: rgba(245,158,11,.15); color: #b45309; font-size: 10px; font-weight: 700; }
 .tx-split { padding: 1px 5px; border-radius: 999px; background: rgba(124,58,237,.12); color: #7c3aed; font-size: 10px; font-weight: 700; }
 .tx-receipt { display: inline-flex; align-items: center; color: var(--brand, #2563eb); }
+.tx-lock { display: inline-flex; align-items: center; color: var(--brand, #2563eb); }
 .tx-meta > span { overflow: hidden; text-overflow: ellipsis; }
 .split-row { padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: color-mix(in srgb, var(--surface-2, #f8fafc) 70%, transparent); }
 .split-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }

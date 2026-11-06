@@ -255,7 +255,7 @@ export function transactionForm(tx = null, defaults = {}) {
         <input class="field mt-1.5" type="file" name="receiptFile" accept="image/*" data-receipt-file>
         <input type="hidden" name="receipt" value="${escapeAttr(receipt)}">
         <div class="receipt-preview ${receipt ? '' : 'hidden'}" data-receipt-wrap>
-          <img src="${receipt ? escapeAttr(receipt) : ''}" alt="Struk" class="max-h-40 rounded border" data-receipt-preview>
+          <img src="${receipt ? escapeAttr(receipt) : ''}" alt="Struk" class="max-h-40 rounded border cursor-pointer" data-receipt-preview data-action="view-receipt" title="Klik untuk memperbesar">
           <button type="button" class="btn btn-danger-soft btn-sm" data-action="remove-receipt">${icon('trash', 'w-3.5 h-3.5')} Hapus struk</button>
         </div>
       </div>

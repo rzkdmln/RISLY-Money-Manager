@@ -492,7 +492,6 @@ export function migrateData(raw) {
       note: String(s?.note || '').trim(),
     })).filter((s) => s.amount > 0) : [],
     receipt: typeof tx.receipt === 'string' ? tx.receipt : null,
-    status: ['pending', 'cleared'].includes(tx.status) ? tx.status : 'cleared',
     createdBy: tx.createdBy || data.users[0]?.id || 'owner',
     createdByName: tx.createdByName || data.users.find((user) => user.id === tx.createdBy)?.name || data.users[0]?.name || 'Pengguna',
     createdAt: tx.createdAt || data.updatedAt,

@@ -3286,6 +3286,20 @@ async function handleAction(action, element) {
       if (file) file.value = '';
       break;
     }
+    case 'view-receipt': {
+      const form = element.closest('form');
+      const receipt = form?.querySelector('input[name="receipt"]')?.value || element?.closest('[data-receipt-wrap]')?.querySelector('img')?.src;
+      if (!receipt) break;
+      openModal({
+        size: 'lg',
+        className: 'form-modal',
+        html: `<div class="text-center">
+          <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
+          <img src="${escapeAttr(receipt)}" alt="Struk" class="mt-4 max-w-full max-h-[70vh] rounded border shadow-lg">
+        </div>`,
+      });
+      break;
+    }
     case 'import-transactions':
       openImportFilePicker();
       break;

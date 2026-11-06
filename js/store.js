@@ -520,7 +520,6 @@ class Store {
           note: String(s?.note || '').trim(),
         })).filter((s) => s.amount > 0) : [],
         receipt: typeof payload.receipt === 'string' ? payload.receipt : null,
-        status: ['pending', 'cleared'].includes(payload.status) ? payload.status : 'cleared',
         createdBy: user?.id || this.currentUserId || this.data.users[0]?.id || 'owner',
         createdByName: user?.name || this.data.users[0]?.name || 'Pengguna',
         createdAt: now,
@@ -562,9 +561,6 @@ class Store {
               note: String(s?.note || '').trim(),
             })).filter((s) => s.amount > 0) : []),
         receipt: payload.receipt === undefined ? tx.receipt : (typeof payload.receipt === 'string' ? payload.receipt : null),
-        status: payload.status === undefined
-          ? (['pending', 'cleared'].includes(tx.status) ? tx.status : 'cleared')
-          : (['pending', 'cleared'].includes(payload.status) ? payload.status : (['pending', 'cleared'].includes(tx.status) ? tx.status : 'cleared')),
         updatedAt: now,
         updatedBy: this.currentUserId || tx.updatedBy || null,
       });
@@ -963,27 +959,6 @@ class Store {
       }
     });
     return balance;
-  }
-
-  accountClearedBalance(accountId) {
-    const account = this.accountById(accountId);
-    if (!account) return 0;
-    let balance = safeNumber(account.openingBalance);
-    this.transactions({ includeDeleted: false }).forEach((tx) => {
-      if ((tx.status || 'cleared') !== 'cleared') return;
-      const amount = safeNumber(tx.amount);
-      if (tx.type === 'income' && tx.accountId === accountId) balance += amount;
-      if (tx.type === 'expense' && tx.accountId === accountId) balance -= amount;
-      if (tx.type === 'transfer') {
-        if (tx.accountId === accountId) balance -= amount;
-        if (tx.toAccountId === accountId) balance += amount;
-      }
-    });
-    return balance;
-  }
-
-  pendingTransactions(accountId = null) {
-    return this.transactions().filter((tx) => (tx.status || 'cleared') === 'pending' && (!accountId || tx.accountId === accountId || tx.toAccountId === accountId));
   }
 
   accountTransactions(accountId) {

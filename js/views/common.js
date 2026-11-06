@@ -84,6 +84,7 @@ export function txRow(tx, { showDate = false, showCreator = true, compact = fals
         ${Array.isArray(tx.tags) && tx.tags.length ? `<span class="tx-tags">${tx.tags.map((tag) => `<span class="tx-tag">#${escapeHTML(tag)}</span>`).join('')}</span>` : ''}
         ${Array.isArray(tx.splits) && tx.splits.length ? `<span class="tx-split">Split ${tx.splits.length}</span>` : ''}
         ${tx.receipt ? `<span class="tx-receipt" title="Ada struk">${icon('file-text', 'w-3 h-3')}</span>` : ''}
+        ${store.isMonthLocked(tx.date.slice(0, 7)) ? `<span class="tx-lock" title="Bulan terkunci">${icon('lock', 'w-3 h-3')}</span>` : ''}
         ${showCreator ? `<span class="tx-creator" style="--creator-color:${escapeAttr(creator?.color || 'var(--muted)')}">${escapeHTML(tx.createdByName || creator?.name || '—')}</span>` : ''}
       </span>
     </span>
