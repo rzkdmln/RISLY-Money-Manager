@@ -816,12 +816,17 @@ function openProfileSheet() {
 
     const backdrop = document.createElement('div');
     backdrop.className = 'fixed inset-0 z-40 bg-black/20 backdrop-blur-sm';
-    backdrop.addEventListener('click', closeDropdown);
 
     document.body.appendChild(backdrop);
     document.body.appendChild(dropdown);
 
     const rect = btn.getBoundingClientRect();
+
+    const closeDropdown = () => {
+      dropdown.remove();
+      backdrop.remove();
+      document.removeEventListener('click', outsideClick);
+    };
 
     // Tunggu layout selesai baru hitung posisi, karena elemen baru baru di-append.
     requestAnimationFrame(() => {
@@ -831,17 +836,13 @@ function openProfileSheet() {
       dropdown.style.left = `${Math.max(8, rect.right + window.scrollX - dRect.width - 8)}px`;
     });
 
-    const closeDropdown = () => {
-      dropdown.remove();
-      backdrop.remove();
-      document.removeEventListener('click', outsideClick);
-    };
-
     const outsideClick = (e) => {
       if (!dropdown.contains(e.target) && !btn.contains(e.target) && !backdrop.contains(e.target)) {
         closeDropdown();
       }
     };
+
+    backdrop.addEventListener('click', closeDropdown);
 
     dropdown.addEventListener('click', () => {
       setTimeout(closeDropdown, 50);
