@@ -149,6 +149,7 @@ export function settingsView(user) {
           <button type="button" class="btn btn-secondary btn-sm" data-action="export-backup">${icon('download', 'w-3.5 h-3.5')} Backup</button>
           <button type="button" class="btn btn-secondary btn-sm" data-action="import-backup">${icon('upload', 'w-3.5 h-3.5')} Restore</button>
           <button type="button" class="btn btn-danger-soft btn-sm" data-action="reset-app">${icon('trash', 'w-3.5 h-3.5')} Reset</button>
+          <button type="button" class="btn btn-secondary btn-sm mt-2" data-action="check-update">${icon('refresh', 'w-4 h-4')} Periksa pembaruan</button>
         </div>
       </section>
     </div>

@@ -1455,16 +1455,15 @@ body.is-auth { background: var(--bg); }
   animation: fadeIn .2s ease;
 }
 .modal-panel {
-  position: fixed; z-index: 1;
-  top: 50%; left: 50%;
+  position: relative; z-index: 1;
   width: 100%; max-height: calc(100dvh - 40px);
   overflow-y: auto; overscroll-behavior: contain;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 20px; box-shadow: var(--shadow-lg);
-  opacity: 0; transform: translate(-50%, -50%) scale(.985);
+  opacity: 0; transform: translateY(12px) scale(.985);
   transition: opacity .22s ease, transform .22s cubic-bezier(.2, .8, .3, 1);
 }
-.modal-panel.modal-in { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.modal-panel.modal-in { opacity: 1; transform: translateY(0) scale(1); }
 .modal-sm { max-width: 400px; }
 .modal-md { max-width: 520px; }
 .modal-lg { max-width: 700px; }
@@ -1556,7 +1555,6 @@ body.is-auth { background: var(--bg); }
 .profile-menu-item { display: flex; align-items: center; gap: 9px; padding: 10px 4px; border: 0; border-bottom: 1px solid var(--border); background: transparent; color: var(--text-soft); font-size: 11px; font-weight: 600; text-align: left; }
 .profile-menu-item:last-child { border-bottom: 0; }
 .profile-menu-item:hover { color: var(--brand); }
-.profile-dropdown { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); }
 .more-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
 .more-tile { display: flex; align-items: center; gap: 8px; padding: 11px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface-2); color: var(--muted); }
 .more-tile:hover { border-color: var(--border-strong); color: var(--text); }
@@ -1761,9 +1759,9 @@ body.is-auth { background: var(--bg); }
   .report-category-bar { display: none; }
   .export-card { padding: 16px; }
   .modal-panel { border-radius: 18px; }
-  #modal-root { padding: 10px; align-items: center; }
+  #modal-root { padding: 10px; align-items: flex-end; }
   .modal-panel { max-height: calc(100dvh - 20px); }
-  .sheet-panel { border-radius: 18px; }
+  .sheet-panel { border-radius: 20px 20px 0 0; }
   .modal-header { padding: 14px 15px 11px; }
   .modal-body { padding: 14px 15px; }
   .modal-footer { padding: 10px 15px calc(10px + var(--safe-bottom)); }

@@ -9,7 +9,7 @@
  *  - Cloud/API traffic is never cached.
  */
 
-const VERSION = 'risly-1.2.46';
+const VERSION = 'risly-1.2.41';
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 
@@ -29,7 +29,6 @@ const APP_SHELL = [
   './js/gdrive.js',
   './js/google-auth-relay.js',
   './js/import.js',
-  './js/export.js',
   './js/icons.js',
   './js/pull-to-refresh.js',
   './js/store.js',

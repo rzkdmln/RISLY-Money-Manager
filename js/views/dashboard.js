@@ -88,6 +88,21 @@ export function dashboardView(user) {
     </button>`;
   }).join('');
 
+  const categoryBudgetMini = budget.categories
+    .filter((item) => item.limit > 0)
+    .sort((a, b) => b.percent - a.percent)
+    .slice(0, 3)
+    .map((item) => {
+      const tone = toneForPercent(item.percent, budget.warning, budget.danger);
+      return `<div class="budget-mini-row min-w-0 w-full mb-3 last:mb-0">
+        <div class="flex items-center justify-between gap-2 text-[11px] min-w-0 mb-1">
+          <span class="truncate font-medium text-slate-600 dark:text-slate-400">${escapeHTML(item.category.name)}</span>
+          <span class="font-bold text-slate-700 dark:text-slate-200 shrink-0">${formatPercent(item.percent)}</span>
+        </div>
+        ${progressBar(item.percent, tone, 'progress-thin')}
+      </div>`;
+    }).join('');
+
   const upcomingHtml = upcoming.length
     ? upcoming.map((rule) => {
       const category = store.categoryById(rule.categoryId);
@@ -131,9 +146,9 @@ export function dashboardView(user) {
       <button type="button" class="btn btn-secondary btn-sm shrink-0" data-action="nav" data-route="settings">Hubungkan</button>
     </div>` : ''}
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 min-w-0 w-full">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 min-w-0 w-full items-stretch">
       <!-- KARTU KEKAYAAN (CLEAN & SWITCHABLE) -->
-      <section class="accounts-hero min-w-0 w-full overflow-hidden relative rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+      <section class="accounts-hero lg:col-span-2 min-w-0 w-full overflow-hidden relative rounded-2xl p-6 shadow-sm flex flex-col justify-between">
         <div class="accounts-hero-ring"></div>
         <div class="accounts-hero-ring accounts-hero-ring-two"></div>
 
@@ -198,6 +213,7 @@ export function dashboardView(user) {
               </div>
             </div>
             ${budget.remaining < 0 ? `<p class="flex items-center gap-1.5 text-xs font-medium text-rose-600 dark:text-rose-400 mt-3 min-w-0">${icon('alert-triangle', 'w-3.5 h-3.5')} Pengeluaran melewati anggaran.</p>` : budget.percent >= budget.warning ? `<p class="flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 mt-3 min-w-0">${icon('info', 'w-3.5 h-3.5')} Hampir mencapai batas.</p>` : ''}
+            <div class="mt-4 min-w-0">${categoryBudgetMini}</div>
           ` : `
             <div class="flex flex-col items-center justify-center mt-6 text-center min-w-0 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-700/50">
               <span class="text-slate-300 dark:text-slate-600 mb-2">${icon('chart-pie', 'w-8 h-8')}</span>
