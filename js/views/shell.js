@@ -2,7 +2,7 @@ import { APP, BOTTOM_NAV, DESKTOP_NAV, MORE_NAV, ROUTES } from '../config.js';
 import { Cloud } from '../cloud.js';
 import { icon } from '../icons.js';
 import { avatar, prefs, syncPill } from '../ui.js';
-import { escapeAttr, escapeHTML, formatDate, parseLocalDate, todayISO } from '../utils.js';
+import { escapeAttr, escapeHTML, formatDate, parseLocalDate, todayISO, appContextLabel } from '../utils.js';
 
 function cloudColorClass(status) {
   if (!status || status.provider === 'local') return 'text-slate-400';
@@ -48,7 +48,7 @@ export function shellView(user, dueCount = 0) {
       </nav>
 
       <div class="sidebar-bottom">
-        <p class="sidebar-version">${APP.name} v${APP.version} · PWA</p>
+        <p class="sidebar-version">${APP.name} v${APP.version} · ${appContextLabel()}</p>
       </div>
     </aside>
 

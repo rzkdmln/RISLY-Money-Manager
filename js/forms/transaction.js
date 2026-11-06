@@ -268,10 +268,21 @@ export function transactionForm(tx = null, defaults = {}) {
 
       <div class="receipt-field mt-3">
         <div class="receipt-label">Lampiran struk (opsional)</div>
-        <input class="field mt-1.5" type="file" name="receiptFile" accept="image/*" data-receipt-file>
+        <div class="receipt-upload-wrap" data-receipt-upload>
+          <label class="receipt-upload-btn" aria-label="Pilih foto struk">
+            <svg class="w-5 h-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            <span>Pilih foto struk</span>
+            <input class="field sr-only" type="file" name="receiptFile" accept="image/*" data-receipt-file>
+          </label>
+          <p class="receipt-hint text-[10px] text-slate-400 mt-0.5">Maksimal 450 KB, JPG atau PNG</p>
+          <div class="receipt-selected hidden" data-receipt-selected>
+            <span class="receipt-file-name truncate" data-receipt-name></span>
+            <button type="button" class="receipt-change-btn" data-action="choose-receipt" data-receipt-change>Ganti</button>
+          </div>
+        </div>
         <input type="hidden" name="receipt" value="${escapeAttr(receipt)}">
         <div class="receipt-preview ${receipt ? '' : 'hidden'}" data-receipt-wrap>
-          <img src="${receipt ? escapeAttr(receipt) : ''}" alt="Struk" class="max-h-48 rounded border cursor-pointer" data-receipt-preview data-action="view-receipt" title="Klik untuk memperbesar">
+          <img src="${receipt ? escapeAttr(receipt) : ''}" alt="Struk" class="max-h-48 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer" data-receipt-preview data-action="view-receipt" title="Klik untuk memperbesar">
           <button type="button" class="btn btn-danger-soft btn-sm" data-action="remove-receipt">${icon('trash', 'w-3.5 h-3.5')} Hapus struk</button>
         </div>
       </div>

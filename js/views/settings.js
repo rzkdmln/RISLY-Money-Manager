@@ -130,7 +130,6 @@ export function settingsView(user) {
           ${member.id !== user?.id ? `<button type="button" class="btn btn-danger-soft btn-sm" data-action="remove-member" data-id="${escapeAttr(member.id)}">${icon('x', 'w-3.5 h-3.5')} Keluarkan</button>` : ''}
         </div>`).join('')}
       </div>
-      <p class="text-[11px] text-slate-400 mt-3">Anggota baru bergabung lewat kode undangan di halaman masuk.</p>
     </section>
 
       ${googleDriveCard(user, driveConnected)}

@@ -754,6 +754,13 @@ export function isMobile() {
   return false;
 }
 
+export function appContextLabel() {
+  if (isStandalone()) {
+    return isMobile() ? 'PWA' : 'Aplikasi desktop';
+  }
+  return isMobile() ? 'Browser' : 'Desktop';
+}
+
 export function randomFrom(list) {
   return list[Math.floor(Math.random() * list.length)];
 }

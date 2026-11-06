@@ -237,7 +237,7 @@ export function recurringRow(rule, { embedded = false } = {}) {
         ${!rule.autoPost ? badge('Manual', 'purple', 'badge-soft') : ''}
       </div>
       <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-        ${escapeHTML(rule.type === 'transfer' ? `${store.accountName(rule.accountId)} → ${store.accountName(rule.toAccountId)}` : `${account?.name || '—'}${category ? ` · ${escapeHTML(category.name)}` : ''}`)}
+        ${escapeHTML(rule.type === 'transfer' ? `${store.accountName(rule.accountId)} → ${store.accountName(rule.toAccountId)}` : `${account?.name || '—'}${category ? ` · ${category.name}` : ''}`)}
         · ${escapeHTML(freq.label)} ${rule.interval > 1 ? `tiap ${rule.interval} ${escapeHTML(freq.adverb)}` : ''}
       </div>
       <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Berikutnya ${escapeHTML(formatDate(rule.nextDate))}${rule.autoPost ? '' : ' · posting manual'}</div>

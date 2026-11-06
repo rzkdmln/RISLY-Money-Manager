@@ -2261,9 +2261,13 @@ async function handleAction(action, element) {
       const hidden = form?.querySelector('input[name="receipt"]');
       const wrap = form?.querySelector('[data-receipt-wrap]');
       const file = form?.querySelector('input[data-receipt-file]');
+      const uploadWrap = form?.querySelector('[data-receipt-upload]');
+      const selected = form?.querySelector('[data-receipt-selected]');
       if (hidden) hidden.value = '';
       if (wrap) wrap.classList.add('hidden');
       if (file) file.value = '';
+      if (uploadWrap) uploadWrap.classList.remove('hidden');
+      if (selected) selected.classList.add('hidden');
       break;
     }
     case 'view-receipt': {
@@ -3441,6 +3445,10 @@ function bindEvents() {
       const form = target.closest('form');
       const hidden = form?.querySelector('input[name="receipt"]');
       const preview = form?.querySelector('[data-receipt-preview]');
+      const wrap = form?.querySelector('[data-receipt-wrap]');
+      const uploadWrap = form?.querySelector('[data-receipt-upload]');
+      const selected = form?.querySelector('[data-receipt-selected]');
+      const fileName = form?.querySelector('[data-receipt-name]');
       const file = target.files?.[0];
       if (!file) return;
       const reader = new FileReader();
@@ -3465,12 +3473,19 @@ function bindEvents() {
           }
           if (hidden) hidden.value = dataUrl;
           if (preview) { preview.src = dataUrl; preview.classList.remove('hidden'); }
-          form?.querySelector('[data-receipt-wrap]')?.classList.remove('hidden');
+          if (wrap) wrap.classList.remove('hidden');
+          if (uploadWrap) uploadWrap.classList.add('hidden');
+          if (selected) selected.classList.remove('hidden');
+          if (fileName) fileName.textContent = file.name;
         };
         img.src = String(reader.result || '');
       };
       reader.readAsDataURL(file);
-      return;
+    }
+    if (target.matches('[data-receipt-change]')) {
+      const form = target.closest('form');
+      const fileInput = form?.querySelector('input[data-receipt-file]');
+      fileInput?.click();
     }
     if (target.matches('select[data-account-type-select]')) {
       const form = target.closest('form[data-form="account"]');
