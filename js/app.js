@@ -3329,6 +3329,13 @@ function bindEvents() {
   document.addEventListener('submit', (event) => {
     const form = event.target.closest('form[data-form]');
     if (!form) return;
+    // Sinkronkan nilai hidden input tags dari chip sebelum submit
+    form.querySelectorAll('[data-tag-input]').forEach((wrap) => {
+      const hidden = wrap.querySelector('[data-tag-value]');
+      const chips = wrap.querySelectorAll('.tag-chip');
+      const values = Array.from(chips).map((c) => c.dataset.tag || '').filter(Boolean);
+      if (hidden) hidden.value = values.join(', ');
+    });
     event.preventDefault();
     Promise.resolve(submitForm(form)).catch((error) => {
       console.error('Form submission failed:', error);
@@ -3367,6 +3374,42 @@ function bindEvents() {
     }
     const noteForm = target.closest('form[data-form="note"][data-id]');
     if (noteForm) scheduleNoteAutosave(noteForm);
+  });
+
+  // Tag input: buat chip saat Enter, spasi, koma, atau titik
+  document.addEventListener('keydown', (event) => {
+    const field = event.target.closest('[data-tag-field]');
+    if (!field) return;
+    const key = event.key;
+    const isSeparator = key === 'Enter' || key === ' ' || key === ',' || key === '.';
+    if (!isSeparator) return;
+    event.preventDefault();
+    const wrap = field.closest('[data-tag-input]');
+    if (!wrap) return;
+    const chipsContainer = wrap.querySelector('[data-tag-chips]');
+    if (!chipsContainer) return;
+    const raw = field.value.trim();
+    if (!raw) return;
+    const tag = raw.startsWith('#') ? raw : '#' + raw;
+    // Hindari duplikat
+    const exists = Array.from(chipsContainer.querySelectorAll('.tag-chip')).some((c) => (c.dataset.tag || '').toLowerCase() === tag.toLowerCase());
+    if (exists) { field.value = ''; return; }
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip';
+    chip.setAttribute('role', 'listitem');
+    chip.dataset.tag = tag;
+    chip.innerHTML = `${escapeHTML(tag)} <button type="button" class="tag-chip-remove" data-tag-remove aria-label="Hapus tag">×</button>`;
+    field.before(chip);
+    field.value = '';
+  });
+
+  // Hapus chip saat tombol × diklik
+  document.addEventListener('click', (event) => {
+    const removeBtn = event.target.closest('[data-tag-remove]');
+    if (!removeBtn) return;
+    event.preventDefault();
+    const chip = removeBtn.closest('.tag-chip');
+    if (chip) chip.remove();
   });
 
   document.addEventListener('change', (event) => {

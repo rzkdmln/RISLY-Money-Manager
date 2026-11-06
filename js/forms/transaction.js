@@ -83,7 +83,8 @@ export function transactionForm(tx = null, defaults = {}) {
   }
   const note = tx?.note || defaults.note || '';
   const payee = tx?.payee || defaults.payee || '';
-  const tags = Array.isArray(tx?.tags) ? tx.tags.join(', ') : (defaults.tags || '');
+  const tagsValue = Array.isArray(tx?.tags) ? tx.tags.join(', ') : (defaults.tags || '');
+  const tagsArray = Array.isArray(tx?.tags) ? tx.tags : (String(defaults.tags || '').split(',').map(t => t.trim()).filter(Boolean));
   const splits = Array.isArray(tx?.splits) ? tx.splits : [];
   const receipt = typeof tx?.receipt === 'string' ? tx.receipt : '';
   const editing = Boolean(tx?.id);
@@ -230,9 +231,23 @@ export function transactionForm(tx = null, defaults = {}) {
         <label class="field-label">Payee / merchant (opsional)
           <input class="field mt-1.5" name="payee" maxlength="80" value="${escapeAttr(payee)}" placeholder="Contoh: Indomaret, PLN, GoPay">
         </label>
-        <label class="field-label">Tag (opsional, pisah koma)
-          <input class="field mt-1.5" name="tags" maxlength="180" value="${escapeAttr(tags)}" placeholder="keluarga, makan, rutin">
-        </label>
+        <label class="field-label">Tag (opsional)</label>
+        <div class="tag-input mt-1.5" data-tag-input>
+          <input type="hidden" name="tags" value="${escapeAttr(tagsValue)}" data-tag-value>
+          <div class="tag-input-chips" data-tag-chips role="list">
+            ${tagsArray.map(t => {
+              const tagLabel = t.startsWith('#') ? t : '#' + t;
+              return `
+              <span class="tag-chip" role="listitem" data-tag="${escapeAttr(tagLabel)}">
+                ${escapeHTML(tagLabel)}
+                <button type="button" class="tag-chip-remove" data-tag-remove aria-label="Hapus tag ${escapeHTML(t)}">×</button>
+              </span>
+            `;
+            }).join('')}
+            <input type="text" class="tag-input-field" placeholder="contoh: keluarga, makan" data-tag-field autocomplete="off" spellcheck="false" role="textbox" aria-label="Tambah tag">
+          </div>
+          <p class="text-[10px] text-slate-400 mt-1">Spasi, koma, titik, atau Enter untuk tambah tag</p>
+        </div>
       </div>
 
       ${!isTransfer ? `<label class="toggle-row compact-toggle">
@@ -251,17 +266,16 @@ export function transactionForm(tx = null, defaults = {}) {
         <p class="text-[11px] text-slate-400 mt-1">Total nominal otomatis dijumlahkan dari baris split.</p>
       </div>` : ''}
 
-      <div class="field-label mt-3">Lampiran struk (opsional)
+      <div class="receipt-field mt-3">
+        <div class="receipt-label">Lampiran struk (opsional)</div>
         <input class="field mt-1.5" type="file" name="receiptFile" accept="image/*" data-receipt-file>
         <input type="hidden" name="receipt" value="${escapeAttr(receipt)}">
         <div class="receipt-preview ${receipt ? '' : 'hidden'}" data-receipt-wrap>
-          <img src="${receipt ? escapeAttr(receipt) : ''}" alt="Struk" class="max-h-40 rounded border cursor-pointer" data-receipt-preview data-action="view-receipt" title="Klik untuk memperbesar">
+          <img src="${receipt ? escapeAttr(receipt) : ''}" alt="Struk" class="max-h-48 rounded border cursor-pointer" data-receipt-preview data-action="view-receipt" title="Klik untuk memperbesar">
           <button type="button" class="btn btn-danger-soft btn-sm" data-action="remove-receipt">${icon('trash', 'w-3.5 h-3.5')} Hapus struk</button>
         </div>
       </div>
 
-
-      ${editing ? `<div class="tx-edit-note">${icon('info', 'w-3.5 h-3.5')} Perubahan nominal akan langsung menyesuaikan saldo akun terkait.</div>` : ''}
 
       ${!editing ? `<div class="recurring-box">
         <label class="toggle-row">
