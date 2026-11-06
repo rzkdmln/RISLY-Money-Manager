@@ -829,11 +829,13 @@ function openProfileSheet() {
     };
 
     // Tunggu layout selesai baru hitung posisi, karena elemen baru baru di-append.
+    // position: fixed + getBoundingClientRect() = sudah viewport-relative,
+    // jangan tambahkan scrollY/scrollX biar tidak double-count.
     requestAnimationFrame(() => {
       const dRect = dropdown.getBoundingClientRect();
       dropdown.style.position = 'fixed';
-      dropdown.style.top = `${Math.max(8, rect.bottom + window.scrollY + 8)}px`;
-      dropdown.style.left = `${Math.max(8, rect.right + window.scrollX - dRect.width - 8)}px`;
+      dropdown.style.top = `${Math.max(8, rect.bottom + 8)}px`;
+      dropdown.style.left = `${Math.max(8, rect.right - dRect.width - 8)}px`;
     });
 
     const outsideClick = (e) => {
