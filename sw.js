@@ -28,6 +28,7 @@ const APP_SHELL = [
   './js/data.js',
   './js/gdrive.js',
   './js/google-auth-relay.js',
+  './js/import.js',
   './js/icons.js',
   './js/pull-to-refresh.js',
   './js/store.js',
