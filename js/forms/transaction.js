@@ -82,6 +82,9 @@ export function transactionForm(tx = null, defaults = {}) {
     subcategoryId = '';
   }
   const note = tx?.note || defaults.note || '';
+  const payee = tx?.payee || defaults.payee || '';
+  const tags = Array.isArray(tx?.tags) ? tx.tags.join(', ') : (defaults.tags || '');
+  const status = ['pending', 'cleared'].includes(tx?.status) ? tx.status : (defaults.status || 'cleared');
   const editing = Boolean(tx?.id);
   const result = expressionResult(displayAmount);
   const currentUser = store.currentUser;
@@ -188,6 +191,22 @@ export function transactionForm(tx = null, defaults = {}) {
       <label class="field-label">Catatan
         <textarea class="field textarea mt-1.5" name="note" rows="2" maxlength="280" placeholder="Contoh: belanja mingguan, gaji, transfer tabungan…">${escapeHTML(note)}</textarea>
       </label>
+      <div class="form-grid">
+        <label class="field-label">Status
+          <select class="field mt-1.5" name="status">
+            <option value="cleared" ${status === 'cleared' ? 'selected' : ''}>Cleared (sudah terkonfirmasi)</option>
+            <option value="pending" ${status === 'pending' ? 'selected' : ''}>Pending (belum terkonfirmasi)</option>
+          </select>
+        </label>
+      </div>
+      <div class="form-grid">
+        <label class="field-label">Payee / merchant (opsional)
+          <input class="field mt-1.5" name="payee" maxlength="80" value="${escapeAttr(payee)}" placeholder="Contoh: Indomaret, PLN, GoPay">
+        </label>
+        <label class="field-label">Tag (opsional, pisah koma)
+          <input class="field mt-1.5" name="tags" maxlength="180" value="${escapeAttr(tags)}" placeholder="keluarga, makan, rutin">
+        </label>
+      </div>
 
 
       ${editing ? `<div class="tx-edit-note">${icon('info', 'w-3.5 h-3.5')} Perubahan nominal akan langsung menyesuaikan saldo akun terkait.</div>` : ''}

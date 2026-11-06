@@ -25,10 +25,10 @@ export function subcategoryOf(tx) {
 }
 
 export function txTitle(tx) {
-  if (tx.type === 'transfer') return tx.note || 'Transfer antar akun';
+  if (tx.type === 'transfer') return tx.note || tx.payee || 'Transfer antar akun';
   const category = categoryOf(tx);
   const sub = subcategoryOf(tx);
-  return tx.note || sub?.name || category?.name || 'Transaksi';
+  return tx.note || tx.payee || sub?.name || category?.name || 'Transaksi';
 }
 
 export function txSubtitle(tx) {
@@ -75,7 +75,10 @@ export function txRow(tx, { showDate = false, showCreator = true, compact = fals
       <span class="tx-meta">
         ${showDate ? `<span>${escapeHTML(formatDate(tx.date))}</span>` : ''}
         ${time ? `<span class="tx-time">${escapeHTML(time)}</span>` : ''}
+        ${tx.payee ? `<span class="tx-payee">${escapeHTML(tx.payee)}</span>` : ''}
         <span>${escapeHTML(txSubtitle(tx))}</span>
+        ${Array.isArray(tx.tags) && tx.tags.length ? `<span class="tx-tags">${tx.tags.map((tag) => `<span class="tx-tag">#${escapeHTML(tag)}</span>`).join('')}</span>` : ''}
+        ${(tx.status || 'cleared') === 'pending' ? `<span class="tx-status tx-status-pending">Pending</span>` : ''}
         ${showCreator ? `<span class="tx-creator" style="--creator-color:${escapeAttr(creator?.color || 'var(--muted)')}">${escapeHTML(tx.createdByName || creator?.name || '—')}</span>` : ''}
       </span>
     </span>

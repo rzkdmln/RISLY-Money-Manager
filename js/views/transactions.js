@@ -63,6 +63,8 @@ function filterTransactions() {
       const toAccount = store.accountById(tx.toAccountId);
       const haystack = normalizeSearch([
         tx.note,
+        tx.payee,
+        (tx.tags || []).join(' '),
         category?.name,
         sub?.name,
         account?.name,
@@ -134,6 +136,8 @@ export function transactionsView() {
     ${pageHeader({
       eyebrow: 'Buku kas',
       title: 'Transaksi',
+      actions: `<button type="button" class="btn btn-secondary btn-sm" data-action="import-transactions">${icon('upload', 'w-3.5 h-3.5')} Import</button>
+        <button type="button" class="btn btn-primary btn-sm" data-action="add-tx" data-type="expense">${icon('plus', 'w-3.5 h-3.5')} Catat</button>`,
     })}
 
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 min-w-0 w-full">

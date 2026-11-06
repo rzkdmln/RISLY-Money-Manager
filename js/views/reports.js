@@ -237,7 +237,8 @@ export function reportsView() {
         <button type="button" class="btn btn-secondary btn-sm" data-action="export-xlsx-range">${icon('download', 'w-3.5 h-3.5')} Excel rentang</button>
         <button type="button" class="btn btn-primary btn-sm" data-action="export-pdf-range">${icon('file-text', 'w-3.5 h-3.5')} PDF rentang</button>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+        <button type="button" class="btn btn-secondary" data-action="import-transactions">${icon('upload', 'w-4 h-4')} Import transaksi</button>
         <button type="button" class="btn btn-secondary" data-action="export-xlsx-all">${icon('download', 'w-4 h-4')} Semua riwayat (.xlsx)</button>
         <button type="button" class="btn btn-secondary" data-action="export-xlsx-month">${icon('download', 'w-4 h-4')} Bulan ini (.xlsx)</button>
         <button type="button" class="btn btn-primary" data-action="export-pdf">${icon('file-text', 'w-4 h-4')} Laporan PDF</button>

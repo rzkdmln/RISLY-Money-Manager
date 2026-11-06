@@ -7,7 +7,7 @@ export const APP = Object.freeze({
   name: 'RISLY',
   fullName: 'RISLY Money Manager',
   tagline: 'Keuangan pribadi dan keluarga, rapi dalam satu tempat.',
-  version: '1.2.30',
+  version: '1.2.32',
   schemaVersion: 5,
   storageKey: 'risly.mm.data.v3',
   workspaceRegistryKey: 'risly.mm.workspaces.v1',
@@ -107,6 +107,7 @@ export const ACCOUNT_TYPES = Object.freeze({
   savings: { label: 'Tabungan', icon: 'piggy-bank', color: '#10B981' },
   investment: { label: 'Investasi', icon: 'trending-up', color: '#06B6D4' },
   credit: { label: 'Kartu Kredit', icon: 'credit-card', color: '#EF4444' },
+  loan: { label: 'Pinjaman', icon: 'landmark', color: '#DC2626' },
 });
 
 export const NOTE_KINDS = Object.freeze({

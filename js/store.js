@@ -508,6 +508,9 @@ class Store {
         categoryId: payload.type === 'transfer' ? null : payload.categoryId || null,
         subcategoryId: payload.type === 'transfer' ? null : payload.subcategoryId || null,
         note: String(payload.note || '').trim(),
+        payee: String(payload.payee || '').trim(),
+        tags: Array.isArray(payload.tags) ? payload.tags.map(String).map((t) => t.trim()).filter(Boolean).slice(0, 20) : [],
+        status: ['pending', 'cleared'].includes(payload.status) ? payload.status : 'cleared',
         createdBy: user?.id || this.currentUserId || this.data.users[0]?.id || 'owner',
         createdByName: user?.name || this.data.users[0]?.name || 'Pengguna',
         createdAt: now,
@@ -536,6 +539,13 @@ class Store {
         categoryId: type === 'transfer' ? null : payload.categoryId || null,
         subcategoryId: type === 'transfer' ? null : payload.subcategoryId || null,
         note: String(payload.note || '').trim(),
+        payee: payload.payee === undefined ? tx.payee : String(payload.payee || '').trim(),
+        tags: payload.tags === undefined
+          ? (Array.isArray(tx.tags) ? tx.tags : [])
+          : (Array.isArray(payload.tags) ? payload.tags.map(String).map((t) => t.trim()).filter(Boolean).slice(0, 20) : []),
+        status: payload.status === undefined
+          ? (['pending', 'cleared'].includes(tx.status) ? tx.status : 'cleared')
+          : (['pending', 'cleared'].includes(payload.status) ? payload.status : (['pending', 'cleared'].includes(tx.status) ? tx.status : 'cleared')),
         updatedAt: now,
         updatedBy: this.currentUserId || tx.updatedBy || null,
       });
@@ -765,6 +775,27 @@ class Store {
     return balance;
   }
 
+  accountClearedBalance(accountId) {
+    const account = this.accountById(accountId);
+    if (!account) return 0;
+    let balance = safeNumber(account.openingBalance);
+    this.transactions({ includeDeleted: false }).forEach((tx) => {
+      if ((tx.status || 'cleared') !== 'cleared') return;
+      const amount = safeNumber(tx.amount);
+      if (tx.type === 'income' && tx.accountId === accountId) balance += amount;
+      if (tx.type === 'expense' && tx.accountId === accountId) balance -= amount;
+      if (tx.type === 'transfer') {
+        if (tx.accountId === accountId) balance -= amount;
+        if (tx.toAccountId === accountId) balance += amount;
+      }
+    });
+    return balance;
+  }
+
+  pendingTransactions(accountId = null) {
+    return this.transactions().filter((tx) => (tx.status || 'cleared') === 'pending' && (!accountId || tx.accountId === accountId || tx.toAccountId === accountId));
+  }
+
   accountTransactions(accountId) {
     return this.transactions().filter(
       (tx) => tx.accountId === accountId || tx.toAccountId === accountId,
@@ -839,6 +870,14 @@ class Store {
           owner: payload.owner || account.owner || owner,
            sharedWith: Array.isArray(payload.sharedWith) ? payload.sharedWith : (account.sharedWith || []),
            creditLimit: payload.creditLimit === undefined ? safeNumber(account.creditLimit) : safeNumber(payload.creditLimit),
+            creditDueDate: payload.creditDueDate === undefined ? (account.creditDueDate || null) : (payload.creditDueDate || null),
+            loanPrincipal: payload.loanPrincipal === undefined ? safeNumber(account.loanPrincipal) : safeNumber(payload.loanPrincipal),
+            loanInterestRate: payload.loanInterestRate === undefined ? safeNumber(account.loanInterestRate) : safeNumber(payload.loanInterestRate),
+            loanTermMonths: payload.loanTermMonths === undefined ? safeNumber(account.loanTermMonths) : safeNumber(payload.loanTermMonths),
+            loanMonthlyPayment: payload.loanMonthlyPayment === undefined ? safeNumber(account.loanMonthlyPayment) : safeNumber(payload.loanMonthlyPayment),
+            loanStartDate: payload.loanStartDate === undefined ? (account.loanStartDate || null) : (payload.loanStartDate || null),
+            loanNextDueDate: payload.loanNextDueDate === undefined ? (account.loanNextDueDate || null) : (payload.loanNextDueDate || null),
+            loanRemaining: payload.loanRemaining === undefined ? safeNumber(account.loanRemaining) : safeNumber(payload.loanRemaining),
           updatedAt: now,
         });
 
@@ -882,6 +921,14 @@ class Store {
         owner: owner,
         sharedWith: Array.isArray(payload.sharedWith) ? payload.sharedWith : [],
            creditLimit: safeNumber(payload.creditLimit),
+            creditDueDate: payload.creditDueDate || null,
+            loanPrincipal: safeNumber(payload.loanPrincipal),
+            loanInterestRate: safeNumber(payload.loanInterestRate),
+            loanTermMonths: safeNumber(payload.loanTermMonths),
+            loanMonthlyPayment: safeNumber(payload.loanMonthlyPayment),
+            loanStartDate: payload.loanStartDate || null,
+            loanNextDueDate: payload.loanNextDueDate || null,
+            loanRemaining: payload.loanRemaining === undefined ? safeNumber(payload.loanPrincipal) : safeNumber(payload.loanRemaining),
         archived: false,
         createdAt: now,
         updatedAt: now,

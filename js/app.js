@@ -1472,6 +1472,500 @@ function pickBackupFile() {
   input.click();
 }
 
+function readFileAsArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error('Gagal membaca file'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function txFingerprint(tx) {
+  return [
+    String(tx.date || ''),
+    String(tx.type || ''),
+    Math.round(Number(tx.amount) || 0),
+    String(tx.accountId || ''),
+    String(tx.note || '').trim().toLowerCase(),
+  ].join('|');
+}
+
+function findImportHeader(headers, candidates) {
+  const normalized = headers.map((h) => ({ h, n: String(h).trim().toLowerCase() }));
+  for (const c of candidates) {
+    const found = normalized.find(({ n }) => n === c);
+    if (found) return found.h;
+  }
+  for (const c of candidates) {
+    const found = normalized.find(({ n }) => n.includes(c));
+    if (found) return found.h;
+  }
+  return null;
+}
+
+function findAccountIdByName(name) {
+  if (!name) return null;
+  const n = String(name).trim().toLowerCase();
+  const acc = store.activeAccounts().find((a) => String(a.name).trim().toLowerCase() === n);
+  return acc?.id || null;
+}
+
+function findCategoryIdByName(name, type) {
+  if (!name) return null;
+  const n = String(name).trim().toLowerCase();
+  const cats = store.categories(type === 'income' ? 'income' : 'expense');
+  const cat = cats.find((c) => String(c.name).trim().toLowerCase() === n);
+  return cat?.id || null;
+}
+
+function normalizeImportDate(value) {
+  if (value == null || value === '') return '';
+  if (value instanceof Date) {
+    if (isNaN(value.getTime())) return '';
+    return value.toISOString().slice(0, 10);
+  }
+  if (typeof value === 'number') {
+    const parsed = window.XLSX?.SSF?.parse_date_code?.(value);
+    if (parsed) {
+      return `${parsed.y}-${String(parsed.m).padStart(2, '0')}-${String(parsed.d).padStart(2, '0')}`;
+    }
+    const date = new Date(Math.round((value - 25569) * 86400 * 1000));
+    if (!isNaN(date.getTime())) return date.toISOString().slice(0, 10);
+    return '';
+  }
+  const str = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
+  let m = str.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  m = str.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/);
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+  const d = new Date(str);
+  if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  return '';
+}
+
+function parseImportNumber(value) {
+  if (value == null || value === '') return 0;
+  if (typeof value === 'number') return value;
+  let s = String(value).trim();
+  s = s.replace(/[Rp\s]/gi, '');
+  if (s.includes(',') && s.includes('.')) {
+    if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      s = s.replace(/,/g, '');
+    }
+  } else if (s.includes(',')) {
+    s = s.replace(',', '.');
+  }
+  const n = Number(s);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function mapImportType(raw) {
+  const t = String(raw || '').trim().toLowerCase();
+  if (['income', 'pemasukan', 'masuk', 'credit', 'kredit'].includes(t)) return 'income';
+  if (['expense', 'pengeluaran', 'keluar', 'debit', 'debet'].includes(t)) return 'expense';
+  if (['transfer'].includes(t)) return 'transfer';
+  return '';
+}
+
+async function startTransactionImport(file) {
+  if (!window.XLSX) {
+    toast('Pustaka Excel belum siap. Periksa koneksi lalu coba lagi.', 'error');
+    return;
+  }
+  const buffer = await readFileAsArrayBuffer(file);
+  const workbook = window.XLSX.read(new Uint8Array(buffer), { type: 'array', cellDates: true });
+  if (!workbook.SheetNames?.length) throw new Error('File tidak memiliki sheet.');
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = window.XLSX.utils.sheet_to_json(sheet, { defval: '' });
+  if (!rows.length) throw new Error('File tidak berisi data.');
+
+  const headers = Object.keys(rows[0] || {});
+  const mapping = {
+    date: findImportHeader(headers, ['tanggal', 'date', 'tgl', 'transaction date', 'trans date', 'waktu transaksi']),
+    type: findImportHeader(headers, ['jenis', 'type', 'tipe', 'transaction type', 'jenis transaksi']),
+    amount: findImportHeader(headers, ['nominal', 'amount', 'jumlah', 'nilai', 'total']),
+    debit: findImportHeader(headers, ['debit', 'debet', 'pengeluaran', 'keluar']),
+    credit: findImportHeader(headers, ['kredit', 'credit', 'pemasukan', 'masuk']),
+    account: findImportHeader(headers, ['akun', 'account', 'rekening', 'wallet', 'akun sumber', 'sumber']),
+    toAccount: findImportHeader(headers, ['ke akun', 'to account', 'akun tujuan', 'tujuan']),
+    category: findImportHeader(headers, ['kategori', 'category']),
+    note: findImportHeader(headers, ['catatan', 'note', 'keterangan', 'memo', 'berita']),
+    payee: findImportHeader(headers, ['payee', 'merchant', 'pedagang', 'toko', 'description', 'deskripsi', 'nama']),
+  };
+
+  const defaultAccountId = store.activeAccounts()[0]?.id || null;
+  const existingFingerprints = new Set(store.transactions().map((tx) => txFingerprint(tx)));
+  const seen = new Set();
+
+  const parsedRows = rows.map((row, index) => {
+    const date = normalizeImportDate(mapping.date ? row[mapping.date] : '');
+    let type = mapImportType(mapping.type ? row[mapping.type] : '');
+    let amount = 0;
+    let debit = mapping.debit ? parseImportNumber(row[mapping.debit]) : 0;
+    let credit = mapping.credit ? parseImportNumber(row[mapping.credit]) : 0;
+    if (mapping.amount) {
+      amount = Math.abs(parseImportNumber(row[mapping.amount]));
+      if (!type) type = 'expense';
+    } else if (debit || credit) {
+      if (debit > 0) { type = 'expense'; amount = Math.abs(debit); }
+      else if (credit > 0) { type = 'income'; amount = Math.abs(credit); }
+    }
+    if (!type) type = 'expense';
+
+    const accountName = mapping.account ? String(row[mapping.account] || '').trim() : '';
+    let accountId = findAccountIdByName(accountName);
+    if (!accountId) accountId = defaultAccountId;
+
+    const toAccountName = mapping.toAccount ? String(row[mapping.toAccount] || '').trim() : '';
+    const toAccountId = mapping.toAccount ? findAccountIdByName(toAccountName) : null;
+
+    const categoryName = mapping.category ? String(row[mapping.category] || '').trim() : '';
+    const categoryId = findCategoryIdByName(categoryName, type);
+
+    const note = mapping.note ? String(row[mapping.note] || '').trim() : '';
+    const payee = mapping.payee ? String(row[mapping.payee] || '').trim() : '';
+
+    let error = null;
+    if (!date) error = 'Tanggal tidak valid';
+    else if (!(amount > 0)) error = 'Nominal tidak valid';
+    else if (!accountId) error = 'Akun tidak ditemukan';
+
+    const fp = txFingerprint({ date, type, amount, accountId, note });
+    const duplicate = !error && (existingFingerprints.has(fp) || seen.has(fp));
+    if (!error && !duplicate) seen.add(fp);
+
+    return {
+      id: index,
+      date,
+      type,
+      amount,
+      accountId,
+      toAccountId,
+      categoryId,
+      note,
+      payee,
+      accountName,
+      categoryName,
+      duplicate,
+      error,
+      selected: !error && !duplicate,
+    };
+  });
+
+  ui.importPreview = {
+    fileName: file.name,
+    rows: parsedRows,
+    defaultAccountId,
+    defaultType: 'expense',
+    hasTypeColumn: Boolean(mapping.type || mapping.debit || mapping.credit),
+    hasAccountColumn: Boolean(mapping.account),
+    headers,
+    mapping,
+  };
+
+  openImportPreviewModal();
+}
+
+function openImportPreviewModal() {
+  const data = ui.importPreview;
+  if (!data) return;
+  const rows = data.rows;
+  const newCount = rows.filter((r) => !r.error && !r.duplicate).length;
+  const dupCount = rows.filter((r) => r.duplicate).length;
+  const errCount = rows.filter((r) => r.error).length;
+  const accountOptionsHtml = store.activeAccounts().map((a) =>
+    `<option value="${escapeAttr(a.id)}" ${a.id === data.defaultAccountId ? 'selected' : ''}>${escapeHTML(a.name)}</option>`
+  ).join('');
+  const previewRows = rows.slice(0, 300);
+  const tableRows = previewRows.map((r) => `
+    <tr>
+      <td><input type="checkbox" name="importRow" value="${r.id}" ${r.selected ? 'checked' : ''} ${r.error ? 'disabled' : ''}></td>
+      <td>${escapeHTML(r.date || '—')}</td>
+      <td>${escapeHTML(typeLabel(r.type))}</td>
+      <td class="text-right">${money(r.amount)}</td>
+      <td>${escapeHTML(store.accountName(r.accountId) || '—')}</td>
+      <td>${escapeHTML(r.categoryName || '—')}</td>
+      <td class="max-w-[10rem] truncate">${escapeHTML(r.note)}</td>
+      <td>${r.error
+        ? `<span class="text-red-500">${escapeHTML(r.error)}</span>`
+        : r.duplicate
+          ? `<span class="text-amber-500">Duplikat</span>`
+          : `<span class="text-emerald-500">Baru</span>`}</td>
+    </tr>`).join('');
+
+  openModal({
+    size: 'xl',
+    className: 'form-modal',
+    html: `<form data-form="import-transactions" class="modal-form" novalidate>
+      <header class="modal-header">
+        <div>
+          <p class="modal-kicker">Import transaksi</p>
+          <h2 class="modal-title">${escapeHTML(data.fileName)}</h2>
+        </div>
+        <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
+      </header>
+      <div class="modal-body">
+        <div class="grid grid-cols-3 gap-2 text-xs">
+          <div class="stat-card stat-green"><div class="stat-top"><span>Baru</span></div><div class="stat-value text-base">${newCount}</div></div>
+          <div class="stat-card stat-amber"><div class="stat-top"><span>Duplikat</span></div><div class="stat-value text-base">${dupCount}</div></div>
+          <div class="stat-card stat-red"><div class="stat-top"><span>Bermasalah</span></div><div class="stat-value text-base">${errCount}</div></div>
+        </div>
+        ${!data.hasAccountColumn ? `<label class="field-label mt-3">Akun default
+          <select class="field mt-1.5" name="importDefaultAccount">${accountOptionsHtml}</select>
+        </label>` : ''}
+        ${!data.hasTypeColumn ? `<label class="field-label mt-3">Jenis default
+          <select class="field mt-1.5" name="importDefaultType">
+            <option value="expense">Pengeluaran</option>
+            <option value="income">Pemasukan</option>
+          </select>
+        </label>` : ''}
+        <div class="mt-3 max-h-[45vh] overflow-auto border rounded">
+          <table class="report-table text-xs">
+            <thead><tr><th></th><th>Tanggal</th><th>Jenis</th><th class="text-right">Nominal</th><th>Akun</th><th>Kategori</th><th>Catatan</th><th>Status</th></tr></thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+          ${rows.length > previewRows.length ? `<p class="text-xs text-slate-400 mt-2">Menampilkan ${previewRows.length} dari ${rows.length} baris.</p>` : ''}
+        </div>
+        <p class="text-[11px] text-slate-400 mt-2">Duplikat terdeteksi otomatis berdasarkan tanggal, jenis, nominal, akun, dan catatan. Anda bisa tetap mencentang untuk mengimpor ulang.</p>
+        <p class="form-error hidden" data-form-error role="alert"></p>
+      </div>
+      <footer class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-action="close-modal">Batal</button>
+        <button type="submit" class="btn btn-primary">${icon('upload', 'w-4 h-4')} Import terpilih</button>
+      </footer>
+    </form>`
+  });
+}
+
+function openImportFilePicker() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.csv,.xlsx,.xls,.txt,.tsv';
+  input.style.display = 'none';
+  document.body.appendChild(input);
+  input.addEventListener('change', async () => {
+    const file = input.files?.[0];
+    input.remove();
+    if (!file) return;
+    try {
+      await startTransactionImport(file);
+    } catch (error) {
+      console.error(error);
+      toast(error.message || 'Gagal membaca file.', 'error');
+    }
+  });
+  input.click();
+}
+
+async function submitImport(form) {
+  const data = ui.importPreview;
+  if (!data) { closeModal(); return; }
+  const defaultAccount = form.querySelector('select[name="importDefaultAccount"]')?.value || data.defaultAccountId;
+  const defaultType = form.querySelector('select[name="importDefaultType"]')?.value || data.defaultType;
+  const selectedIds = new Set(Array.from(form.querySelectorAll('input[name="importRow"]:checked')).map((cb) => Number(cb.value)));
+  const toImport = data.rows.filter((r) => selectedIds.has(r.id) && !r.error);
+  if (!toImport.length) {
+    toast('Tidak ada baris yang dipilih.', 'info');
+    return;
+  }
+  toImport.forEach((r) => {
+    if (!data.hasAccountColumn) r.accountId = defaultAccount;
+    if (!data.hasTypeColumn) r.type = defaultType;
+  });
+  const invalid = toImport.filter((r) => !r.date || !(r.amount > 0) || !r.accountId);
+  if (invalid.length) {
+    showFormError(form, `${invalid.length} baris tidak valid (tanggal/nominal/akun).`);
+    return;
+  }
+  let imported = 0;
+  for (const r of toImport) {
+    store.addTransaction({
+      date: r.date,
+      time: '00:00',
+      type: r.type,
+      amount: r.amount,
+      accountId: r.accountId,
+      toAccountId: r.type === 'transfer' ? r.toAccountId : null,
+      categoryId: r.type === 'transfer' ? null : r.categoryId,
+      subcategoryId: null,
+      note: r.note,
+      payee: r.payee || '',
+      tags: [],
+      createdBy: store.currentUserId,
+    });
+    imported++;
+  }
+  closeModal();
+  ui.importPreview = null;
+  renderApplication();
+  toast(`${imported} transaksi berhasil diimport.`, 'success');
+}
+
+function openReconcileModal(accountId) {
+  const account = store.accountById(accountId);
+  if (!account) return;
+  const balance = store.accountBalance(account.id);
+  const cleared = store.accountClearedBalance(account.id);
+  const pending = store.pendingTransactions(account.id);
+  const pendingRows = pending.map((tx) => `
+    <tr>
+      <td><input type="checkbox" name="reconTx" value="${escapeAttr(tx.id)}" checked></td>
+      <td>${escapeHTML(formatDate(tx.date))}</td>
+      <td class="max-w-[12rem] truncate">${escapeHTML(tx.payee || tx.note || 'Transaksi')}</td>
+      <td class="text-right">${tx.type === 'income' || tx.type === 'transfer' && tx.toAccountId === account.id ? '+' : '-'}${money(tx.amount)}</td>
+    </tr>`).join('');
+
+  openModal({
+    size: 'lg',
+    className: 'form-modal',
+    html: `<form data-form="reconcile-account" data-account="${escapeAttr(account.id)}" class="modal-form" novalidate>
+      <header class="modal-header">
+        <div>
+          <p class="modal-kicker">Rekonsiliasi</p>
+          <h2 class="modal-title">${escapeHTML(account.name)}</h2>
+        </div>
+        <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
+      </header>
+      <div class="modal-body">
+        <div class="grid grid-cols-2 gap-2 text-xs mb-3">
+          <div class="stat-card stat-blue"><div class="stat-top"><span>Saldo aplikasi</span></div><div class="stat-value text-base">${money(balance)}</div></div>
+          <div class="stat-card stat-green"><div class="stat-top"><span>Saldo cleared</span></div><div class="stat-value text-base">${money(cleared)}</div></div>
+        </div>
+        <label class="field-label">Saldo statement (rekening bank)
+          <div class="input-with-prefix mt-1.5"><span>Rp</span><input class="field" type="number" name="statementBalance" step="1" inputmode="numeric" value="${Math.round(cleared)}"></div>
+        </label>
+        <p class="text-[11px] text-slate-400 mt-1">Masukkan saldo rekening per tanggal rekonsiliasi.</p>
+        ${pending.length ? `<div class="mt-3">
+          <div class="flex items-center justify-between mb-2">
+            <p class="field-label">Transaksi pending (${pending.length})</p>
+            <label class="text-xs inline-flex items-center gap-1"><input type="checkbox" data-recon-all checked> Pilih semua</label>
+          </div>
+          <div class="max-h-[35vh] overflow-auto border rounded">
+            <table class="report-table text-xs">
+              <thead><tr><th></th><th>Tanggal</th><th>Keterangan</th><th class="text-right">Nominal</th></tr></thead>
+              <tbody>${pendingRows}</tbody>
+            </table>
+          </div>
+        </div>` : '<p class="text-sm text-slate-500 mt-3">Tidak ada transaksi pending untuk akun ini.</p>'}
+        <p class="form-error hidden" data-form-error role="alert"></p>
+      </div>
+      <footer class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-action="close-modal">Batal</button>
+        <button type="submit" class="btn btn-primary">${icon('check', 'w-4 h-4')} Rekonsiliasi</button>
+      </footer>
+    </form>`
+  });
+  // select all handler
+  const form = document.querySelector('form[data-form="reconcile-account"]');
+  const allBox = form?.querySelector('[data-recon-all]');
+  if (allBox) {
+    allBox.addEventListener('change', () => {
+      form.querySelectorAll('input[name="reconTx"]').forEach((cb) => { cb.checked = allBox.checked; });
+    });
+  }
+}
+
+async function submitReconcile(form) {
+  const accountId = form.dataset.account;
+  const statement = Number(form.querySelector('[name="statementBalance"]')?.value || 0);
+  const selectedIds = new Set(Array.from(form.querySelectorAll('input[name="reconTx"]:checked')).map((cb) => cb.value));
+  let marked = 0;
+  for (const id of selectedIds) {
+    store.updateTransaction(id, { status: 'cleared' });
+    marked++;
+  }
+  const newCleared = store.accountClearedBalance(accountId);
+  const diff = newCleared - statement;
+  closeModal();
+  renderApplication();
+  if (Math.abs(diff) < 1) {
+    toast(`Rekonsiliasi selesai. ${marked} transaksi ditandai cleared. Saldo cocok.`, 'success');
+  } else {
+    toast(`Rekonsiliasi selesai. ${marked} transaksi ditandai cleared. Selisih: ${money(diff)}.`, diff > 0 ? 'warning' : 'error');
+  }
+}
+
+function annuityPayment(principal, annualRate, months) {
+  const p = Math.max(0, Number(principal) || 0);
+  const n = Math.max(0, Math.round(Number(months) || 0));
+  if (p <= 0 || n <= 0) return 0;
+  const i = (Number(annualRate) || 0) / 100 / 12;
+  if (i === 0) return p / n;
+  return p * i / (1 - Math.pow(1 + i, -n));
+}
+
+function amortizationSchedule(account) {
+  const principal = Math.max(0, Number(account.loanPrincipal) || 0);
+  const rate = Math.max(0, Number(account.loanInterestRate) || 0);
+  const months = Math.max(0, Math.round(Number(account.loanTermMonths) || 0));
+  let payment = Math.max(0, Number(account.loanMonthlyPayment) || 0);
+  if (payment <= 0) payment = annuityPayment(principal, rate, months);
+  const rows = [];
+  let balance = principal;
+  const totalMonths = months > 0 ? months : 360;
+  for (let m = 1; m <= totalMonths && balance > 0.005; m++) {
+    const interest = balance * (rate / 100 / 12);
+    let principalPaid = payment - interest;
+    if (principalPaid > balance) principalPaid = balance;
+    if (principalPaid < 0) principalPaid = 0;
+    balance = Math.max(0, balance - principalPaid);
+    rows.push({ month: m, payment, interest, principal: principalPaid, balance });
+    if (balance <= 0.005) break;
+  }
+  return { payment, rows };
+}
+
+function openLoanScheduleModal(accountId) {
+  const account = store.accountById(accountId);
+  if (!account) return;
+  const { payment, rows } = amortizationSchedule(account);
+  const totalInterest = rows.reduce((sum, r) => sum + r.interest, 0);
+  const bodyRows = rows.map((r) => `
+    <tr>
+      <td>${r.month}</td>
+      <td class="text-right">${money(Math.round(r.payment))}</td>
+      <td class="text-right">${money(Math.round(r.interest))}</td>
+      <td class="text-right">${money(Math.round(r.principal))}</td>
+      <td class="text-right">${money(Math.round(r.balance))}</td>
+    </tr>`).join('');
+
+  openModal({
+    size: 'lg',
+    className: 'form-modal',
+    html: `<div class="modal-form">
+      <header class="modal-header">
+        <div>
+          <p class="modal-kicker">Jadwal anuitas</p>
+          <h2 class="modal-title">${escapeHTML(account.name)}</h2>
+        </div>
+        <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
+      </header>
+      <div class="modal-body">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mb-3">
+          <div class="stat-card stat-blue"><div class="stat-top"><span>Pokok</span></div><div class="stat-value text-base">${money(account.loanPrincipal)}</div></div>
+          <div class="stat-card stat-amber"><div class="stat-top"><span>Bunga</span></div><div class="stat-value text-base">${escapeHTML(String(account.loanInterestRate || 0))}%</div></div>
+          <div class="stat-card stat-green"><div class="stat-top"><span>Cicilan/bln</span></div><div class="stat-value text-base">${money(Math.round(payment))}</div></div>
+          <div class="stat-card stat-red"><div class="stat-top"><span>Total bunga</span></div><div class="stat-value text-base">${money(Math.round(totalInterest))}</div></div>
+        </div>
+        <div class="max-h-[50vh] overflow-auto border rounded">
+          <table class="report-table text-xs">
+            <thead><tr><th>Bulan</th><th class="text-right">Cicilan</th><th class="text-right">Bunga</th><th class="text-right">Pokok</th><th class="text-right">Sisa</th></tr></thead>
+            <tbody>${bodyRows || '<tr><td colspan="5" class="text-center text-slate-400">Tidak ada jadwal.</td></tr>'}</tbody>
+          </table>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-2">Jadwal dihitung dengan rumus anuitas. Pembayaran aktual dapat berbeda karena biaya/penalti.</p>
+      </div>
+      <footer class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-action="close-modal">Tutup</button>
+      </footer>
+    </div>`
+  });
+}
+
 async function loadSampleData() {
   const ok = await confirmDialog({
     title: 'Muat data contoh?',
@@ -2749,6 +3243,9 @@ async function handleAction(action, element) {
     }
 
     /* Exports & data */
+    case 'import-transactions':
+      openImportFilePicker();
+      break;
     case 'export-xlsx-all':
       exportExcel(null);
       break;
@@ -2776,6 +3273,12 @@ async function handleAction(action, element) {
       store.reopenMonth(ui.reportMonth || monthKey());
       renderApplication();
       toast('Bulan dibuka kembali ke transaksi aktif.', 'info');
+      break;
+    case 'reconcile-account':
+      openReconcileModal(element.dataset.id);
+      break;
+    case 'loan-schedule':
+      openLoanScheduleModal(element.dataset.id);
       break;
     case 'import-backup':
       pickBackupFile();
@@ -3109,6 +3612,13 @@ function submitTransaction(form) {
     categoryId: type === 'transfer' ? null : categoryId,
     subcategoryId: type === 'transfer' ? null : subcategoryId || null,
     note: String(fd.get('note') || '').trim(),
+    payee: String(fd.get('payee') || '').trim(),
+    tags: String(fd.get('tags') || '')
+      .split(',')
+      .map((t) => t.trim().replace(/^#/, ''))
+      .filter(Boolean)
+      .slice(0, 20),
+    status: String(fd.get('status') || 'cleared'),
   };
 
   try {
@@ -3267,6 +3777,14 @@ function submitAccount(form) {
       owner: String(fd.get('owner') || ''),
       sharedWith: fd.getAll('sharedWith').map((v) => String(v)),
       creditLimit: String(fd.get('creditLimit') || ''),
+      creditDueDate: String(fd.get('creditDueDate') || ''),
+      loanPrincipal: String(fd.get('loanPrincipal') || ''),
+      loanInterestRate: String(fd.get('loanInterestRate') || ''),
+      loanTermMonths: String(fd.get('loanTermMonths') || ''),
+      loanMonthlyPayment: String(fd.get('loanMonthlyPayment') || ''),
+      loanStartDate: String(fd.get('loanStartDate') || ''),
+      loanNextDueDate: String(fd.get('loanNextDueDate') || ''),
+      loanRemaining: String(fd.get('loanRemaining') || ''),
       ...(balanceTarget !== undefined ? { balanceTarget } : {}),
     }, editingId);
     const adjusted = balanceTarget !== undefined && balanceTarget !== Math.round(currentBalance);
@@ -3501,6 +4019,12 @@ async function submitForm(form) {
     case 'budget-thresholds':
       submitBudgetThresholds(form);
       break;
+    case 'import-transactions':
+      await submitImport(form);
+      break;
+    case 'reconcile-account':
+      await submitReconcile(form);
+      break;
     case 'settings-household':
       submitHousehold(form);
       break;
@@ -3732,6 +4256,12 @@ function bindEvents() {
       const form = target.closest('form');
       const display = form?.querySelector('[name="dateDisplay"]');
       if (display) display.value = target.value ? formatDateDMY(target.value) : '';
+      return;
+    }
+    if (target.matches('select[data-account-type-select]')) {
+      const form = target.closest('form[data-form="account"]');
+      const fields = form?.querySelector('[data-liability-fields]');
+      if (fields) fields.style.display = ['credit', 'loan'].includes(target.value) ? '' : 'none';
       return;
     }
     if (target.matches('select[name="accountOwner"]')) {

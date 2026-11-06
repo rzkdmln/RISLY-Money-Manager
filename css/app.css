@@ -873,6 +873,10 @@ body.is-auth { background: var(--bg); }
 .tx-title { display: block; font-size: 12px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tx-repeat { display: inline-flex; color: var(--muted-2); }
 .tx-meta { display: flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.tx-payee { color: var(--text); font-weight: 600; }
+.tx-tags { display: inline-flex; gap: 4px; }
+.tx-tag { padding: 1px 5px; border-radius: 999px; background: var(--brand-soft, rgba(37,99,235,.1)); color: var(--brand, #2563eb); font-size: 10px; font-weight: 600; }
+.tx-status-pending { padding: 1px 5px; border-radius: 999px; background: rgba(245,158,11,.15); color: #b45309; font-size: 10px; font-weight: 700; }
 .tx-meta > span { overflow: hidden; text-overflow: ellipsis; }
 .tx-creator { display: inline-flex; align-items: center; gap: 4px; max-width: 92px; }
 .tx-creator::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--creator-color, #64748b); flex: 0 0 auto; }
