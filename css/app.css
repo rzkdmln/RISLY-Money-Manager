@@ -410,6 +410,7 @@ img, svg { display: block; }
 }
 .btn-secondary:hover { background: var(--surface-2); border-color: var(--muted-2); }
 .btn-danger { color: #fff; background: linear-gradient(135deg, #ef4444, #dc2626); }
+.btn-success { color: #fff; background: linear-gradient(135deg, #22c55e, #16a34a); }
 .btn-danger-soft { color: #dc2626; background: var(--red-soft); border-color: color-mix(in srgb, var(--red) 18%, transparent); }
 .dark .btn-danger-soft { color: #fb7185; }
 .btn-danger-soft:hover { background: color-mix(in srgb, var(--red-soft) 70%, var(--red) 8%); }
@@ -877,7 +878,13 @@ body.is-auth { background: var(--bg); }
 .tx-tags { display: inline-flex; gap: 4px; }
 .tx-tag { padding: 1px 5px; border-radius: 999px; background: var(--brand-soft, rgba(37,99,235,.1)); color: var(--brand, #2563eb); font-size: 10px; font-weight: 600; }
 .tx-status-pending { padding: 1px 5px; border-radius: 999px; background: rgba(245,158,11,.15); color: #b45309; font-size: 10px; font-weight: 700; }
+.tx-split { padding: 1px 5px; border-radius: 999px; background: rgba(124,58,237,.12); color: #7c3aed; font-size: 10px; font-weight: 700; }
+.tx-receipt { display: inline-flex; align-items: center; color: var(--brand, #2563eb); }
 .tx-meta > span { overflow: hidden; text-overflow: ellipsis; }
+.split-row { padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: color-mix(in srgb, var(--surface-2, #f8fafc) 70%, transparent); }
+.split-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.split-total { font-size: 11px; font-weight: 700; color: var(--text); }
+.receipt-preview { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-top: 8px; }
 .tx-creator { display: inline-flex; align-items: center; gap: 4px; max-width: 92px; }
 .tx-creator::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--creator-color, #64748b); flex: 0 0 auto; }
 .tx-side { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex: 0 0 auto; }

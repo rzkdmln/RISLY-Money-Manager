@@ -485,6 +485,13 @@ export function migrateData(raw) {
     note: String(tx.note || ''),
     payee: String(tx.payee || '').trim(),
     tags: Array.isArray(tx.tags) ? tx.tags.map(String).map((t) => t.trim()).filter(Boolean).slice(0, 20) : [],
+    splits: Array.isArray(tx.splits) ? tx.splits.map((s) => ({
+      categoryId: s?.categoryId || null,
+      subcategoryId: s?.subcategoryId || null,
+      amount: Math.max(0, Number(s?.amount) || 0),
+      note: String(s?.note || '').trim(),
+    })).filter((s) => s.amount > 0) : [],
+    receipt: typeof tx.receipt === 'string' ? tx.receipt : null,
     status: ['pending', 'cleared'].includes(tx.status) ? tx.status : 'cleared',
     createdBy: tx.createdBy || data.users[0]?.id || 'owner',
     createdByName: tx.createdByName || data.users.find((user) => user.id === tx.createdBy)?.name || data.users[0]?.name || 'Pengguna',

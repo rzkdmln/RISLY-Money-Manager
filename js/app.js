@@ -1805,89 +1805,6 @@ async function submitImport(form) {
   toast(`${imported} transaksi berhasil diimport.`, 'success');
 }
 
-function openReconcileModal(accountId) {
-  const account = store.accountById(accountId);
-  if (!account) return;
-  const balance = store.accountBalance(account.id);
-  const cleared = store.accountClearedBalance(account.id);
-  const pending = store.pendingTransactions(account.id);
-  const pendingRows = pending.map((tx) => `
-    <tr>
-      <td><input type="checkbox" name="reconTx" value="${escapeAttr(tx.id)}" checked></td>
-      <td>${escapeHTML(formatDate(tx.date))}</td>
-      <td class="max-w-[12rem] truncate">${escapeHTML(tx.payee || tx.note || 'Transaksi')}</td>
-      <td class="text-right">${tx.type === 'income' || tx.type === 'transfer' && tx.toAccountId === account.id ? '+' : '-'}${money(tx.amount)}</td>
-    </tr>`).join('');
-
-  openModal({
-    size: 'lg',
-    className: 'form-modal',
-    html: `<form data-form="reconcile-account" data-account="${escapeAttr(account.id)}" class="modal-form" novalidate>
-      <header class="modal-header">
-        <div>
-          <p class="modal-kicker">Rekonsiliasi</p>
-          <h2 class="modal-title">${escapeHTML(account.name)}</h2>
-        </div>
-        <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
-      </header>
-      <div class="modal-body">
-        <div class="grid grid-cols-2 gap-2 text-xs mb-3">
-          <div class="stat-card stat-blue"><div class="stat-top"><span>Saldo aplikasi</span></div><div class="stat-value text-base">${money(balance)}</div></div>
-          <div class="stat-card stat-green"><div class="stat-top"><span>Saldo cleared</span></div><div class="stat-value text-base">${money(cleared)}</div></div>
-        </div>
-        <label class="field-label">Saldo statement (rekening bank)
-          <div class="input-with-prefix mt-1.5"><span>Rp</span><input class="field" type="number" name="statementBalance" step="1" inputmode="numeric" value="${Math.round(cleared)}"></div>
-        </label>
-        <p class="text-[11px] text-slate-400 mt-1">Masukkan saldo rekening per tanggal rekonsiliasi.</p>
-        ${pending.length ? `<div class="mt-3">
-          <div class="flex items-center justify-between mb-2">
-            <p class="field-label">Transaksi pending (${pending.length})</p>
-            <label class="text-xs inline-flex items-center gap-1"><input type="checkbox" data-recon-all checked> Pilih semua</label>
-          </div>
-          <div class="max-h-[35vh] overflow-auto border rounded">
-            <table class="report-table text-xs">
-              <thead><tr><th></th><th>Tanggal</th><th>Keterangan</th><th class="text-right">Nominal</th></tr></thead>
-              <tbody>${pendingRows}</tbody>
-            </table>
-          </div>
-        </div>` : '<p class="text-sm text-slate-500 mt-3">Tidak ada transaksi pending untuk akun ini.</p>'}
-        <p class="form-error hidden" data-form-error role="alert"></p>
-      </div>
-      <footer class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-action="close-modal">Batal</button>
-        <button type="submit" class="btn btn-primary">${icon('check', 'w-4 h-4')} Rekonsiliasi</button>
-      </footer>
-    </form>`
-  });
-  // select all handler
-  const form = document.querySelector('form[data-form="reconcile-account"]');
-  const allBox = form?.querySelector('[data-recon-all]');
-  if (allBox) {
-    allBox.addEventListener('change', () => {
-      form.querySelectorAll('input[name="reconTx"]').forEach((cb) => { cb.checked = allBox.checked; });
-    });
-  }
-}
-
-async function submitReconcile(form) {
-  const accountId = form.dataset.account;
-  const statement = Number(form.querySelector('[name="statementBalance"]')?.value || 0);
-  const selectedIds = new Set(Array.from(form.querySelectorAll('input[name="reconTx"]:checked')).map((cb) => cb.value));
-  let marked = 0;
-  for (const id of selectedIds) {
-    store.updateTransaction(id, { status: 'cleared' });
-    marked++;
-  }
-  const newCleared = store.accountClearedBalance(accountId);
-  const diff = newCleared - statement;
-  closeModal();
-  renderApplication();
-  if (Math.abs(diff) < 1) {
-    toast(`Rekonsiliasi selesai. ${marked} transaksi ditandai cleared. Saldo cocok.`, 'success');
-  } else {
-    toast(`Rekonsiliasi selesai. ${marked} transaksi ditandai cleared. Selisih: ${money(diff)}.`, diff > 0 ? 'warning' : 'error');
-  }
-}
 
 function annuityPayment(principal, annualRate, months) {
   const p = Math.max(0, Number(principal) || 0);
@@ -1962,6 +1879,106 @@ function openLoanScheduleModal(accountId) {
       <footer class="modal-footer">
         <button type="button" class="btn btn-secondary" data-action="close-modal">Tutup</button>
       </footer>
+    </div>`
+  });
+}
+
+function syncSplitTotal(form) {
+  if (!form) return;
+  const toggle = form.querySelector('[data-toggle-split]');
+  const enabled = Boolean(toggle?.checked);
+  const amountInput = form.querySelector('[name="amountExpression"]');
+  if (amountInput) amountInput.readOnly = enabled;
+  if (!enabled) return;
+  const total = Array.from(form.querySelectorAll('[data-split-row]')).reduce((sum, row) => {
+    const value = Number(row.querySelector('[name="splitAmount"]')?.value || 0);
+    return sum + (Number.isFinite(value) ? value : 0);
+  }, 0);
+  if (amountInput) amountInput.value = total ? String(Math.round(total)) : '';
+  const totalNode = form.querySelector('[data-split-total]');
+  if (totalNode) totalNode.textContent = total ? `Total ${formatCurrency(total)}` : 'Belum ada nominal';
+  const resultNode = form.querySelector('#tx-amount-result');
+  if (resultNode) {
+    resultNode.textContent = total ? formatCurrency(total, { hide: false }) : 'Masukkan nominal';
+    resultNode.classList.toggle('text-slate-400', !total);
+  }
+}
+
+function addSplitRow(trigger) {
+  const form = trigger?.closest('form[data-form="transaction"]');
+  const container = form?.querySelector('[data-split-rows]');
+  if (!container) return;
+  const type = String(form.querySelector('[name="type"]')?.value || 'expense');
+  const catType = type === 'income' ? 'income' : 'expense';
+  const categories = store.categories(catType);
+  const catOptions = categories.map((c) => `<option value="${escapeAttr(c.id)}">${escapeHTML(c.name)}</option>`).join('');
+  const row = document.createElement('div');
+  row.className = 'split-row grid grid-cols-12 gap-2 items-end';
+  row.setAttribute('data-split-row', '');
+  row.innerHTML = `
+    <div class="col-span-12 sm:col-span-4">
+      <label class="field-label text-[11px]">Kategori
+        <select class="field mt-1" name="splitCategory" required>
+          <option value="">Pilih Kategori</option>
+          ${catOptions}
+        </select>
+      </label>
+    </div>
+    <div class="col-span-12 sm:col-span-3">
+      <label class="field-label text-[11px]">Subkategori
+        <select class="field mt-1" name="splitSubcategory" disabled>
+          <option value="">Pilih Kategori dahulu</option>
+        </select>
+      </label>
+    </div>
+    <div class="col-span-7 sm:col-span-3">
+      <label class="field-label text-[11px]">Nominal
+        <input class="field mt-1" type="number" name="splitAmount" min="0" step="1" inputmode="numeric" required>
+      </label>
+    </div>
+    <div class="col-span-5 sm:col-span-2 flex items-end justify-end sm:justify-start">
+      <button type="button" class="icon-btn text-red-500" data-action="remove-split" aria-label="Hapus baris">${icon('x', 'w-3.5 h-3.5')}</button>
+    </div>
+    <div class="col-span-12">
+      <input class="field mt-1 text-[11px]" name="splitNote" maxlength="120" placeholder="Catatan baris (opsional)">
+    </div>`;
+  container.appendChild(row);
+  syncSplitTotal(form);
+}
+
+function openExportModal() {
+  if (!ui.reportRangeStart) ui.reportRangeStart = `${ui.reportMonth || monthKey()}-01`;
+  if (!ui.reportRangeEnd) {
+    const m = ui.reportMonth || monthKey();
+    const [y, mm] = m.split('-');
+    const last = new Date(Number(y), Number(mm), 0).getDate();
+    ui.reportRangeEnd = `${m}-${String(last).padStart(2, '0')}`;
+  }
+  openModal({
+    size: 'md',
+    className: 'form-modal',
+    html: `<div class="modal-form">
+      <header class="modal-header">
+        <div>
+          <p class="modal-kicker">Ekspor & cetak</p>
+          <h2 class="modal-title">Laporan & data</h2>
+        </div>
+        <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
+      </header>
+      <div class="modal-body">
+        <div class="grid grid-cols-2 gap-2 items-end">
+          <label class="field-label">Dari
+            <input type="date" class="field field-compact" data-filter="report-range-start" value="${escapeAttr(ui.reportRangeStart)}">
+          </label>
+          <label class="field-label">Sampai
+            <input type="date" class="field field-compact" data-filter="report-range-end" value="${escapeAttr(ui.reportRangeEnd)}">
+          </label>
+        </div>
+        <div class="grid grid-cols-2 gap-2 mt-3">
+          <button type="button" class="btn btn-success" data-action="export-xlsx-range">${icon('excel', 'w-4 h-4')} EXCEL</button>
+          <button type="button" class="btn btn-danger" data-action="export-pdf-range">${icon('pdf', 'w-4 h-4')} PDF</button>
+        </div>
+      </div>
     </div>`
   });
 }
@@ -3243,6 +3260,28 @@ async function handleAction(action, element) {
     }
 
     /* Exports & data */
+    case 'open-export-modal':
+      openExportModal();
+      break;
+    case 'add-split':
+      addSplitRow(element);
+      break;
+    case 'remove-split': {
+      const form = element.closest('form');
+      element.closest('[data-split-row]')?.remove();
+      syncSplitTotal(form);
+      break;
+    }
+    case 'remove-receipt': {
+      const form = element.closest('form');
+      const hidden = form?.querySelector('input[name="receipt"]');
+      const wrap = form?.querySelector('[data-receipt-wrap]');
+      const file = form?.querySelector('input[data-receipt-file]');
+      if (hidden) hidden.value = '';
+      if (wrap) wrap.classList.add('hidden');
+      if (file) file.value = '';
+      break;
+    }
     case 'import-transactions':
       openImportFilePicker();
       break;
@@ -3273,9 +3312,6 @@ async function handleAction(action, element) {
       store.reopenMonth(ui.reportMonth || monthKey());
       renderApplication();
       toast('Bulan dibuka kembali ke transaksi aktif.', 'info');
-      break;
-    case 'reconcile-account':
-      openReconcileModal(element.dataset.id);
       break;
     case 'loan-schedule':
       openLoanScheduleModal(element.dataset.id);
@@ -3567,7 +3603,25 @@ function submitTransaction(form) {
   const categoryId = String(fd.get('categoryId') || '');
   const subcategoryId = String(fd.get('subcategoryId') || '');
 
-  if (amount === null || amount <= 0) {
+  const makeSplit = fd.get('makeSplit') === '1';
+  const splitRows = makeSplit ? Array.from(form.querySelectorAll('[data-split-row]')) : [];
+  const splits = splitRows.map((row) => ({
+    categoryId: String(row.querySelector('[name="splitCategory"]')?.value || '') || null,
+    subcategoryId: String(row.querySelector('[name="splitSubcategory"]')?.value || '') || null,
+    amount: Math.round(Number(row.querySelector('[name="splitAmount"]')?.value || 0)),
+    note: String(row.querySelector('[name="splitNote"]')?.value || '').trim(),
+  })).filter((split) => split.amount > 0);
+
+  if (makeSplit) {
+    if (!splits.length) {
+      showFormError(form, 'Isi minimal satu baris split dengan nominal lebih dari nol.');
+      return;
+    }
+    if (splits.some((split) => !split.categoryId)) {
+      showFormError(form, 'Pilih kategori untuk setiap baris split.');
+      return;
+    }
+  } else if (amount === null || amount <= 0) {
     showFormError(form, 'Nominal harus lebih dari nol. Gunakan angka atau ekspresi seperti 250000+50000.');
     return;
   }
@@ -3587,7 +3641,7 @@ function submitTransaction(form) {
     showFormError(form, 'Pilih akun tujuan yang berbeda dari akun sumber.');
     return;
   }
-  if (type !== 'transfer' && !categoryId && !originalTransaction?.adjustment) {
+  if (type !== 'transfer' && !categoryId && !makeSplit && !originalTransaction?.adjustment) {
     showFormError(form, 'Pilih kategori transaksi.');
     return;
   }
@@ -3596,21 +3650,31 @@ function submitTransaction(form) {
     const creditLimit = safeNumber(selectedAccountForCheck.creditLimit);
     const spentSoFar = store.creditSpent(accountId);
     const remainingLimit = Math.max(0, creditLimit - spentSoFar);
-    if (amount > remainingLimit) {
+    const checkAmount = makeSplit
+      ? splits.reduce((sum, split) => sum + split.amount, 0)
+      : amount;
+    if (checkAmount > remainingLimit) {
       showFormError(form, `Nominal melebihi sisa limit kredit (sisa ${formatCurrency(remainingLimit)}).`);
       return;
     }
   }
 
+  let finalAmount = amount;
+  if (makeSplit && splits.length) {
+    finalAmount = splits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
+  }
+
+  const receiptValue = String(fd.get('receipt') || '').trim();
+
   const payload = {
     date,
     time,
     type,
-    amount: Math.round(amount),
+    amount: Math.round(finalAmount || amount || 0),
     accountId,
     toAccountId: type === 'transfer' ? toAccountId : null,
-    categoryId: type === 'transfer' ? null : categoryId,
-    subcategoryId: type === 'transfer' ? null : subcategoryId || null,
+    categoryId: type === 'transfer' ? null : (makeSplit && splits.length ? (splits[0].categoryId || null) : (categoryId || null)),
+    subcategoryId: type === 'transfer' ? null : (makeSplit && splits.length ? (splits[0].subcategoryId || null) : (subcategoryId || null)),
     note: String(fd.get('note') || '').trim(),
     payee: String(fd.get('payee') || '').trim(),
     tags: String(fd.get('tags') || '')
@@ -3618,7 +3682,8 @@ function submitTransaction(form) {
       .map((t) => t.trim().replace(/^#/, ''))
       .filter(Boolean)
       .slice(0, 20),
-    status: String(fd.get('status') || 'cleared'),
+    splits: makeSplit ? splits : [],
+    receipt: receiptValue || null,
   };
 
   try {
@@ -4022,9 +4087,6 @@ async function submitForm(form) {
     case 'import-transactions':
       await submitImport(form);
       break;
-    case 'reconcile-account':
-      await submitReconcile(form);
-      break;
     case 'settings-household':
       submitHousehold(form);
       break;
@@ -4224,6 +4286,10 @@ function bindEvents() {
       updateCalculator(target.closest('form'));
       return;
     }
+    if (target.matches('[data-split-row] [name="splitAmount"]')) {
+      syncSplitTotal(target.closest('form'));
+      return;
+    }
     if (target.matches('[name="dateDisplay"]')) {
       maskDateInput(target);
       return;
@@ -4256,6 +4322,53 @@ function bindEvents() {
       const form = target.closest('form');
       const display = form?.querySelector('[name="dateDisplay"]');
       if (display) display.value = target.value ? formatDateDMY(target.value) : '';
+      return;
+    }
+    if (target.matches('select[name="splitCategory"]')) {
+      const row = target.closest('[data-split-row]');
+      const subSelect = row?.querySelector('select[name="splitSubcategory"]');
+      if (subSelect) {
+        const cat = store.categoryById(target.value);
+        const subs = cat?.subcategories?.filter((s) => !s.deletedAt) || [];
+        subSelect.innerHTML = '<option value="">' + (subs.length ? 'Pilih Subkategori' : 'Tanpa subkategori') + '</option>' +
+          subs.map((s) => '<option value="' + escapeAttr(s.id) + '">' + escapeHTML(s.name) + '</option>').join('');
+        subSelect.disabled = !target.value || !subs.length;
+      }
+      return;
+    }
+    if (target.matches('input[data-receipt-file]')) {
+      const form = target.closest('form');
+      const hidden = form?.querySelector('input[name="receipt"]');
+      const preview = form?.querySelector('[data-receipt-preview]');
+      const file = target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const max = 800;
+          let w = img.width, h = img.height;
+          if (w > max || h > max) {
+            if (w >= h) { h = Math.round(h * (max / w)); w = max; }
+            else { w = Math.round(w * (max / h)); h = max; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          if (dataUrl.length > 450_000) {
+            toast('Ukuran struk terlalu besar. Coba foto dengan resolusi lebih kecil.', 'error');
+            target.value = '';
+            return;
+          }
+          if (hidden) hidden.value = dataUrl;
+          if (preview) { preview.src = dataUrl; preview.classList.remove('hidden'); }
+          form?.querySelector('[data-receipt-wrap]')?.classList.remove('hidden');
+        };
+        img.src = String(reader.result || '');
+      };
+      reader.readAsDataURL(file);
       return;
     }
     if (target.matches('select[data-account-type-select]')) {
@@ -4385,6 +4498,24 @@ function bindEvents() {
       if (target.matches('[data-toggle-recurring]')) {
         const extra = target.closest('.recurring-box')?.querySelector('.recurring-extra');
         if (extra) extra.hidden = !target.checked;
+      }
+      if (target.matches('[data-toggle-split]')) {
+        const form = target.closest('form');
+        const section = form?.querySelector('.split-section');
+        if (section) section.hidden = !target.checked;
+        const catSelect = form?.querySelector('select[name="categoryId"]');
+        if (catSelect) {
+          if (target.checked) catSelect.removeAttribute('required');
+          else catSelect.setAttribute('required', '');
+        }
+        if (target.checked) {
+          const firstAmount = form?.querySelector('[data-split-row] [name="splitAmount"]');
+          if (firstAmount && !firstAmount.value) {
+            const current = expressionResult(form.querySelector('[name="amountExpression"]')?.value);
+            if (current && current > 0) firstAmount.value = String(Math.round(current));
+          }
+        }
+        syncSplitTotal(form);
       }
       const noteForm = target.closest('form[data-form="note"][data-id]');
       if (noteForm) scheduleNoteAutosave(noteForm);

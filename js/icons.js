@@ -25,6 +25,8 @@ const P = {
   'bar-chart': '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   'trending-up': '<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
   download: '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 19h16"/>',
+  excel: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M9 14l2 2 4-4"/>',
+  pdf: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M8 14h2a1.5 1.5 0 0 1 0 3H8v-3ZM13 14h4M13 17h4"/>',
   upload: '<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 20h16"/>',
   'file-text': '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h6M8 9h2"/>',
   repeat: '<path d="m17 2 4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="m7 22-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/>',

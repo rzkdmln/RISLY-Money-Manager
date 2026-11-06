@@ -9,7 +9,7 @@
  *  - Cloud/API traffic is never cached.
  */
 
-const VERSION = 'risly-1.2.32';
+const VERSION = 'risly-1.2.40';
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 

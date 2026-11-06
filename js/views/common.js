@@ -35,6 +35,10 @@ export function txSubtitle(tx) {
   if (tx.type === 'transfer') {
     return `${store.accountName(tx.accountId)} → ${store.accountName(tx.toAccountId)}`;
   }
+  if (Array.isArray(tx.splits) && tx.splits.length) {
+    const names = [...new Set(tx.splits.map((split) => store.categoryById(split.categoryId)?.name).filter(Boolean))];
+    return names.length ? `Split · ${names.join(', ')}` : 'Split transaksi';
+  }
   const category = categoryOf(tx);
   const parts = [];
   if (category) parts.push(category.name);
@@ -78,7 +82,8 @@ export function txRow(tx, { showDate = false, showCreator = true, compact = fals
         ${tx.payee ? `<span class="tx-payee">${escapeHTML(tx.payee)}</span>` : ''}
         <span>${escapeHTML(txSubtitle(tx))}</span>
         ${Array.isArray(tx.tags) && tx.tags.length ? `<span class="tx-tags">${tx.tags.map((tag) => `<span class="tx-tag">#${escapeHTML(tag)}</span>`).join('')}</span>` : ''}
-        ${(tx.status || 'cleared') === 'pending' ? `<span class="tx-status tx-status-pending">Pending</span>` : ''}
+        ${Array.isArray(tx.splits) && tx.splits.length ? `<span class="tx-split">Split ${tx.splits.length}</span>` : ''}
+        ${tx.receipt ? `<span class="tx-receipt" title="Ada struk">${icon('file-text', 'w-3 h-3')}</span>` : ''}
         ${showCreator ? `<span class="tx-creator" style="--creator-color:${escapeAttr(creator?.color || 'var(--muted)')}">${escapeHTML(tx.createdByName || creator?.name || '—')}</span>` : ''}
       </span>
     </span>

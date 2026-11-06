@@ -84,13 +84,48 @@ export function transactionForm(tx = null, defaults = {}) {
   const note = tx?.note || defaults.note || '';
   const payee = tx?.payee || defaults.payee || '';
   const tags = Array.isArray(tx?.tags) ? tx.tags.join(', ') : (defaults.tags || '');
-  const status = ['pending', 'cleared'].includes(tx?.status) ? tx.status : (defaults.status || 'cleared');
+  const splits = Array.isArray(tx?.splits) ? tx.splits : [];
+  const receipt = typeof tx?.receipt === 'string' ? tx.receipt : '';
   const editing = Boolean(tx?.id);
   const result = expressionResult(displayAmount);
   const currentUser = store.currentUser;
   const recurring = Boolean(defaults.recurring) || Boolean(tx?.makeRecurring);
   const defaultFrequency = defaults.frequency || 'monthly';
   const recurringTitle = defaults.recurringTitle || note || (store.categoryById(categoryId)?.name || 'Transaksi berulang');
+
+  function splitRowHtml(split = {}) {
+    const catId = split.categoryId || '';
+    const subId = split.subcategoryId || '';
+    const amt = split.amount || '';
+    const n = split.note || '';
+    return `<div class="split-row grid grid-cols-12 gap-2 items-end" data-split-row>
+      <div class="col-span-12 sm:col-span-4">
+        <label class="field-label text-[11px]">Kategori
+          <select class="field mt-1" name="splitCategory" required>
+            ${categoryOptions(type === 'income' ? 'income' : 'expense', catId)}
+          </select>
+        </label>
+      </div>
+      <div class="col-span-12 sm:col-span-3">
+        <label class="field-label text-[11px]">Subkategori
+          <select class="field mt-1" name="splitSubcategory" ${!catId || !store.categoryById(catId)?.subcategories?.length ? 'disabled' : ''}>
+            ${subcategoryOptions(catId, subId)}
+          </select>
+        </label>
+      </div>
+      <div class="col-span-7 sm:col-span-3">
+        <label class="field-label text-[11px]">Nominal
+          <input class="field mt-1" type="number" name="splitAmount" min="0" step="1" inputmode="numeric" value="${escapeAttr(amt)}" required>
+        </label>
+      </div>
+      <div class="col-span-5 sm:col-span-2 flex items-end justify-end sm:justify-start">
+        <button type="button" class="icon-btn text-red-500" data-action="remove-split" aria-label="Hapus baris">${icon('x', 'w-3.5 h-3.5')}</button>
+      </div>
+      <div class="col-span-12">
+        <input class="field mt-1 text-[11px]" name="splitNote" maxlength="120" placeholder="Catatan baris (opsional)" value="${escapeAttr(n)}">
+      </div>
+    </div>`;
+  }
 
   return `<form data-form="transaction" data-id="${escapeAttr(tx?.id || '')}" class="modal-form" novalidate>
     <header class="modal-header">
@@ -115,7 +150,7 @@ export function transactionForm(tx = null, defaults = {}) {
           <label class="field-label" for="tx-amount-expression">Nominal</label>
           <button type="button" class="calc-toggle ${calcOpen ? 'is-open' : ''}" data-action="toggle-calc" aria-expanded="${calcOpen}" aria-controls="tx-calc-keypad" aria-label="${calcOpen ? 'Sembunyikan kalkulator' : 'Tampilkan kalkulator'}">${icon('calculator', 'w-4 h-4')}</button>
         </div>
-        <input id="tx-amount-expression" class="calc-display" name="amountExpression" inputmode="decimal" autocomplete="off" value="${escapeAttr(displayAmount)}" placeholder="0" aria-label="Nominal atau ekspresi matematika">
+        <input id="tx-amount-expression" class="calc-display" name="amountExpression" inputmode="decimal" autocomplete="off" value="${escapeAttr(displayAmount)}" placeholder="0" aria-label="Nominal atau ekspresi matematika" ${splits.length ? 'readonly' : ''}>
         <div class="calc-result">
           <span>${icon('calculator', 'w-3.5 h-3.5')} Hasil</span>
           <strong id="tx-amount-result" class="${result === null ? 'text-slate-400' : ''}">${result === null ? 'Masukkan nominal' : formatCurrency(result, { hide: false })}</strong>
@@ -177,7 +212,7 @@ export function transactionForm(tx = null, defaults = {}) {
       </label>` : `
         <div class="form-grid">
           <label class="field-label">Kategori
-            <select class="field mt-1.5" name="categoryId" id="tx-category" required>
+            <select class="field mt-1.5" name="categoryId" id="tx-category" ${splits.length ? '' : 'required'}>
               ${categoryOptions(type === 'income' ? 'income' : 'expense', categoryId)}
             </select>
           </label>
@@ -192,20 +227,37 @@ export function transactionForm(tx = null, defaults = {}) {
         <textarea class="field textarea mt-1.5" name="note" rows="2" maxlength="280" placeholder="Contoh: belanja mingguan, gaji, transfer tabungan…">${escapeHTML(note)}</textarea>
       </label>
       <div class="form-grid">
-        <label class="field-label">Status
-          <select class="field mt-1.5" name="status">
-            <option value="cleared" ${status === 'cleared' ? 'selected' : ''}>Cleared (sudah terkonfirmasi)</option>
-            <option value="pending" ${status === 'pending' ? 'selected' : ''}>Pending (belum terkonfirmasi)</option>
-          </select>
-        </label>
-      </div>
-      <div class="form-grid">
         <label class="field-label">Payee / merchant (opsional)
           <input class="field mt-1.5" name="payee" maxlength="80" value="${escapeAttr(payee)}" placeholder="Contoh: Indomaret, PLN, GoPay">
         </label>
         <label class="field-label">Tag (opsional, pisah koma)
           <input class="field mt-1.5" name="tags" maxlength="180" value="${escapeAttr(tags)}" placeholder="keluarga, makan, rutin">
         </label>
+      </div>
+
+      ${!isTransfer ? `<label class="toggle-row compact-toggle">
+        <span><strong>Split transaksi</strong><small>Pecah nominal ke beberapa kategori</small></span>
+        <input type="checkbox" name="makeSplit" value="1" class="sr-only" ${splits.length ? 'checked' : ''} data-toggle-split>
+        <span class="switch ${splits.length ? 'is-on' : ''}"></span>
+      </label>
+      <div class="split-section mt-2" ${splits.length ? '' : 'hidden'}>
+        <div data-split-rows class="space-y-2">
+          ${(splits.length ? splits : [{}]).map((s) => splitRowHtml(s)).join('')}
+        </div>
+        <div class="split-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-action="add-split">${icon('plus', 'w-3.5 h-3.5')} Tambah baris split</button>
+          <span class="split-total" data-split-total>${splits.length ? `Total ${formatCurrency(tx?.amount || 0)}` : 'Belum ada nominal'}</span>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-1">Total nominal otomatis dijumlahkan dari baris split.</p>
+      </div>` : ''}
+
+      <div class="field-label mt-3">Lampiran struk (opsional)
+        <input class="field mt-1.5" type="file" name="receiptFile" accept="image/*" data-receipt-file>
+        <input type="hidden" name="receipt" value="${escapeAttr(receipt)}">
+        <div class="receipt-preview ${receipt ? '' : 'hidden'}" data-receipt-wrap>
+          <img src="${receipt ? escapeAttr(receipt) : ''}" alt="Struk" class="max-h-40 rounded border" data-receipt-preview>
+          <button type="button" class="btn btn-danger-soft btn-sm" data-action="remove-receipt">${icon('trash', 'w-3.5 h-3.5')} Hapus struk</button>
+        </div>
       </div>
 
 

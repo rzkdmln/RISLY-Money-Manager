@@ -21,6 +21,7 @@ import {
   normalizeTime,
   nowISO,
   safeNumber,
+  shiftMonthKey,
   sortBy,
   sum,
   timeFromISO,
@@ -510,6 +511,13 @@ class Store {
         note: String(payload.note || '').trim(),
         payee: String(payload.payee || '').trim(),
         tags: Array.isArray(payload.tags) ? payload.tags.map(String).map((t) => t.trim()).filter(Boolean).slice(0, 20) : [],
+        splits: Array.isArray(payload.splits) ? payload.splits.map((s) => ({
+          categoryId: s?.categoryId || null,
+          subcategoryId: s?.subcategoryId || null,
+          amount: Math.max(0, Math.round(safeNumber(s?.amount))),
+          note: String(s?.note || '').trim(),
+        })).filter((s) => s.amount > 0) : [],
+        receipt: typeof payload.receipt === 'string' ? payload.receipt : null,
         status: ['pending', 'cleared'].includes(payload.status) ? payload.status : 'cleared',
         createdBy: user?.id || this.currentUserId || this.data.users[0]?.id || 'owner',
         createdByName: user?.name || this.data.users[0]?.name || 'Pengguna',
@@ -543,6 +551,15 @@ class Store {
         tags: payload.tags === undefined
           ? (Array.isArray(tx.tags) ? tx.tags : [])
           : (Array.isArray(payload.tags) ? payload.tags.map(String).map((t) => t.trim()).filter(Boolean).slice(0, 20) : []),
+        splits: payload.splits === undefined
+          ? (Array.isArray(tx.splits) ? tx.splits : [])
+          : (Array.isArray(payload.splits) ? payload.splits.map((s) => ({
+              categoryId: s?.categoryId || null,
+              subcategoryId: s?.subcategoryId || null,
+              amount: Math.max(0, Math.round(safeNumber(s?.amount))),
+              note: String(s?.note || '').trim(),
+            })).filter((s) => s.amount > 0) : []),
+        receipt: payload.receipt === undefined ? tx.receipt : (typeof payload.receipt === 'string' ? payload.receipt : null),
         status: payload.status === undefined
           ? (['pending', 'cleared'].includes(tx.status) ? tx.status : 'cleared')
           : (['pending', 'cleared'].includes(payload.status) ? payload.status : (['pending', 'cleared'].includes(tx.status) ? tx.status : 'cleared')),
@@ -701,23 +718,44 @@ class Store {
     return result;
   }
 
+  transactionCategoryParts(tx) {
+    const amount = safeNumber(tx?.amount);
+    const splits = Array.isArray(tx?.splits)
+      ? tx.splits.filter((split) => safeNumber(split?.amount) > 0)
+      : [];
+    if (splits.length) {
+      return splits.map((split) => ({
+        categoryId: split.categoryId || null,
+        subcategoryId: split.subcategoryId || null,
+        amount: safeNumber(split.amount),
+      }));
+    }
+    return [{
+      categoryId: tx?.categoryId || null,
+      subcategoryId: tx?.subcategoryId || null,
+      amount,
+    }];
+  }
+
   expenseByCategory(month = monthKey()) {
     const categories = new Map();
     this.transactionsForMonth(month)
       .filter((tx) => tx.type === 'expense')
       .forEach((tx) => {
-        const cat = this.categoryById(tx.categoryId);
-        const key = tx.categoryId || 'uncategorized';
-        if (!categories.has(key)) {
-          categories.set(key, {
-            categoryId: key,
-            name: cat?.name || 'Tanpa kategori',
-            color: cat?.color || '#94A3B8',
-            icon: cat?.icon || 'tag',
-            total: 0,
-          });
-        }
-        categories.get(key).total += safeNumber(tx.amount);
+        this.transactionCategoryParts(tx).forEach((part) => {
+          const cat = this.categoryById(part.categoryId);
+          const key = part.categoryId || 'uncategorized';
+          if (!categories.has(key)) {
+            categories.set(key, {
+              categoryId: key,
+              name: cat?.name || 'Tanpa kategori',
+              color: cat?.color || '#94A3B8',
+              icon: cat?.icon || 'tag',
+              total: 0,
+            });
+          }
+          categories.get(key).total += part.amount;
+        });
       });
     return [...categories.values()].sort((a, b) => b.total - a.total);
   }
@@ -741,6 +779,66 @@ class Store {
       if (tx.type === 'expense') entry.expense += safeNumber(tx.amount);
     });
     return [...map.values()].sort((a, b) => b.count - a.count);
+  }
+
+  memberSpending(month = monthKey()) {
+    const map = new Map();
+    this.activeUsers().forEach((user) => {
+      map.set(user.id, { userId: user.id, name: user.name, color: user.color, count: 0, income: 0, expense: 0 });
+    });
+    if (!map.has('__unassigned__')) {
+      map.set('__unassigned__', { userId: '__unassigned__', name: 'Tanpa pemilik', color: 'var(--muted)', count: 0, income: 0, expense: 0 });
+    }
+    this.transactionsForMonth(month).forEach((tx) => {
+      const account = this.accountById(tx.accountId);
+      const ownerId = account?.owner && map.has(account.owner) ? account.owner : '__unassigned__';
+      const entry = map.get(ownerId);
+      if (!entry) return;
+      entry.count += 1;
+      if (tx.type === 'income') entry.income += safeNumber(tx.amount);
+      if (tx.type === 'expense') entry.expense += safeNumber(tx.amount);
+      if (tx.type === 'transfer' && tx.toAccountId) {
+        const toAccount = this.accountById(tx.toAccountId);
+        const toOwner = toAccount?.owner && map.has(toAccount.owner) ? toAccount.owner : '__unassigned__';
+        if (toOwner !== ownerId) {
+          const toEntry = map.get(toOwner);
+          if (toEntry) {
+            toEntry.count += 0;
+          }
+        }
+      }
+    });
+    return [...map.values()]
+      .filter((item) => item.count > 0)
+      .sort((a, b) => b.expense - a.expense);
+  }
+
+  categoryTrend(month = monthKey(), limit = 6) {
+    const previous = shiftMonthKey(month, -1);
+    const currentMap = new Map();
+    const previousMap = new Map();
+    this.expenseByCategory(month).forEach((item) => currentMap.set(item.categoryId, item.total));
+    this.expenseByCategory(previous).forEach((item) => previousMap.set(item.categoryId, item.total));
+    const ids = new Set([...currentMap.keys(), ...previousMap.keys()]);
+    const rows = [...ids].map((id) => {
+      const cat = this.categoryById(id);
+      const current = currentMap.get(id) || 0;
+      const prev = previousMap.get(id) || 0;
+      const diff = current - prev;
+      return {
+        categoryId: id,
+        name: cat?.name || 'Tanpa kategori',
+        color: cat?.color || '#94A3B8',
+        icon: cat?.icon || 'tag',
+        current,
+        previous: prev,
+        diff,
+        percent: prev > 0 ? (diff / prev) * 100 : (current > 0 ? 100 : 0),
+      };
+    });
+    return rows
+      .sort((a, b) => (b.current + b.previous) - (a.current + a.previous))
+      .slice(0, limit);
   }
 
   /* ------------------------------------------------------------------------ */
@@ -1152,8 +1250,13 @@ class Store {
       danger,
       categories: this.categories('expense').map((category) => {
         const spentForCategory = this.transactionsForMonth(month)
-          .filter((tx) => tx.type === 'expense' && tx.categoryId === category.id)
-          .reduce((totalSpent, tx) => totalSpent + safeNumber(tx.amount), 0);
+          .filter((tx) => tx.type === 'expense')
+          .reduce((totalSpent, tx) => {
+            const partTotal = this.transactionCategoryParts(tx)
+              .filter((part) => part.categoryId === category.id)
+              .reduce((sum, part) => sum + part.amount, 0);
+            return totalSpent + partTotal;
+          }, 0);
         const limit = this.categoryBudget(month, category.id);
         return {
           category,

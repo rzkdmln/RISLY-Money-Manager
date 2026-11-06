@@ -8,6 +8,7 @@ import {
   formatMonth,
   formatPercent,
   monthKey,
+  shiftMonthKey,
   todayISO,
 } from '../utils.js';
 
@@ -37,8 +38,7 @@ export function reportsView() {
       eyebrow: 'Analisis & ekspor',
       title: 'Laporan',
       subtitle: 'Rangkuman bulanan siap dibaca, dicetak, dan dibagikan.',
-      actions: `<button type="button" class="btn btn-secondary" data-action="export-xlsx-all">${icon('download', 'w-4 h-4')} Excel semua</button>
-        <button type="button" class="btn btn-primary" data-action="export-pdf">${icon('file-text', 'w-4 h-4')} PDF bulan ini</button>`,
+      actions: `<button type="button" class="btn btn-secondary" data-action="open-export-modal">${icon('download', 'w-4 h-4')} Ekspor & cetak</button>`,
     })}
 
     <section class="card report-control">
@@ -51,8 +51,6 @@ export function reportsView() {
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <input type="month" class="field field-compact" id="report-month-picker" value="${escapeAttr(month)}" data-filter="report-month" aria-label="Pilih bulan laporan">
-        <button type="button" class="btn btn-secondary btn-sm" data-action="export-xlsx-month">${icon('download', 'w-3.5 h-3.5')} Excel bulan ini</button>
-        <button type="button" class="btn btn-secondary btn-sm" data-action="export-pdf">${icon('file-text', 'w-3.5 h-3.5')} PDF</button>
       </div>
     </section>
 
@@ -109,7 +107,7 @@ export function reportsView() {
           <div class="stat-hint truncate">${closing.transfers ? `Transfer ${money(closing.transfers)}` : 'Tanpa transfer'}</div>
         </div>
       </div>
-      <div class="flex flex-wrap items-center gap-2 mt-4">
+      <div class="flex flex-wrap items-center justify-end gap-2 mt-4">
         ${closing.closed
           ? `<button type="button" class="btn btn-secondary btn-sm" data-action="reopen-month">${icon('refresh', 'w-3.5 h-3.5')} Buka kembali</button>`
           : `<button type="button" class="btn btn-primary btn-sm" data-action="close-month">${icon('check', 'w-3.5 h-3.5')} Tandai bulan ini ditutup</button>`}
@@ -174,6 +172,101 @@ export function reportsView() {
       </section>
     </div>
 
+    <section class="card">
+      <div class="card-heading">
+        <div>
+          <p class="card-kicker">Perbandingan</p>
+          <h2 class="section-title">Bulan ini vs bulan lalu</h2>
+        </div>
+        ${icon('trending-up', 'w-5 h-5 text-blue-500')}
+      </div>
+      ${(() => {
+        const prev = shiftMonthKey(month, -1);
+        const prevSummary = store.monthSummary(prev);
+        const rows = [
+          { label: 'Pemasukan', current: summary.income, previous: prevSummary.income },
+          { label: 'Pengeluaran', current: summary.expense, previous: prevSummary.expense },
+          { label: 'Arus kas bersih', current: summary.net, previous: prevSummary.net },
+        ];
+        return `<div class="space-y-2">
+          <div class="grid grid-cols-3 gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <span>Metrik</span><span class="text-right">Bulan ini</span><span class="text-right">Bulan lalu</span>
+          </div>
+          ${rows.map((row) => {
+            const diff = row.current - row.previous;
+            return `<div class="grid grid-cols-3 gap-2 text-sm">
+              <span class="text-slate-600 dark:text-slate-300">${escapeHTML(row.label)}</span>
+              <span class="text-right font-semibold text-slate-900 dark:text-white">${money(row.current)}</span>
+              <span class="text-right text-slate-500 dark:text-slate-400">${money(row.previous)} <span class="${diff >= 0 ? 'text-emerald-500' : 'text-red-500'} text-[11px]">${diff >= 0 ? '+' : ''}${money(diff)}</span></span>
+            </div>`;
+          }).join('')}
+          <div class="report-divider"></div>
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-slate-500 dark:text-slate-400">Tingkat tabungan bulan ini</span>
+            <strong class="text-slate-900 dark:text-white">${formatPercent(summary.savingsRate)}</strong>
+          </div>
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-slate-500 dark:text-slate-400">Tingkat tabungan bulan lalu</span>
+            <strong class="text-slate-900 dark:text-white">${formatPercent(prevSummary.savingsRate)}</strong>
+          </div>
+        </div>`;
+      })()}
+    </section>
+
+    <div class="grid lg:grid-cols-2 gap-4">
+      <section class="card">
+        <div class="card-heading">
+          <div>
+            <p class="card-kicker">Kontribusi</p>
+            <h2 class="section-title">Belanja per anggota</h2>
+          </div>
+          ${icon('users', 'w-5 h-5 text-violet-500')}
+        </div>
+        <div class="space-y-3">
+          ${store.memberSpending(month).length
+            ? store.memberSpending(month).map((member) => `<div class="creator-row">
+                <span class="creator-avatar" style="--creator-color:${escapeAttr(member.color || 'var(--muted)')}">${escapeHTML(member.name.slice(0, 1))}</span>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center justify-between gap-2"><span class="text-sm font-semibold text-slate-800 dark:text-slate-100">${escapeHTML(member.name)}</span><span class="text-xs text-slate-500">${member.count} transaksi</span></div>
+                  <div class="flex items-center gap-3 mt-1 text-[11px]">
+                    <span class="amount-income">+${money(member.income)}</span>
+                    <span class="amount-expense">-${money(member.expense)}</span>
+                  </div>
+                </div>
+              </div>`).join('')
+            : '<p class="text-sm text-slate-500">Belum ada data anggota.</p>'}
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-heading">
+          <div>
+            <p class="card-kicker">Tren</p>
+            <h2 class="section-title">Kategori vs bulan lalu</h2>
+          </div>
+          ${icon('chart-pie', 'w-5 h-5 text-blue-500')}
+        </div>
+        <div class="space-y-2">
+          ${store.categoryTrend(month, 8).length
+            ? store.categoryTrend(month, 8).map((item) => {
+                const tone = item.diff > 0 ? 'text-red-500' : item.diff < 0 ? 'text-emerald-500' : 'text-slate-400';
+                return `<div class="report-category-row">
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <span class="legend-dot" style="--legend-color:${escapeAttr(item.color)}"></span>
+                    <span class="text-sm text-slate-700 dark:text-slate-200 truncate">${escapeHTML(item.name)}</span>
+                  </div>
+                  <div class="flex items-center justify-end gap-3 text-xs">
+                    <span class="text-slate-500">${money(item.previous)}</span>
+                    <span class="font-semibold text-slate-900 dark:text-white">${money(item.current)}</span>
+                    <span class="${tone} font-semibold">${item.diff >= 0 ? '+' : ''}${money(item.diff)}</span>
+                  </div>
+                </div>`;
+              }).join('')
+            : '<p class="text-sm text-slate-500">Belum ada pengeluaran pada periode ini.</p>'}
+        </div>
+      </section>
+    </div>
+
     <div class="grid lg:grid-cols-5 gap-4">
       <section class="card lg:col-span-3">
         <div class="card-heading">
@@ -223,27 +316,6 @@ export function reportsView() {
       </section>
     </div>
 
-    <section class="export-card">
-      <div>
-        <p class="text-xs font-semibold uppercase tracking-[.18em] text-blue-600 dark:text-blue-400">Ekspor & cetak</p>
-      </div>
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 items-end">
-        <label class="field-label">Dari
-          <input type="date" class="field field-compact" data-filter="report-range-start" value="${escapeAttr(ui.reportRangeStart)}">
-        </label>
-        <label class="field-label">Sampai
-          <input type="date" class="field field-compact" data-filter="report-range-end" value="${escapeAttr(ui.reportRangeEnd)}">
-        </label>
-        <button type="button" class="btn btn-secondary btn-sm" data-action="export-xlsx-range">${icon('download', 'w-3.5 h-3.5')} Excel rentang</button>
-        <button type="button" class="btn btn-primary btn-sm" data-action="export-pdf-range">${icon('file-text', 'w-3.5 h-3.5')} PDF rentang</button>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
-        <button type="button" class="btn btn-secondary" data-action="import-transactions">${icon('upload', 'w-4 h-4')} Import transaksi</button>
-        <button type="button" class="btn btn-secondary" data-action="export-xlsx-all">${icon('download', 'w-4 h-4')} Semua riwayat (.xlsx)</button>
-        <button type="button" class="btn btn-secondary" data-action="export-xlsx-month">${icon('download', 'w-4 h-4')} Bulan ini (.xlsx)</button>
-        <button type="button" class="btn btn-primary" data-action="export-pdf">${icon('file-text', 'w-4 h-4')} Laporan PDF</button>
-      </div>
-    </section>
     ${store.netWorthHistory().length ? `<section class="card">
       <div class="card-heading"><div><p class="card-kicker">Riwayat</p><h2 class="section-title">Kekayaan bersih per bulan</h2></div></div>
       <div class="space-y-2">${store.netWorthHistory().slice(-12).reverse().map((entry) => `<div class="flex items-center justify-between text-sm"><span class="text-slate-600 dark:text-slate-300">${escapeHTML(entry.month)}</span><strong class="text-slate-900 dark:text-white">${money(entry.value)}</strong></div>`).join('')}</div>

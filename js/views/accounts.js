@@ -24,7 +24,6 @@ function accountCard(account, archived = false) {
       <button type="button" class="card-icon-btn shrink-0" data-action="edit-account" data-id="${escapeAttr(account.id)}" aria-label="Ubah akun">${icon('edit', 'w-3.5 h-3.5')}</button>
     </div>
     <div class="account-balance truncate ${balance < 0 ? 'is-negative' : ''}">${money(balance)}</div>
-    ${store.accountClearedBalance(account.id) !== balance ? `<div class="text-[11px] text-slate-400 mt-0.5">Cleared: ${money(store.accountClearedBalance(account.id))}</div>` : ''}
     ${account.type === 'loan' ? `<div class="text-[12px] text-red-500 mt-1">Sisa utang ${money(safeNumber(account.loanRemaining))}${account.loanNextDueDate ? ` · jatuh tempo ${escapeHTML(formatDate(account.loanNextDueDate))}` : ''}</div>` : ''}
     ${account.type === 'credit' && account.creditDueDate ? `<div class="text-[11px] text-slate-400 mt-0.5">Jatuh tempo kredit: ${escapeHTML(formatDate(account.creditDueDate))}</div>` : ''}
     ${account.type === 'credit' && safeNumber(account.creditLimit) > 0 ? (() => {
@@ -44,7 +43,6 @@ function accountCard(account, archived = false) {
     <div class="account-bar min-w-0 w-full"><span style="width:${Math.min(100, percent)}%"></span></div>
     <div class="account-actions min-w-0 flex items-center gap-2">
       <button type="button" class="link-button truncate" data-action="filter-account" data-id="${escapeAttr(account.id)}">Lihat transaksi</button>
-      <button type="button" class="link-button shrink-0" data-action="reconcile-account" data-id="${escapeAttr(account.id)}">Rekonsiliasi</button>
       ${['credit','loan'].includes(account.type) && safeNumber(account.loanPrincipal || account.creditLimit) > 0 ? `<button type="button" class="link-button shrink-0" data-action="loan-schedule" data-id="${escapeAttr(account.id)}">Jadwal</button>` : ''}
       ${archived
         ? `<button type="button" class="link-button shrink-0" data-action="restore-account" data-id="${escapeAttr(account.id)}">Aktifkan</button>

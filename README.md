@@ -11,6 +11,7 @@
 ## 📸 Fitur Utama
 
 - **Buku Kas & Manajemen Transaksi:** Catat pemasukan, pengeluaran, dan transfer antar akun dengan dukungan multi-kategori serta pencatatan sub-kategori.
+- **Split Transaksi & Lampiran Struk:** Pecah satu transaksi ke beberapa kategori sekaligus dan simpan foto struk sebagai bukti.
 - **Dukungan Multi-Akun & Kategori Custom:** Kelola rekening bank, dompet digital (e-wallet), maupun uang tunai secara fleksibel.
 - **Anggaran & Target Keuangan:** Set batas anggaran bulanan per kategori dan pantau batas aman konsumsi.
 - **Transaksi Berulang & Pengingat (Reminders):** Jadwalkan tagihan rutin harian, bulanan, atau tahunan.
