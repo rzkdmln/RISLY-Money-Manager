@@ -234,7 +234,7 @@ class Store {
     try { await Cloud.signInWithGoogle(GoogleDrive.accessToken); } catch { /* noop */ }
     const entry = this.registry.accounts[email];
     if (entry?.workspaceId && this.openWorkspace(entry.workspaceId, { account })) {
-      const user = this.ensureMember(account);
+      const user = await this.attachFirebaseUid(this.ensureMember(account));
       this.currentUserId = user.id;
       this.persist();
       return { user, created: false, workspaceId: this.workspaceId };
@@ -246,7 +246,7 @@ class Store {
       if (match) {
         const workspaceId = this.adoptLegacyWorkspace(legacy, account);
         this.openWorkspace(workspaceId, { account });
-        const user = this.ensureMember(account);
+        const user = await this.attachFirebaseUid(this.ensureMember(account));
         this.currentUserId = user.id;
         this.persist();
         return { user, created: false, adopted: true, workspaceId };
@@ -257,13 +257,23 @@ class Store {
     this.data = createDefaultData(account);
     this.workspaceId = workspaceId;
     this.account = account;
-    const user = this.data.users[0];
+    const user = await this.attachFirebaseUid(this.data.users[0]);
     this.currentUserId = user.id;
     this.data.settings.ownerEmail = email;
     this.updateWorkspaceMeta();
     this.registerAccount(account, workspaceId);
     this.persist();
     return { user, created: true, workspaceId };
+  }
+
+  /** Simpan UID Firebase pada profil anggota agar bisa dicabut dari cloud. */
+  async attachFirebaseUid(user) {
+    if (!user) return user;
+    try {
+      const uid = await Cloud.getFirebaseUid();
+      if (uid) user.firebaseUid = String(uid);
+    } catch { /* offline / provider lokal */ }
+    return user;
   }
 
   readLegacyData() {
@@ -318,20 +328,75 @@ class Store {
     if (!/^[A-Z0-9]{4,8}$/.test(normalized)) {
       throw new Error('Kode undangan tidak valid.');
     }
-    // Try local first
-    const workspaceId = Object.keys(this.registry.workspaces)
+
+    // 1. Cari workspace lokal yang memakai kode ini (satu perangkat).
+    const localWorkspaceId = Object.keys(this.registry.workspaces)
       .find((id) => String(this.registry.workspaces[id]?.inviteCode || '').toUpperCase() === normalized);
-    if (workspaceId && localStorage.getItem(workspaceStorageKey(workspaceId))) {
-      this.openWorkspace(workspaceId, { account });
-      const user = this.ensureMember(account);
-      this.currentUserId = user.id;
-      this.registerAccount(account, workspaceId);
-      this.persist();
-      return { user, workspaceId };
+    let workspaceId = localWorkspaceId || null;
+    let matchedLocally = Boolean(workspaceId && localStorage.getItem(workspaceStorageKey(workspaceId)));
+    if (matchedLocally) {
+      matchedLocally = this.openWorkspace(workspaceId, { account });
     }
-    // Cloud join via JSONBin family hub was retired; family sharing now goes
-    // through the Firebase household (members node) once Firebase Auth is wired.
-    throw new Error('Kode undangan tidak ditemukan di perangkat maupun cloud.');
+    if (!matchedLocally) {
+      // 2. Tidak ada di perangkat ini: siapkan workspace lokal untuk akun
+      //    tersebut. Data lokal ini nanti digabung ke household pemilik.
+      const session = await this.signInWithGoogle(account);
+      workspaceId = session.workspaceId;
+    }
+
+    let user = await this.attachFirebaseUid(this.ensureMember(account));
+    this.currentUserId = user.id;
+    this.registerAccount(account, workspaceId);
+    this.persist();
+
+    // 3. Cari household pemilik lewat index cloud, lalu pindah ke sana.
+    let cloudResult = null;
+    let cloudError = null;
+    try {
+      const invite = await Cloud.resolveInviteCode(normalized);
+      if (invite?.ownerUid) {
+        this.prepareHouseholdJoin();
+        cloudResult = await Cloud.joinHousehold(invite.ownerUid, {
+          name: user.name,
+          email: user.googleEmail || account?.email || '',
+          picture: user.picture || '',
+        });
+        if (!cloudResult?.ok && !cloudResult?.skipped) {
+          cloudError = cloudResult?.error || new Error('Gagal bergabung ke cloud keluarga.');
+        }
+      } else if (!matchedLocally) {
+        cloudError = new Error('Kode undangan tidak ditemukan. Pastikan pemilik ruang sudah membuka aplikasi versi terbaru.');
+      }
+    } catch (error) {
+      cloudError = error;
+    }
+
+    if (cloudError) {
+      console.warn('Gabung household cloud gagal:', cloudError);
+      if (!matchedLocally) throw cloudError;
+    }
+
+    // Merge/dedupe bisa mengganti profil anggota dengan id kanonik dari
+    // perangkat pemilik. Kembalikan profil yang masih aktif.
+    const resolved = this.resolveUser(this.currentUserId);
+    if (resolved) {
+      user = resolved;
+      this.currentUserId = resolved.id;
+      this.persist();
+    }
+
+    return { user, workspaceId: this.workspaceId, cloud: cloudResult, localOnly: matchedLocally && !cloudResult?.ok };
+  }
+
+  /**
+   * Saat anggota bergabung, pengaturan household (nama ruang, kode undangan,
+   * anggaran) harus mengikuti data pemilik. Turunkan timestamp lokal agar
+   * mergeRemote memilih pengaturan remote, sementara transaksi/akun lokal
+   * tetap digabung berdasarkan id.
+   */
+  prepareHouseholdJoin() {
+    if (!this.data?.settings) return;
+    this.data.settings.updatedAt = new Date(0).toISOString();
   }
 
   openLastWorkspace() {
@@ -1583,7 +1648,7 @@ class Store {
       const user = data.users.find((item) => item.id === id);
       if (!user) throw new Error('Pengguna tidak ditemukan.');
       const allowed = [
-        'name', 'initials', 'color', 'googleEmail', 'pinHash', 'pinSalt', 'pinIterations',
+        'name', 'initials', 'color', 'googleEmail', 'firebaseUid', 'pinHash', 'pinSalt', 'pinIterations',
       ];
       allowed.forEach((key) => {
         if (patch[key] !== undefined) user[key] = patch[key];

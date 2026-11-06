@@ -22,7 +22,8 @@ Aturan ini mengizinkan baca/tulis hanya anggota (`members/<uid>`) atau owner (`o
 
 ## Catatan arsitektur
 - Setiap akun Google dapat membuat household sendiri `households/<firebaseUid>`.
-- Berbagi keluarga via undangan (owner menambah `members/<uid>`).
+- Berbagi keluarga via undangan: kode dipublikasikan ke `inviteCodes/<KODE>` berisi `ownerUid`, lalu anggota yang bergabung menulis `households/<ownerUid>/members/<uid>` dan memakai path household pemilik.
+- Data lokal anggota yang sudah ada tetap digabung (bukan ditimpa) saat bergabung; pengaturan ruang mengikuti pemilik.
 - Login Google memakai Firebase Auth redirect; token Google diambil dari Firebase (`user.accessToken`) lalu diadopsi ke `GoogleDrive` untuk backup Drive.
 
 ## Prasyarat teknis sebelum login pertama kali setelah perubahan ini

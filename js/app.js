@@ -1550,7 +1550,11 @@ async function submitJoinWorkspace(form) {
     const result = await store.joinWorkspaceByCode(code, account);
     closeModal({ silent: true });
     enterApplication(result.user);
-    toast('Bergabung ke ruang keluarga.', 'success');
+    if (result?.localOnly) {
+      toast('Bergabung ke ruang lokal. Cloud keluarga belum bisa dijangkau.', 'info');
+    } else {
+      toast('Bergabung ke ruang keluarga. Data akan disinkronkan.', 'success');
+    }
   } catch (error) {
     console.error(error);
     showFormError(form, error.message || 'Gagal bergabung ke ruang.');
@@ -1963,6 +1967,9 @@ async function handleAction(action, element) {
       });
       if (!ok) return;
       try {
+        if (member.firebaseUid) {
+          await Cloud.removeHouseholdMember(member.firebaseUid);
+        }
         store.removeMember(id);
         ui.appMounted = false;
         renderApplication();
@@ -1989,7 +1996,9 @@ async function handleAction(action, element) {
         confirmLabel: 'Buat baru',
       });
       if (!ok) return;
+      const previousCode = store.getWorkspaceCode();
       const code = store.rotateWorkspaceCode();
+      try { await Cloud.publishInviteCode({ previousCode }); } catch { /* sync akan mencoba lagi */ }
       ui.appMounted = false;
       renderApplication();
       toast(`Kode baru: ${code}`, 'success');
@@ -3416,6 +3425,9 @@ function submitHousehold(form) {
       ? store.data.settings.defaultMonthlyBudget
       : (Number(formValue(form, 'defaultMonthlyBudget')) || 0),
   });
+  // Segarkan index kode undangan agar nama ruang terbaru ikut terlihat
+  // saat anggota bergabung dari perangkat lain.
+  Cloud.publishInviteCode().catch(() => {});
   toast('Identitas ruang disimpan.', 'success');
   renderApplication();
 }

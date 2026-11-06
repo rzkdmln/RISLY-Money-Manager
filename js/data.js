@@ -275,6 +275,7 @@ function mergeDuplicateUser(data, duplicate, canonical, remap, now) {
   duplicate.updatedAt = now;
   duplicate.mergedInto = canonical.id;
   if (!canonical.googleEmail && duplicate.googleEmail) canonical.googleEmail = duplicate.googleEmail;
+  if (!canonical.firebaseUid && duplicate.firebaseUid) canonical.firebaseUid = duplicate.firebaseUid;
   if (!canonical.picture && duplicate.picture) canonical.picture = duplicate.picture;
   if (!canonical.pinHash && duplicate.pinHash) {
     canonical.pinHash = duplicate.pinHash;

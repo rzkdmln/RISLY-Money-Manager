@@ -240,7 +240,9 @@ class FirebaseAdapter {
   setOwner(uid) {
     if (!uid) return;
     this.ownerUid = String(uid);
-    this.path = `households/${this.ownerUid}`;
+    // Jangan menimpa path household. Path menentukan apakah perangkat ini
+    // memakai rumah sendiri atau rumah bersama yang sudah diikuti lewat kode
+    // undangan; nilainya diatur oleh CloudSync.
   }
 
   async auth() {
@@ -252,10 +254,50 @@ class FirebaseAdapter {
     return getFirebaseIdToken(auth);
   }
 
-  async endpoint() {
+  async urlFor(path) {
     const token = await this.idToken();
     const suffix = token ? `?auth=${encodeURIComponent(token)}` : '';
-    return `${this.databaseURL}/${this.path}.json${suffix}`;
+    const clean = String(path || '').replace(/^\/+|\/+$/g, '');
+    return `${this.databaseURL}/${clean}.json${suffix}`;
+  }
+
+  async endpoint() {
+    return this.urlFor(this.path);
+  }
+
+  /* --- Indeks kode undangan & keanggotaan (fitur keluarga) ----------------- */
+
+  async readInvite(code) {
+    return requestJSON(await this.urlFor(`inviteCodes/${code}`), {
+      method: 'GET',
+      cache: 'no-store',
+    });
+  }
+
+  async writeInvite(code, payload) {
+    return requestJSON(await this.urlFor(`inviteCodes/${code}`), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async deleteInvite(code) {
+    return requestJSON(await this.urlFor(`inviteCodes/${code}`), { method: 'DELETE' });
+  }
+
+  async writeMember(ownerUid, memberUid, profile) {
+    return requestJSON(await this.urlFor(`households/${ownerUid}/members/${memberUid}`), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(profile || {}),
+    });
+  }
+
+  async deleteMember(ownerUid, memberUid) {
+    return requestJSON(await this.urlFor(`households/${ownerUid}/members/${memberUid}`), {
+      method: 'DELETE',
+    });
   }
 
   async read() {
@@ -268,7 +310,9 @@ class FirebaseAdapter {
 
   async write(envelope) {
     const body = await requestJSON(await this.endpoint(), {
-      method: 'PUT',
+      // PATCH instead of PUT so node `members` (and any future sibling keys)
+      // tidak terhapus setiap kali data household disimpan.
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(envelope),
     });
@@ -362,6 +406,41 @@ class CloudSync {
     } catch { /* noop */ }
     // Default to the built-in Firebase project so sync works out of the box.
     return { provider: 'firebase', firebase: { path: `households/${APP.householdId}` } };
+  }
+
+  /**
+   * Bangun konfigurasi Firebase untuk user yang sedang login.
+   *
+   * `householdUid` adalah pemilik data keluarga. Untuk akun biasa nilainya sama
+   * dengan UID sendiri; setelah bergabung lewat kode undangan nilainya adalah
+   * UID pemilik ruang. Nilai itu dipertahankan selama UID yang login tidak
+   * berubah, sehingga anggota tetap menulis ke household yang sama.
+   */
+  firebaseConfigFor(uid, previous = this.config) {
+    const current = previous?.firebase || {};
+    const sameUser = String(current.uid || '') === String(uid || '');
+    const pathMatch = /^households\/([^/]+)$/.exec(String(current.path || ''));
+    const previousHousehold = current.householdUid || (pathMatch ? pathMatch[1] : '');
+    const householdUid = sameUser && previousHousehold ? previousHousehold : uid;
+    return {
+      provider: 'firebase',
+      firebase: {
+        path: `households/${householdUid}`,
+        householdUid,
+        uid,
+      },
+    };
+  }
+
+  getHouseholdUid() {
+    const configured = this.config?.firebase?.householdUid;
+    if (configured) return String(configured);
+    const match = /^households\/([^/]+)$/.exec(String(this.config?.firebase?.path || ''));
+    return match ? match[1] : String(this.firebaseUid || APP.householdId);
+  }
+
+  isHouseholdOwner() {
+    return Boolean(this.firebaseUid) && this.getHouseholdUid() === String(this.firebaseUid);
   }
 
   async getFirebaseUid() {
@@ -515,9 +594,10 @@ class CloudSync {
     // Catat UID dan path per-rumah tangga. Koneksi sebenarnya dibuat setelah
     // workspace lokal dibuka (lihat syncCloudAfterLogin di app.js), agar data
     // placeholder layar login tidak sempat terunggah ke cloud.
-    const next = { provider: 'firebase', firebase: { path: `households/${uid}` } };
+    const next = this.firebaseConfigFor(uid, this.config);
     const changed = this.config?.provider !== 'firebase'
-      || this.config?.firebase?.path !== next.firebase.path;
+      || this.config?.firebase?.path !== next.firebase.path
+      || this.config?.firebase?.uid !== next.firebase.uid;
     localStorage.setItem(APP.cloudKey, JSON.stringify(next));
     this.config = next;
     this.firebaseUid = uid;
@@ -615,7 +695,7 @@ class CloudSync {
         return { ok: true, skipped: true };
       }
       this.firebaseUid = uid;
-      const next = { provider: 'firebase', firebase: { path: `households/${uid}` } };
+      const next = this.firebaseConfigFor(uid, this.config);
       const changed = JSON.stringify(this.config) !== JSON.stringify(next);
       this.config = next;
       localStorage.setItem(APP.cloudKey, JSON.stringify(this.config));
@@ -683,14 +763,32 @@ class CloudSync {
           return { ok: true, skipped: true };
         }
         this.firebaseUid = uid;
-        // Path per-rumah tangga berdasarkan UID Firebase (isolasi data).
-        const next = { provider: 'firebase', firebase: { path: `households/${uid}` } };
+        // Path per-rumah tangga. Untuk anggota yang sudah bergabung, path
+        // mengarah ke household pemilik (disimpan di config), bukan ke UID
+        // anggota itu sendiri.
+        const next = this.firebaseConfigFor(uid, this.config);
         localStorage.setItem(APP.cloudKey, JSON.stringify(next));
         this.config = next;
       }
       this.adapter = this.createAdapter(this.config);
       if (this.config.provider === 'firebase' && this.firebaseUid && this.adapter?.setOwner) {
         this.adapter.setOwner(this.firebaseUid);
+      }
+      // Pastikan node keanggotaan ada sebelum membaca household. Ini penting
+      // untuk anggota baru: rules mengizinkan mereka mendaftar sendiri, lalu
+      // baru boleh membaca data keluarga.
+      if (this.config.provider === 'firebase' && this.firebaseUid && this.adapter?.writeMember) {
+        try {
+          const user = this.store?.currentUser || null;
+          await this.adapter.writeMember(this.getHouseholdUid(), this.firebaseUid, {
+            name: user?.name || this.currentFirebaseUser?.displayName || '',
+            email: user?.googleEmail || this.currentFirebaseUser?.email || '',
+            role: this.isHouseholdOwner() ? 'owner' : 'member',
+            joinedAt: nowISO(),
+          });
+        } catch (error) {
+          console.warn('Gagal menulis node anggota Firebase:', error);
+        }
       }
       const remote = await this.adapter.read();
       if (remote?.data) {
@@ -712,6 +810,13 @@ class CloudSync {
       }
       this.connected = true;
       this.startEngine();
+      if (this.isHouseholdOwner()) {
+        // Publikasikan kode undangan agar perangkat lain bisa menemukan
+        // household ini lewat kode (bukan hanya lewat localStorage).
+        this.publishInviteCode().catch((error) => {
+          console.warn('Gagal mempublikasikan kode undangan:', error);
+        });
+      }
       if (this.state !== 'synced') this.setStatus('synced', 'Terhubung.');
       else this.emitStatus();
       return { ok: true, remote };
@@ -834,7 +939,7 @@ class CloudSync {
         Number(remote?.revision) || 0,
         Number(local.revision) || 0,
       ) + 1;
-      const envelope = makeEnvelope(local, revision, nowISO(), this.firebaseUid);
+      const envelope = makeEnvelope(local, revision, nowISO(), this.getHouseholdUid());
       await this.adapter.write(envelope);
       this.lastRevision = revision;
       this.lastSyncAt = envelope.savedAt;
@@ -924,6 +1029,118 @@ class CloudSync {
     const result = await this.push({ immediate: true, force: true });
     if (result.ok && !silent) this.setStatus('synced', 'Sinkronisasi selesai.');
     return result;
+  }
+
+  /**
+   * Cari household pemilik dari kode undangan. Kode dipublikasikan pemilik ke
+   * node `inviteCodes/<KODE>` agar bisa ditemukan lintas perangkat.
+   */
+  async resolveInviteCode(code) {
+    const normalized = String(code || '').trim().toUpperCase();
+    if (!/^[A-Z0-9]{4,8}$/.test(normalized)) return null;
+    if (this.config.provider !== 'firebase') return null;
+    const uid = await this.waitForFirebaseUser();
+    if (!uid) return null;
+    const adapter = new FirebaseAdapter({ provider: 'firebase', firebase: { path: `households/${uid}` } });
+    try {
+      const body = await adapter.readInvite(normalized);
+      if (!body?.ownerUid) return null;
+      return { ...body, code: normalized };
+    } catch (error) {
+      console.warn('Gagal membaca kode undangan:', error);
+      return null;
+    } finally {
+      try { await adapter.destroy(); } catch { /* noop */ }
+    }
+  }
+
+  /**
+   * Pindahkan perangkat ini ke household milik anggota lain.
+   * Node keanggotaan ditulis lebih dulu agar rules mengizinkan pembacaan data.
+   */
+  async joinHousehold(ownerUid, profile = {}) {
+    if (this.config.provider !== 'firebase') throw new Error('Sinkronisasi Firebase belum aktif.');
+    const target = String(ownerUid || '').trim();
+    if (!target) throw new Error('Pemilik ruang tidak ditemukan.');
+    const uid = await this.waitForFirebaseUser() || await this.getFirebaseUid();
+    if (!uid) throw new Error('Login Firebase belum selesai. Coba lagi.');
+    if (target === String(uid)) throw new Error('Anda sudah menjadi pemilik ruang ini.');
+
+    const previousHousehold = this.getHouseholdUid();
+    const previousCode = String(this.store?.getWorkspaceCode?.() || '').trim().toUpperCase();
+
+    const tempAdapter = new FirebaseAdapter({ provider: 'firebase', firebase: { path: `households/${target}` } });
+    try {
+      await tempAdapter.writeMember(target, uid, {
+        name: profile.name || '',
+        email: profile.email || '',
+        role: 'member',
+        joinedAt: nowISO(),
+      });
+    } finally {
+      try { await tempAdapter.destroy(); } catch { /* noop */ }
+    }
+
+    const next = {
+      provider: 'firebase',
+      firebase: { path: `households/${target}`, householdUid: target, uid },
+    };
+    this.config = next;
+    this.firebaseUid = uid;
+    this.connected = false;
+    this.adapter = null;
+    const result = await this.connect(next);
+    if (result?.ok && !result?.skipped) {
+      // Anggota biasanya membawa transaksi lokal dari workspace lamanya.
+      // Unggah hasil gabungan segera agar perangkat pemilik ikut melihatnya.
+      try { await this.push({ immediate: true, force: true }); } catch { /* noop */ }
+    }
+
+    // Kode undangan household lama (milik sendiri) tidak boleh lagi
+    // mengarah ke ruang yang sudah ditinggalkan.
+    const currentCode = String(this.store?.getWorkspaceCode?.() || '').trim().toUpperCase();
+    if (previousHousehold === String(uid) && previousCode && previousCode !== currentCode) {
+      try { await this.adapter?.deleteInvite?.(previousCode); } catch { /* noop */ }
+    }
+    return result;
+  }
+
+  /**
+   * Publikasikan/segarkan index kode undangan milik household ini.
+   * Hanya pemilik yang boleh menulis index tersebut.
+   */
+  async publishInviteCode({ previousCode = null } = {}) {
+    if (this.config.provider !== 'firebase' || !this.adapter || !this.connected) {
+      return { ok: false, skipped: true };
+    }
+    if (!this.isHouseholdOwner()) return { ok: false, member: true };
+    const code = String(this.store?.getWorkspaceCode?.() || '').trim().toUpperCase();
+    if (!/^[A-Z0-9]{4,8}$/.test(code)) return { ok: false, invalid: true };
+    const householdName = this.store?.data?.settings?.workspaceName
+      || this.store?.data?.settings?.householdName
+      || '';
+    await this.adapter.writeInvite(code, {
+      ownerUid: this.getHouseholdUid(),
+      householdName,
+      updatedAt: nowISO(),
+    });
+    const old = String(previousCode || '').trim().toUpperCase();
+    if (old && old !== code) {
+      try { await this.adapter.deleteInvite(old); } catch { /* noop */ }
+    }
+    return { ok: true, code };
+  }
+
+  /** Cabut akses satu anggota dari household (hanya pemilik). */
+  async removeHouseholdMember(memberUid) {
+    const uid = String(memberUid || '').trim();
+    if (!uid) return { ok: false, skipped: true };
+    if (this.config.provider !== 'firebase' || !this.adapter || !this.connected) {
+      return { ok: false, skipped: true };
+    }
+    if (!this.isHouseholdOwner()) throw new Error('Hanya pemilik ruang yang bisa mengeluarkan anggota.');
+    await this.adapter.deleteMember(this.getHouseholdUid(), uid);
+    return { ok: true };
   }
 
   async test(config) {

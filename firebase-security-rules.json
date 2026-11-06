@@ -6,7 +6,7 @@
         ".write": "auth != null && (root.child('households').child($householdId).child('members').child(auth.uid).exists() || root.child('households').child($householdId).child('owner').val() === auth.uid || (!root.child('households').child($householdId).child('owner').exists() && newData.child('owner').val() === auth.uid))",
         "members": {
           "$uid": {
-            ".write": "auth != null && (root.child('households').child($householdId).child('owner').val() === auth.uid || (auth.uid === $uid && !data.exists()))"
+            ".write": "auth != null && (root.child('households').child($householdId).child('owner').val() === auth.uid || auth.uid === $uid)"
           }
         }
       }
@@ -14,6 +14,12 @@
     "oauth_relay": {
       ".read": false,
       ".write": false
+    },
+    "inviteCodes": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && ((newData.exists() && root.child('households').child(newData.child('ownerUid').val()).child('owner').val() === auth.uid) || (!newData.exists() && root.child('households').child(data.child('ownerUid').val()).child('owner').val() === auth.uid))"
+      }
     }
   }
 }
