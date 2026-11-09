@@ -851,6 +851,59 @@ function openBudgetCategoriesModal() {
   openModal({ size: 'lg', className: '', html: budgetCategoriesModal(ui.budgetMonth || monthKey()) });
 }
 
+function openBudgetCategoryAmountLightbox(categoryId, categoryName, amount, month) {
+  const host = document.getElementById('modal-root') || document.body;
+  const overlay = document.createElement('div');
+  overlay.className = 'receipt-lightbox budget-amount-lightbox';
+  overlay.innerHTML = `<div class="receipt-lightbox-backdrop" data-budget-amount-close></div>
+    <section class="receipt-lightbox-panel budget-amount-panel" role="dialog" aria-modal="true" aria-label="Ubah batas ${escapeAttr(categoryName)}">
+      <header class="modal-header">
+        <div class="modal-heading">
+          <span class="modal-heading-icon" aria-hidden="true">${icon('edit', 'w-4.5 h-4.5')}</span>
+          <div class="min-w-0">
+            <p class="modal-kicker">Anggaran kategori</p>
+            <h2 class="modal-title">Batas ${escapeHTML(categoryName)}</h2>
+          </div>
+        </div>
+        <button type="button" class="icon-btn modal-close" data-budget-amount-close aria-label="Tutup">${icon('x')}</button>
+      </header>
+      <form class="budget-amount-form">
+        <div class="modal-body">
+          <label class="field-label">Nominal batas
+            <div class="input-with-prefix mt-1.5">
+              <span>Rp</span>
+              <input class="field" type="number" name="amount" min="0" step="1000" inputmode="numeric" value="${Math.round(amount || 0)}" aria-label="Batas ${escapeAttr(categoryName)}" required>
+            </div>
+          </label>
+          <p class="text-[11px] text-slate-400 mt-2">Isi 0 untuk menghapus batas.</p>
+        </div>
+        <footer class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-budget-amount-close>Batal</button>
+          <button type="submit" class="btn btn-primary">${icon('check', 'w-4 h-4')} Simpan</button>
+        </footer>
+      </form>
+    </section>`;
+  host.appendChild(overlay);
+  const close = () => overlay.remove();
+  overlay.querySelectorAll('[data-budget-amount-close]').forEach((node) => {
+    node.addEventListener('click', close);
+  });
+  const form = overlay.querySelector('form');
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const value = Number(form.amount.value) || 0;
+    store.setBudget(month, categoryId, value);
+    overlay.remove();
+    const panel = document.getElementById('modal-root')?.querySelector('.modal-panel');
+    if (panel) {
+      panel.innerHTML = budgetCategoriesModal(month);
+      panel.classList.add('modal-in');
+    }
+    toast('Batas kategori disimpan.', 'success');
+  });
+  overlay.querySelector('input[name="amount"]')?.focus({ preventScroll: true });
+}
+
 function openForgotPinModal() {
   const status = Cloud.getStatus();
   const canCloud = status.provider !== 'local';
@@ -1458,6 +1511,14 @@ async function handleAction(action, element) {
     case 'open-budget-categories':
       openBudgetCategoriesModal();
       break;
+    case 'open-budget-category-amount': {
+      const categoryId = element.dataset.categoryId;
+      const categoryName = element.dataset.categoryName || '';
+      const month = element.dataset.month || ui.budgetMonth || monthKey();
+      const amount = Number(element.dataset.amount) || 0;
+      openBudgetCategoryAmountLightbox(categoryId, categoryName, amount, month);
+      break;
+    }
     case 'open-tasks':
       openTasksSheet();
       break;

@@ -89,10 +89,10 @@ export function budgetCategoriesModal(month) {
           '<p class="text-sm font-semibold text-slate-900 dark:text-white truncate">' + escapeHTML(item.category.name) + '</p>' +
           '<p class="budget-cat-meta text-[11px] text-slate-500 dark:text-slate-400">' + money(item.spent) + ' terpakai' + (item.limit ? ' · ' + formatPercent(item.percent) : ' · belum ada batas') + '</p>' +
         '</div>' +
-        '<div class="budget-input">' +
-          '<span>Rp</span>' +
-          '<input type="number" name="budget_' + escapeAttr(item.category.id) + '" min="0" step="1000" inputmode="numeric" value="' + Math.round(item.limit || 0) + '" aria-label="Batas ' + escapeAttr(item.category.name) + '">' +
-        '</div>' +
+        '<button type="button" class="budget-amount-btn" data-action="open-budget-category-amount" data-category-id="' + escapeAttr(item.category.id) + '" data-category-name="' + escapeAttr(item.category.name) + '" data-month="' + escapeAttr(targetMonth) + '" data-amount="' + Math.round(item.limit || 0) + '" aria-label="Ubah batas ' + escapeAttr(item.category.name) + '">' +
+          '<span class="budget-amount-value">' + money(item.limit || 0) + '</span>' +
+          icon('edit', 'w-3 h-3') +
+        '</button>' +
       '</div>' +
       (item.limit ? progressBar(item.percent, rowTone, 'progress-thin') + (item.remaining < 0 ? '<p class="budget-cat-over">Lebih ' + money(Math.abs(item.remaining)) + '</p>' : '') : '') +
     '</div>';
@@ -106,16 +106,11 @@ export function budgetCategoriesModal(month) {
       '</div>' +
       '<button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">' + icon('x') + '</button>' +
     '</div>' +
-    '<form data-form="budget-categories" class="space-y-4">' +
+    '<form data-form="budget-thresholds" class="space-y-4">' +
       '<div>' +
         '<p class="card-kicker">Total anggaran</p>' +
-        '<label class="field-label mt-1">Total otomatis' +
-          '<div class="input-with-prefix mt-1.5">' +
-            '<span>Rp</span>' +
-            '<input class="field" type="number" name="total" value="' + Math.round(categories.reduce((s, i) => s + safeNumber(i.limit), 0)) + '" readonly aria-readonly="true">' +
-          '</div>' +
-        '</label>' +
-        '<p class="text-[11px] text-slate-400 mt-1">Dihitung otomatis dari jumlah batas kategori.</p>' +
+        '<p class="text-2xl font-bold text-slate-900 dark:text-white mt-1">' + money(status.total) + '</p>' +
+        '<p class="text-[11px] text-slate-400 mt-1">Dihitung otomatis dari jumlah batas kategori. Ubah per kategori dengan menekan nominalnya.</p>' +
       '</div>' +
 
       '<div class="pt-4 border-t border-slate-200 dark:border-slate-700">' +
