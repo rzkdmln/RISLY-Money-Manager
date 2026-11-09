@@ -872,7 +872,7 @@ function openBudgetCategoryAmountLightbox(categoryId, categoryName, amount, mont
           <label class="field-label">Nominal batas
             <div class="input-with-prefix mt-1.5">
               <span>Rp</span>
-              <input class="field" type="number" name="amount" min="0" step="1000" inputmode="numeric" value="${Math.round(amount || 0)}" aria-label="Batas ${escapeAttr(categoryName)}" required>
+              <input class="field" type="number" name="amount" min="0" step="1000" inputmode="numeric" value="${amount ? Math.round(amount) : ''}" placeholder="0" aria-label="Batas ${escapeAttr(categoryName)}">
             </div>
           </label>
           <p class="text-[11px] text-slate-400 mt-2">Isi 0 untuk menghapus batas.</p>
@@ -899,6 +899,7 @@ function openBudgetCategoryAmountLightbox(categoryId, categoryName, amount, mont
       panel.innerHTML = budgetCategoriesModal(month);
       panel.classList.add('modal-in');
     }
+    try { renderApplication(); } catch (error) { console.error(error); }
     toast('Batas kategori disimpan.', 'success');
   });
   overlay.querySelector('input[name="amount"]')?.focus({ preventScroll: true });

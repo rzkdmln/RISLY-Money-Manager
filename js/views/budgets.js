@@ -87,7 +87,7 @@ export function budgetCategoriesModal(month) {
         '<span class="tx-icon" style="--tx-color:' + escapeAttr(item.category.color) + '">' + icon(item.category.icon, 'w-4 h-4') + '</span>' +
         '<div class="min-w-0 flex-1">' +
           '<p class="text-sm font-semibold text-slate-900 dark:text-white truncate">' + escapeHTML(item.category.name) + '</p>' +
-          '<p class="budget-cat-meta text-[11px] text-slate-500 dark:text-slate-400">' + money(item.spent) + ' terpakai' + (item.limit ? ' · ' + formatPercent(item.percent) : ' · belum ada batas') + '</p>' +
+          '<p class="budget-cat-meta text-[11px] text-slate-500 dark:text-slate-400">' + money(item.spent) + ' terpakai' + (item.limit ? ' · ' + formatPercent(item.percent) : '') + '</p>' +
         '</div>' +
         '<button type="button" class="budget-amount-btn" data-action="open-budget-category-amount" data-category-id="' + escapeAttr(item.category.id) + '" data-category-name="' + escapeAttr(item.category.name) + '" data-month="' + escapeAttr(targetMonth) + '" data-amount="' + Math.round(item.limit || 0) + '" aria-label="Ubah batas ' + escapeAttr(item.category.name) + '">' +
           '<span class="budget-amount-value">' + money(item.limit || 0) + '</span>' +
