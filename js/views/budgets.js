@@ -28,7 +28,6 @@ export function budgetsView() {
 
   return '<div class="page-stack">' +
     pageHeader({
-      eyebrow: 'Rencana belanja',
       title: 'Anggaran',
       subtitle: '',
       actions: '',

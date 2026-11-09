@@ -3692,40 +3692,6 @@ function bindEvents() {
       Cloud.syncNow().then(() => {}).catch(() => {});
     }
   });
-
-  // Swipe up pada bottom nav -> buka "Menu lainnya"
-  let swipeStartY = 0;
-  let swipeStartX = 0;
-  let swipeStartTime = 0;
-  let swipeOnNav = false;
-  document.addEventListener('touchstart', (event) => {
-    const touch = event.touches?.[0];
-    if (!touch) return;
-    const nav = event.target?.closest?.('.bottom-nav');
-    if (!nav) { swipeOnNav = false; return; }
-    swipeOnNav = true;
-    swipeStartY = touch.clientY;
-    swipeStartX = touch.clientX;
-    swipeStartTime = Date.now();
-  }, { passive: true });
-  document.addEventListener('touchend', (event) => {
-    if (!swipeOnNav) return;
-    swipeOnNav = false;
-    const touch = event.changedTouches?.[0];
-    if (!touch) return;
-    const deltaY = touch.clientY - swipeStartY;
-    const deltaX = touch.clientX - swipeStartX;
-    const duration = Date.now() - swipeStartTime;
-    if (deltaY <= -40 && Math.abs(deltaX) < 30 && duration < 500) {
-      const root = document.getElementById('modal-root');
-      if (root && !root.classList.contains('hidden')) return;
-      if (!store.currentUser) return;
-      Promise.resolve(openMoreSheet()).catch((error) => {
-        console.error('Action failed:', error);
-        toast(error.message || 'Terjadi kesalahan.', 'error');
-      });
-    }
-  }, { passive: true });
 }
 
 const debounceSearch = debounce((callback) => callback(), 280);

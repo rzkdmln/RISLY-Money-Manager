@@ -119,7 +119,6 @@ function memberOverview() {
 
   return `<div class="page-stack min-w-0 w-full overflow-hidden">
     ${pageHeader({
-      eyebrow: 'Dompet & rekening',
       title: 'Akun',
       actions: `<div class="flex items-center gap-2 flex-wrap justify-end">
         <button type="button" class="btn btn-secondary" data-action="add-tx" data-type="transfer">${icon('arrow-left-right', 'w-4 h-4')} Transfer</button>

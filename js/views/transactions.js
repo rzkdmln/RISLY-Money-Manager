@@ -4,7 +4,7 @@ import { badge, emptyState, money, pageHeader, ui } from '../ui.js';
 import { escapeAttr, escapeHTML, formatDateLong, formatPercent, normalizeSearch } from '../utils.js';
 import { dayGroupHeader, transactionDayGroups, txRow } from './common.js';
 
-const TX_PAGE_SIZE = 20;
+const TX_PAGE_SIZE = 10;
 
 function paginationPages(current, total) {
   if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1);
@@ -135,7 +135,7 @@ export function transactionsView() {
   return `<div class="page-stack min-w-0 w-full overflow-hidden">
     ${pageHeader({
       title: 'Transaksi',
-      actions: `<button type="button" class="btn btn-secondary btn-sm" data-action="import-transactions">${icon('upload', 'w-3.5 h-3.5')} Import</button>`,
+      actions: `<button type="button" class="btn btn-secondary btn-sm hidden sm:inline-flex" data-action="import-transactions">${icon('upload', 'w-3.5 h-3.5')} Import</button>`,
     })}
 
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 min-w-0 w-full">
@@ -159,6 +159,10 @@ export function transactionsView() {
         <div class="stat-value text-base sm:text-xl truncate">${money(averageExpense)}</div>
         <div class="stat-hint truncate">${highestSpendDay ? `Tertinggi ${money(highestSpendDay[1].expense, { compact: true })}` : 'Belum ada pengeluaran'}</div>
       </div>
+    </div>
+
+    <div class="sm:hidden">
+      <button type="button" class="btn btn-secondary btn-sm w-full" data-action="import-transactions">${icon('upload', 'w-3.5 h-3.5')} Import transaksi</button>
     </div>
 
     <section class="card filter-card min-w-0 w-full overflow-hidden">

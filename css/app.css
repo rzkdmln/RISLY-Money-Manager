@@ -1840,11 +1840,12 @@ body.is-auth { background: var(--bg); }
   .report-category-bar { display: none; }
   .export-card { padding: 16px; }
   .modal-panel { border-radius: 18px; }
-  #modal-root { padding: 10px; align-items: center; }
+  #modal-root { padding: 0 10px; align-items: center; }
   .modal-panel { max-height: calc(100dvh - 20px); }
-  .sheet-panel { border-radius: 20px 20px 0 0; }
+  .sheet-panel { border-radius: 20px 20px 0 0; align-self: flex-end; }
+  .modal-center { align-self: flex-end; }
   .modal-center.profile-sheet { align-self: flex-start; }
-  .sheet-panel.profile-sheet { border-radius: 0 0 20px 20px; }
+  .sheet-panel.profile-sheet { border-radius: 0 0 20px 20px; align-self: flex-start; }
   .modal-panel.profile-sheet { transform: translateY(-24px); }
   .modal-panel.profile-sheet.modal-in { transform: translateY(0); }
   .modal-header { padding: 14px 15px 11px; }
