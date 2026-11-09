@@ -77,9 +77,7 @@ export function settingsView(user) {
 
   return `<div class="page-stack">
     ${pageHeader({
-      eyebrow: 'Pengaturan',
       title: 'Pengaturan',
-      subtitle: 'Akun, keamanan, tampilan, dan data.',
     })}
 
     <div class="settings-profile">

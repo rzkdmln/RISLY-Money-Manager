@@ -19,7 +19,6 @@ export function recurringView() {
 
   return `<div class="page-stack">
     ${pageHeader({
-      eyebrow: 'Otomatisasi',
       title: 'Transaksi berulang',
       subtitle: '',
       actions: `<button type="button" class="btn btn-primary" data-action="add-rec">${icon('plus', 'w-4 h-4')} Jadwal baru</button>`,

@@ -36,7 +36,6 @@ export function categoriesView() {
 
   return `<div class="page-stack">
     ${pageHeader({
-      eyebrow: 'Struktur keuangan',
       title: 'Kategori',
       actions: `<div class="flex items-center gap-2 flex-wrap justify-end">
         <div class="view-toggle shrink-0" role="group" aria-label="Tampilan kategori">

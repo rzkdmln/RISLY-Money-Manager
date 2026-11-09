@@ -35,7 +35,6 @@ export function reportsView() {
 
   return `<div class="page-stack">
     ${pageHeader({
-      eyebrow: 'Analisis & ekspor',
       title: 'Laporan',
       actions: `<button type="button" class="btn btn-secondary" data-action="open-export-modal">${icon('download', 'w-4 h-4')} Ekspor & cetak</button>`,
     })}

@@ -170,7 +170,7 @@ export function transactionsView() {
         <button type="button" class="link-button shrink-0" data-action="tx-toggle-filter" aria-expanded="${ui.txFilterOpen}">
           ${icon('filter', 'w-4 h-4')} Filter ${icon(ui.txFilterOpen ? 'chevron-up' : 'chevron-down', 'w-3.5 h-3.5')}
         </button>
-        <button type="button" class="link-button shrink-0" data-action="reset-tx-filter">Reset</button>
+        ${ui.txFilterOpen ? `<button type="button" class="link-button shrink-0" data-action="reset-tx-filter">Reset</button>` : ''}
       </div>
       ${ui.txFilterOpen ? `<div class="filter-grid min-w-0 w-full">
         <label class="field-label min-w-0">Tahun

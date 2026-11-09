@@ -1028,7 +1028,11 @@ body.is-auth { background: var(--bg); }
    ========================================================================== */
 
 .filter-card { padding: 15px 16px; }
-.filter-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.filter-card .field-label { font-size: 9.5px; }
+.filter-card .field { font-size: 11px; min-height: 34px; padding: 6px 10px; }
+.filter-card .search-field { min-height: 34px; }
+.filter-top { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 0; flex-wrap: wrap; position: relative; }
+.filter-top > [data-action="reset-tx-filter"] { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
 .period-presets { display: inline-flex; align-items: stretch; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2, var(--surface)); }
 .period-preset { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-size: 11.5px; font-weight: 650; cursor: pointer; white-space: nowrap; transition: background .15s ease, color .15s ease; }
 .period-preset:hover { color: var(--text); background: var(--surface); }

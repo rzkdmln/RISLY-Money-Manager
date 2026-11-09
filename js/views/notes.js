@@ -117,7 +117,6 @@ export function notesView() {
 
   return `<div class="page-stack min-w-0 w-full overflow-hidden">
     ${pageHeader({
-      eyebrow: 'Papan keluarga',
       title: 'Catatan & Tugas',
       actions,
     })}
