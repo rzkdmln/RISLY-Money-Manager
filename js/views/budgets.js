@@ -90,7 +90,6 @@ export function budgetsView() {
         '</div>' +
         '<button type="button" class="btn btn-secondary btn-sm" data-action="open-budget-categories">' + icon('edit', 'w-3.5 h-3.5') + ' Edit</button>' +
       '</div>' +
-      '<p class="text-sm text-slate-500 dark:text-slate-400">Kelola batas pengeluaran per kategori melalui modal.</p>' +
     '</div>' +
 
     '' +

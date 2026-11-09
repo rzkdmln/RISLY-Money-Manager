@@ -1,221 +1,484 @@
 # 💰 RISLY Money Manager
 
 ![PWA Ready](https://img.shields.io/badge/PWA-Ready-brightgreen.svg)
-![Architecture](https://img.shields.io/badge/Architecture-Vanilla_JS_SPA-blue.svg)
+![Offline First](https://img.shields.io/badge/Offline--First-Yes-success.svg)
+![Vanilla JS](https://img.shields.io/badge/Architecture-Vanilla_JS_SPA-blue.svg)
+![Version](https://img.shields.io/badge/Version-1.2.41-informational.svg)
 ![License](https://img.shields.io/badge/License-MIT-orange.svg)
 
-**RISLY Money Manager** adalah aplikasi pengelolaan keuangan pribadi dan keluarga berbasis *Progressive Web App* (PWA). Aplikasi ini dirancang agar cepat, ringan, dapat bekerja offline secara penuh (*offline-first*), serta mendukung login Google dan backup/pemulihan manual ke Google Drive.
+**RISLY Money Manager** adalah aplikasi pengelolaan keuangan pribadi dan keluarga berbasis **Progressive Web App (PWA)**. Aplikasi ini berjalan sepenuhnya di browser, menyimpan data secara lokal (*offline-first*), dan tidak memerlukan server backend khusus.
+
+RISLY cocok untuk mencatat pemasukan, pengeluaran, transfer, anggaran, transaksi berulang, target keuangan, catatan keluarga, hingga laporan bulanan. Sinkronisasi cloud dan backup Google Drive tersedia sebagai fitur **opsional**.
+
+> **Repo:** [github.com/rzkdmln/RISLY-Money-Manager](https://github.com/rzkdmln/RISLY-Money-Manager)
 
 ---
 
-## 📸 Fitur Utama
+## 📑 Daftar Isi
 
-- **Buku Kas & Manajemen Transaksi:** Catat pemasukan, pengeluaran, dan transfer antar akun dengan dukungan multi-kategori serta pencatatan sub-kategori.
-- **Split Transaksi & Lampiran Struk:** Pecah satu transaksi ke beberapa kategori sekaligus dan simpan foto struk sebagai bukti.
-- **Dukungan Multi-Akun & Kategori Custom:** Kelola rekening bank, dompet digital (e-wallet), maupun uang tunai secara fleksibel.
-- **Anggaran & Target Keuangan:** Set batas anggaran bulanan per kategori dan pantau batas aman konsumsi.
-- **Transaksi Berulang & Pengingat (Reminders):** Jadwalkan tagihan rutin harian, bulanan, atau tahunan.
-- **Laporan & Visualisasi Grafis:** Laporan arus kas harian/bulanan dengan visualisasi diagram interaktif.
-- **PWA & Offline-First Mode:** Dapatkan pengalaman seperti aplikasi native di Android & iOS (dapat di-install ke Home Screen) dengan kapabilitas luring penuh.
-- **Awan / Cloud Sync (opsional):** Sinkronisasi data antar perangkat lewat JSONBin, Supabase, atau Firebase bagi yang membutuhkannya.
-- **Ruang Keluarga Bersama:** Satu household Firebase bisa dipakai beberapa akun Google lewat kode undangan; transaksi dan anggota tergabung otomatis.
-- **Google Drive:** Masuk dengan akun Google di halaman depan, lalu backup/pemulihan manual ke Drive pribadi. Tidak ada sinkron otomatis ke Google.
+- [Fitur Utama](#-fitur-utama)
+- [Teknologi](#-teknologi)
+- [Arsitektur](#-arsitektur)
+- [Struktur Direktori](#-struktur-direktori)
+- [Menjalankan Secara Lokal](#-menjalankan-secara-lokal)
+- [Konfigurasi](#-konfigurasi)
+- [Deployment](#-deployment)
+- [Data, Backup & Privasi](#-data-backup--privasi)
+- [Update & Cache PWA](#-update--cache-pwa)
+- [Troubleshooting](#-troubleshooting)
+- [Kontribusi](#-kontribusi)
+- [Lisensi](#-lisensi)
 
 ---
 
-## 🏗️ Arsitektur Sistem
+## ✨ Fitur Utama
 
-RISLY dikembangkan tanpa dependensi *framework* eksternal yang berat (seperti React atau Vue) untuk memastikan performa loading yang instan, footprint memori yang minim, dan maintainability yang tinggi.
+### 🏠 Dashboard
+- Ringkasan pemasukan, pengeluaran, arus kas, dan saldo.
+- Grafik tren bulanan dan distribusi pengeluaran per kategori.
+- Pintasan cepat untuk mencatat transaksi dan melihat aktivitas terbaru.
+- Pengingat transaksi berulang, tugas, dan catatan yang jatuh tempo.
+
+### 🧾 Transaksi
+- Pencatatan **pemasukan**, **pengeluaran**, dan **transfer antar akun**.
+- Kategori dan sub-kategori, payee/merchant, catatan, serta tag.
+- **Split transaksi** ke beberapa kategori dalam satu transaksi.
+- Lampiran foto struk dengan kompresi otomatis.
+- Kalkulator nominal langsung di form transaksi.
+- Filter lengkap (tahun, bulan, jenis, akun, kategori, pencatat, pencarian) dalam modal.
+- Pagination dan pengelompokan transaksi per hari.
+- Edit, hapus, dan pulihkan transaksi (soft delete).
+
+### 💳 Akun & Aset
+- Berbagai tipe akun: uang tunai, rekening bank, dompet digital, tabungan, investasi, kartu kredit, dan pinjaman.
+- Saldo otomatis dari transaksi, termasuk transfer.
+- Batas kredit dan simulasi jadwal pinjaman.
+- Kepemilikan akun (pribadi/bersama) dan arsip akun.
+- Ringkasan kekayaan bersih (*net worth*) beserta riwayat per bulan.
+
+### 📊 Anggaran
+- Anggaran total bulanan dan batas per kategori.
+- Indikator status: aman, mendekati batas, dan terlampaui.
+- Rekomendasi batas belanja harian.
+- Salin anggaran bulan sebelumnya dan fitur *carry budget*.
+
+### 📅 Kalender
+- Tampilan kalender bulanan dengan ringkasan pemasukan/pengeluaran harian.
+- Klik tanggal untuk melihat rincian transaksi hari tersebut.
+
+### 📈 Laporan
+- Ringkasan pemasukan, pengeluaran, arus kas bersih, dan tingkat tabungan.
+- Distribusi pengeluaran per kategori dan kontribusi per pencatat.
+- Perbandingan bulan ini vs bulan lalu.
+- Tren kategori, belanja per anggota, dan saldo akun.
+- Riwayat kekayaan bersih.
+- **Tutup buku** per bulan untuk mengunci periode dan menjaga laporan tetap konsisten.
+- Ekspor laporan ke **Excel** dan **PDF** (bulanan maupun rentang tanggal).
+
+### 📝 Catatan & Tugas
+- Sticky notes dan daftar tugas (*to-do list*).
+- Warna catatan, tag, pin, favorit, arsip, dan tempat sampah.
+- Checklist item, prioritas, tenggat waktu, dan pengingat.
+- Pencarian, pengurutan, tampilan grid/list, dan duplikasi catatan.
+
+### 🔁 Transaksi Berulang
+- Jadwal harian, mingguan, bulanan, atau tahunan.
+- Proses otomatis saat jatuh tempo, atau posting manual.
+- Daftar transaksi berulang yang akan datang.
+
+### 🎯 Target Keuangan
+- Target dengan nominal dan tenggat waktu.
+- Progres pencapaian dan riwayat tabungan.
+
+### 🏷️ Kategori & Sub-kategori
+- Kategori bawaan untuk pemasukan dan pengeluaran.
+- Kategori custom dengan ikon dan warna.
+- Sub-kategori untuk pencatatan yang lebih detail.
+
+### 👨‍👩‍👧‍👦 Multi-Pengguna & Ruang Keluarga
+- Beberapa anggota dalam satu ruang/keluarga.
+- Kode undangan untuk bergabung dari perangkat lain.
+- Pencatatan siapa yang membuat transaksi.
+- Penggabungan data lokal saat bergabung ke ruang keluarga.
+
+### 📥 Import, Export & Backup
+- Import transaksi dari **CSV/Excel** dengan preview, validasi, dan deteksi duplikat.
+- Template import CSV dan Excel siap pakai.
+- Export seluruh data atau per bulan ke Excel.
+- Export laporan PDF.
+- Backup lokal berupa file JSON dan pemulihan dari file.
+- Backup/pemulihan manual ke **Google Drive** (`appDataFolder`, maksimal 10 backup terbaru).
+
+### ☁️ Sinkronisasi Cloud (Opsional)
+- **JSONBin** untuk setup cepat.
+- **Supabase REST** untuk database Postgres.
+- **Firebase Realtime Database** untuk sinkronisasi real-time.
+- Mode default: **Perangkat ini saja** (tanpa sinkronisasi).
+
+### 🔐 Keamanan & Privasi
+- PIN 4–8 angka dengan hashing **PBKDF2-SHA256** (150.000 iterasi).
+- Sesi tersimpan di cookie + localStorage agar PWA tetap bertahan setelah restart.
+- Kunci otomatis setelah waktu tertentu.
+- Mode **sembunyikan nominal** untuk privasi saat layar dilihat orang lain.
+- Notifikasi browser untuk pengingat.
+- Data utama tersimpan lokal di perangkat, bukan di server RISLY.
+
+### 📱 PWA & UX
+- Dapat di-install ke Home Screen (Android, iOS, desktop).
+- Dukungan offline setelah pemuatan pertama melalui service worker.
+- Shortcut PWA: Transaksi, Catatan, dan Kalender.
+- Tema terang, gelap, atau mengikuti sistem.
+- Layout responsif untuk desktop dan mobile.
+
+---
+
+## 🛠️ Teknologi
+
+| Lapisan | Teknologi |
+|---|---|
+| UI | HTML, CSS custom (`css/app.css`), Tailwind CSS via CDN |
+| Logika aplikasi | Vanilla JavaScript (ES Modules), tanpa framework |
+| Grafik | Chart.js |
+| Excel | SheetJS (`xlsx`) |
+| PDF | jsPDF + jsPDF AutoTable |
+| PWA | Service Worker + Web App Manifest |
+| Autentikasi | PIN lokal (PBKDF2) + Firebase Auth (Google) |
+| Cloud opsional | JSONBin, Supabase REST, Firebase Realtime Database |
+| Backup | File JSON lokal + Google Drive REST v3 |
+| Ikon | SVG inline melalui `js/icons.js` |
+
+Tidak ada proses build, bundler, atau `node_modules` yang diperlukan untuk menjalankan aplikasi.
+
+---
+
+## 🏗️ Arsitektur
+
+RISLY menggunakan pola **MVC / Pub-Sub hybrid** yang sederhana:
 
 ```
-                  ┌─────────────────────────────────────────┐
-                  │               index.html                │
-                  └────────────────────┬────────────────────┘
-                                       │
-                                 ┌─────▼─────┐
-                                 │   app.js  │ (Main Controller / Event Bus)
-                                 └─────┬─────┘
-                                       │
-         ┌─────────────────────────────┼─────────────────────────────┐
-         │                             │                             │
-   ┌─────▼─────┐                 ┌─────▼─────┐                 ┌─────▼─────┐
-   │  store.js │ (State)         │  views/   │ (UI Templates)  │  cloud.js │ (Sync Engine)
-   └─────┬─────┘                 └─────┬─────┘                 └─────┬─────┘
-         │                             │                             │
-   ┌─────▼─────┐                 ┌─────▼─────┐                 ┌─────▼─────┐
-   │ IndexedDB │ (Local DB)      │ DOM Render│                 │ Remote DB │
-   └───────────┘                 └───────────┘                 └───────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                         index.html                           │
+└─────────────────────────────┬────────────────────────────────┘
+                              │
+                     ┌────────▼────────┐
+                     │     app.js      │  Router + Controller
+                     │ handleAction()  │  Event delegation
+                     └────────┬────────┘
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        │                     │                     │
+┌───────▼────────┐   ┌────────▼────────┐   ┌────────▼────────┐
+│   store.js     │   │     views/      │   │    cloud.js     │
+│ State & query  │   │ HTML templates  │   │  Sync opsional  │
+└───────┬────────┘   └────────┬────────┘   └────────┬────────┘
+        │                     │                     │
+┌───────▼────────┐   ┌────────▼────────┐   ┌────────▼────────┐
+│  localStorage  │   │   DOM Render    │   │  Remote DB /    │
+│  (per ruang)   │   │                 │   │  Google Drive   │
+└────────────────┘   └─────────────────┘   └─────────────────┘
 ```
 
-### 1. Pola Desain (Architecture Pattern)
-Aplikasi ini menerapkan variasi dari pola **MVC / Pub-Sub Hybrid**:
-- **Store / State Manager (`js/store.js` & `js/data.js`):** Mengelola *single source of truth* data aplikasi secara terpusat di memori lokal dan *IndexedDB / LocalStorage*.
-- **Controller / Router (`js/app.js`):** Menangani *routing* halaman, mengontrol alur eksekusi aplikasi (*bootstrapping*), serta menangani *event-driven action* (`handleAction`).
-- **View Renderers (`js/views/`):** Bertanggung jawab meng-generate template HTML berbasis *String Literals* secara komponensial yang dinamis dan efisien.
+### Alur data
+1. Aksi pengguna ditangkap oleh *event delegation* di `app.js`.
+2. `store.js` memvalidasi dan mengubah data melalui `commit()`.
+3. Data dipersist ke `localStorage` per workspace.
+4. Store mengirim event perubahan, lalu view dirender ulang.
+5. Service worker menyajikan aset dari cache saat offline.
 
-### 2. PWA Layer (`sw.js` & `manifest.json`)
-- **Service Worker (`sw.js`):** Menangani strategi *caching* aset statis (HTML, CSS, JS, Icons) sehingga aplikasi dapat memuat secara instan walaupun tanpa koneksi internet.
+### Penyimpanan
+- `risly.mm.workspaces.v1` — registry workspace/akun.
+- `risly.mm.workspace.v1.<workspaceId>` — data utama workspace.
+- `risly.mm.prefs.v1` — preferensi tema, privasi, dan tampilan.
+- `risly.mm.session.v1` — sesi login.
+- `risly.mm.cloud.v1` — konfigurasi sinkronisasi cloud.
+- `risly.mm.google.v1` — sesi Google Drive.
+- `risly.mm.reminders.v1` — status pengingat yang sudah ditampilkan.
+
+> Skema data saat ini: **v5** (`APP.schemaVersion` di `js/config.js`). Migrasi data lama ditangani otomatis oleh `js/data.js`.
+
+### Service Worker (`sw.js`)
+- **Navigasi:** network-first dengan fallback `index.html` dan halaman offline.
+- **Aset lokal:** stale-while-revalidate.
+- **CDN library:** cache-first setelah pemuatan pertama.
+- **Cloud/API Google/Firebase:** tidak di-cache.
 
 ---
 
-## 📂 Struktur Direktori Proyek
+## 📂 Struktur Direktori
 
 ```
 RISLY-Money-Manager/
+├── .github/
+│   └── workflows/
+│       └── static.yml          # Deploy otomatis ke GitHub Pages
 ├── css/
-│   └── app.css               # Modul styling utama, variabel CSS & Media Queries
-├── icons/                    # Aset ikon PWA (Apple touch icon, favicon, & PWA masks)
+│   └── app.css                 # Styling utama, variabel CSS, media queries
+├── icons/                      # Ikon PWA, favicon, Apple touch icon
 ├── js/
-│   ├── app.js                # Controller utama, router, dan inisialisasi aplikasi
-│   ├── auth.js               # Logika autentikasi & pengelolaan sesi pengguna
-│   ├── charts.js             # Modul pembuatan visualisasi grafik
-│   ├── cloud.js              # Mesin sinkron opsional (JSONBin, Supabase, Firebase)
-│   ├── config.js             # Konfigurasi konstanta global aplikasi
-│   ├── data.js               # Pengelolaan skema data dasar & migrasi
-│   ├── gdrive.js             # Google Sign-In & Google Drive (OAuth + REST, backup manual)
-│   ├── google-auth-relay.js   # Relay login Google untuk PWA iOS (callback lintas Safari)
-│   ├── icons.js              # Komponen pustaka ikon SVG dinamis
-│   ├── store.js              # State management & pemrosesan query data
-│   ├── ui.js                 # Helper UI (Modal, Toast, Money Formatter)
-│   ├── utils.js              # Helper fungsi matematika, tanggal, & string
-│   ├── forms/                # Form renderers & input handlers
-│   │   ├── account.js        # Form tambah/edit akun
-│   │   ├── cloud.js          # Field penyedia sinkron (JSONBin, Supabase, Firebase)
-│   │   ├── note.js           # Form catatan keuangan
-│   │   └── transaction.js    # Form input transaksi
-│   └── views/                # Halaman-halaman UI (Templates)
-│       ├── accounts.js       # Halaman manajemen rekening
-│       ├── auth.js           # Halaman login / registrasi
-│       ├── budgets.js        # Halaman anggaran
-│       ├── calendar.js       # Halaman kalender keuangan
-│       ├── categories.js     # Halaman kategori & sub-kategori
-│       ├── common.js         # Komponen UI bersama (Row tx, header)
-│       ├── dashboard.js      # Halaman ringkasan/dashboard
-│       ├── notes.js          # Halaman catatan
-│       ├── recurring.js      # Halaman transaksi berulang
-│       ├── reports.js        # Halaman analisis & laporan
-│       ├── settings.js       # Halaman pengaturan aplikasi
-│       ├── shell.js          # Main layout container & navigasi
-│       └── transactions.js   # Halaman daftar & filter transaksi
-├── index.html                # Entry point HTML utama
-├── manifest.json             # Manifest Web App untuk installability PWA
-├── netlify.toml              # Konfigurasi deployment Netlify
-├── oauth-callback.html       # Halaman callback OAuth untuk PWA iOS (dibuka di jendela Safari)
-└── sw.js                     # Service worker untuk dukungan offline & cache PWA
+│   ├── app.js                  # Controller utama, router, event handler
+│   ├── auth.js                 # PIN, hashing PBKDF2, sesi, lockout
+│   ├── backup.js               # Backup lokal & Google Drive
+│   ├── charts.js               # Konfigurasi Chart.js
+│   ├── cloud.js                # Sinkronisasi JSONBin/Supabase/Firebase
+│   ├── colors.js               # Helper warna & harmony
+│   ├── config.js               # Konstanta, route, provider, versi
+│   ├── data.js                 # Skema data, seed, migrasi
+│   ├── export.js               # Export laporan Excel & PDF
+│   ├── gdrive.js               # Google Identity Services & Drive REST
+│   ├── google-auth-relay.js    # Login Google via Firebase Auth
+│   ├── icons.js                # Library ikon SVG
+│   ├── import.js               # Import CSV/Excel, preview, template
+│   ├── pull-to-refresh.js      # Pull-to-refresh mobile
+│   ├── store.js                # State management & query data
+│   ├── ui.js                   # Modal, toast, badge, formatter
+│   ├── utils.js                # Helper tanggal, angka, string
+│   ├── forms/
+│   │   ├── account.js          # Form akun
+│   │   ├── cloud.js            # Form penyedia cloud
+│   │   ├── note.js             # Form catatan/tugas
+│   │   └── transaction.js      # Form transaksi
+│   └── views/
+│       ├── accounts.js         # Halaman akun
+│       ├── auth.js             # Halaman login & PIN
+│       ├── budgets.js          # Halaman anggaran
+│       ├── calendar.js         # Halaman kalender
+│       ├── categories.js       # Halaman kategori
+│       ├── common.js           # Komponen bersama (baris transaksi, dll.)
+│       ├── dashboard.js        # Halaman beranda
+│       ├── goals.js            # Halaman target keuangan
+│       ├── notes.js            # Halaman catatan & tugas
+│       ├── recurring.js        # Halaman transaksi berulang
+│       ├── reports.js          # Halaman laporan
+│       ├── settings.js         # Halaman pengaturan
+│       ├── shell.js            # Layout, sidebar, bottom nav
+│       └── transactions.js     # Halaman transaksi & modal filter
+├── firebase-security-rules.json # Rules Realtime Database
+├── google1b0403dbd7b7bbff.html  # Verifikasi Google Search Console
+├── index.html                  # Entry point aplikasi
+├── manifest.json               # Manifest PWA
+├── netlify.toml                # Konfigurasi deploy Netlify
+├── oauth-callback.html         # Callback OAuth (iOS/PWA)
+├── privacy.html                # Kebijakan privasi
+├── SECURITY.md                 # Catatan keamanan
+├── start.cmd                   # Server lokal untuk Windows
+├── start.sh                    # Server lokal untuk macOS/Linux
+├── sw.js                       # Service worker
+└── _headers                    # Header keamanan & cache (Netlify/Cloudflare)
 ```
 
 ---
 
-## 🛠️ Panduan Instalasi & Pengembangan
+## 🚀 Menjalankan Secara Lokal
 
-Karena aplikasi dibangun menggunakan **Pure Web Standards (Vanilla JavaScript ES Modules)**, Anda tidak memerlukan proses *compilation* atau *build step* yang rumit (seperti Webpack atau Vite).
+Karena aplikasi memakai **ES Modules**, file tidak bisa dibuka langsung dengan `file://`. Gunakan HTTP server lokal.
 
-### Langkah Jalankan di Lokal:
+### 1. Clone repository
 
-1. **Clone repository ini:**
-   ```bash
-   git clone https://github.com/username/RISLY-Money-Manager.git
-   cd RISLY-Money-Manager
-   ```
+```bash
+git clone https://github.com/rzkdmln/RISLY-Money-Manager.git
+cd RISLY-Money-Manager
+```
 
-2. **Jalankan HTTP Server Lokal:**
-   Karena menggunakan *ES Modules* (`import`/`export`), file tidak bisa dibuka langsung melalui protokol `file://`. Gunakan HTTP server lokal sederhana:
+### 2. Jalankan server statis
 
-   - **Windows (paling mudah):** klik dua kali **`start.cmd`** — server langsung jalan dan browser terbuka.
-   - **macOS / Linux:** jalankan `./start.sh`.
-   - **Menggunakan Live Server (VS Code Extension):** Klik kanan pada `index.html` -> *Open with Live Server*.
-   - **Menggunakan Python:**
-     ```bash
-     python3 -m http.server 8080
-     ```
-   - **Menggunakan Node.js (`npx`):**
-     ```bash
-     npx serve .
-     ```
+**Windows**
 
-3. Akses aplikasi melalui browser di `http://localhost:8080`.
+```bat
+start.cmd
+```
 
-> **Catatan:** `http.server` di atas **bukan backend** — ia hanya menyajikan file statis karena browser memblokir ES Modules dari `file://`. Setelah terbuka sekali, aplikasi bisa dipakai offline lewat service worker. Jika muncul tulisan **"RISLY sedang offline"**, artinya server statisnya sedang tidak berjalan: jalankan `start.cmd` lagi lalu refresh.
+**macOS / Linux**
 
----
+```bash
+./start.sh
+```
 
-## 🔐 Login Google & Backup Drive
+**Manual dengan Python**
 
-Google Drive dipakai **hanya untuk login dan backup/pemulihan manual**. Aplikasi tidak menyinkronkan data ke Google setiap saat — data utama tetap tersimpan lokal di perangkat (offline-first).
+```bash
+python -m http.server 8080 --bind 127.0.0.1
+```
 
-### Yang perlu disiapkan (sekali saja)
+**Manual dengan Node.js**
 
-1. Buka [Google Cloud Console](https://console.cloud.google.com/) → buat project baru.
-2. **APIs & Services → Library** → aktifkan **Google Drive API**.
-3. **APIs & Services → OAuth consent screen** → pilih *External*, isi nama aplikasi, lalu tambahkan diri Anda sebagai *test user*.
-4. **APIs & Services → Credentials → Create credentials → OAuth client ID**:
-   - Application type: **Web application**
-   - *Authorized JavaScript origins*: `http://localhost:8080` (lokal) dan domain produksi Anda (mis. `https://risly.pages.dev`)
-   - *Authorized redirect URIs*: `http://localhost:8080/oauth-callback.html` dan `https://risly.pages.dev/oauth-callback.html` (sesuaikan dengan domain produksi)
-5. Salin **Client ID** (`…apps.googleusercontent.com`).
+```bash
+npx serve .
+```
 
-> **Penting untuk iPhone:** PWA yang dipasang di Home Screen memakai penyimpanan terpisah dari Safari. Karena itu login Google di iOS memakai halaman `oauth-callback.html` dan relay kecil, bukan popup biasa. Tanpa *Authorized redirect URI* di atas, Google akan menampilkan **Error 400: redirect_uri_mismatch** dan login tidak akan selesai.
+### 3. Buka aplikasi
 
-### Menautkan akun Google (sekali per anggota)
+```
+http://127.0.0.1:8080
+```
 
-1. Masuk aplikasi dengan PIN.
-2. Buka **Pengaturan → kartu Google → Masuk dengan Google**.
-3. Klik **Tautkan akun Google ini**.
-4. Ulangi untuk anggota lain dengan Gmail masing-masing. Setelah tertaut, tombol **Masuk dengan Google** di halaman depan langsung membuka aplikasi tanpa PIN.
+> `http.server`/`serve` hanya menyajikan file statis, bukan backend. Port **8080** disarankan agar cocok dengan *Authorized JavaScript origins* Google OAuth saat pengembangan.
 
-### Login di halaman depan
-
-- Tombol **Masuk dengan Google** mencocokkan email Google dengan profil yang sudah tertaut.
-- Jika akun belum tertaut, masukkan PIN sekali; akun Google otomatis ditautkan ke profil yang dipakai.
-- PIN tetap menjadi cadangan saat offline atau jika Google tidak tersedia.
-- **iPhone / PWA Home Screen:** jendela Google terbuka sebagai lembar Safari. Setelah memilih akun, kembali ke aplikasi RISLY — hasil login diambil otomatis lewat relay. Jika aplikasi sempat ditutup, buka lagi dan proses akan dilanjutkan.
-
-### Backup & pemulihan (manual)
-
-- **Backup sekarang** — membuat berkas `risly-backup-YYYY-MM-DD-HHmmss.json` di folder tersembunyi aplikasi (`appDataFolder`). Maksimal 10 backup terbaru disimpan; yang lebih lama dihapus otomatis.
-- **Pulihkan** — menampilkan daftar backup untuk dipilih. Data lokal saat ini akan diganti.
-- **Perangkat baru** — di halaman awal pilih **Masuk & pulihkan dari Google Drive**, pilih backup, lalu masuk. Jika akun Google itu tertaut di dalam backup, aplikasi langsung terbuka.
-
-### Batasan yang perlu diketahui
-
-- Token akses Google berlaku ±1 jam. Aplikasi mencoba memperbarui token secara senyap; jika Google meminta konfirmasi ulang, klik **Masuk dengan Google** sekali lagi.
-- **Tidak ada sinkron otomatis ke Google.** Backup hanya dibuat saat Anda menekan tombol backup.
-- Login Google membuka aplikasi tanpa PIN, jadi amankan akun Google di perangkat ini.
-- JSONBin, Supabase, dan Firebase tetap tersedia sebagai sinkron opsional di **Pengaturan → Sinkron cloud lain**.
-
-### Troubleshooting
-
-**Error 403: access_denied** — aplikasi OAuth masih berstatus *Testing* dan akun Google yang dipakai belum terdaftar sebagai penguji. Buka **OAuth consent screen → Test users → Add users**, masukkan alamat Gmail yang dipakai, lalu coba lagi. Alternatifnya klik **Publish app** (scope `drive.appdata`, `openid`, `email`, `profile` tergolong non-sensitif sehingga umumnya tidak butuh verifikasi).
-
-**Error 400: redirect_uri_mismatch** — URL `oauth-callback.html` belum didaftarkan. Buka **Credentials → OAuth client → Authorized redirect URIs**, tambahkan `https://<domain-anda>/oauth-callback.html` persis seperti yang dipakai aplikasi (tanpa garis miring di akhir), simpan, tunggu ±5 menit.
-
-**Google Drive API belum diaktifkan** — pesan seperti *"Google Drive API has not been used in project … before or it is disabled"* berarti API-nya belum dinyalakan. Buka **APIs & Services → Library → Google Drive API → Enable** (atau [tautan langsung](https://console.developers.google.com/apis/api/drive.googleapis.com/overview)), tunggu ±2 menit, lalu coba lagi.
-
-**Client ID vs Client Secret** — Client ID memang publik dan aman disimpan di kode (`APP.googleClientId`). **Client Secret tidak boleh dipakai** di aplikasi browser mana pun karena bisa dibaca siapa saja; alur Google Identity Services tidak membutuhkannya. Jika secret sudah pernah tersebar, reset lewat **Credentials → OAuth client → Reset secret**.
+### Pertama kali membuka
+1. Masuk dengan Google, atau buat PIN saat diminta.
+2. Tambahkan akun (rekening/dompet) terlebih dahulu.
+3. Mulai catat transaksi dari halaman **Transaksi** atau tombol tambah.
+4. Atur anggaran, kategori, dan target sesuai kebutuhan.
 
 ---
 
-## 📱 Panduan PWA & Catatan Browser
+## ⚙️ Konfigurasi
 
-- **Android (Chrome/Edge):** Klik opsi menu browser lalu pilih **"Tambahkan ke Layar Utama" / "Install Application"**.
-- **iOS (Safari):** Klik tombol **Share** di Safari lalu pilih **"Add to Home Screen"**.
-  
-> **Catatan Notifikasi iOS:** Sesuai kebijakan sistem operasi iOS, pengingat lokal dan push notification pada PWA berjalan paling optimal saat PWA dipasang di Home Screen dan aplikasi berada dalam kondisi aktif/background.
+### Google OAuth & Drive
+
+Konfigurasi publik ada di `js/config.js` (`APP.googleClientId`). Untuk memakai project Google milik sendiri:
+
+1. Buat project di [Google Cloud Console](https://console.cloud.google.com/).
+2. Aktifkan **Google Drive API**.
+3. Atur **OAuth consent screen** (External + test users saat masih testing).
+4. Buat **OAuth client ID** tipe **Web application**.
+5. Daftarkan origin dan redirect URI:
+   - `http://127.0.0.1:8080`
+   - `http://localhost:8080`
+   - `https://<domain-produksi-anda>`
+   - `https://<domain-produksi-anda>/oauth-callback.html`
+6. Ganti `APP.googleClientId` di `js/config.js`.
+
+> **Client Secret tidak dipakai** dan tidak boleh disimpan di aplikasi browser. Cukup Client ID publik.
+
+### Firebase
+
+Konfigurasi Firebase ada di `js/config.js` (`FIREBASE_CONFIG`). Agar login Google dan sinkronisasi real-time berfungsi:
+
+1. Aktifkan **Authentication → Sign-in method → Google**.
+2. Aktifkan **Realtime Database**.
+3. Publikasikan rules dari `firebase-security-rules.json`.
+4. Daftarkan redirect Firebase di Google Cloud Console:
+   `https://<project-id>.firebaseapp.com/__/auth/handler`.
+
+Detail keamanan dan aturan database ada di [`SECURITY.md`](SECURITY.md).
+
+### Sinkronisasi cloud opsional
+
+Buka **Pengaturan → Sinkron cloud** dan pilih penyedia:
+
+| Provider | Keterangan |
+|---|---|
+| Perangkat ini saja | Default, tanpa sinkronisasi |
+| JSONBin | Setup cepat, cocok untuk 2 perangkat |
+| Supabase REST | Database Postgres via REST |
+| Firebase RTDB | Sinkronisasi real-time |
+
+Kredensial cloud disimpan lokal di perangkat dan tidak dikirim ke server RISLY.
+
+---
+
+## 🌐 Deployment
+
+RISLY adalah situs statis murni. Tidak ada build step.
+
+### GitHub Pages
+
+Workflow `.github/workflows/static.yml` otomatis men-deploy branch `main` ke GitHub Pages setiap kali ada push.
+
+1. Buka **Settings → Pages**.
+2. Pilih **GitHub Actions** sebagai source.
+3. Push ke `main`.
+4. Pastikan domain GitHub Pages ditambahkan ke Authorized origins/redirect URI Google OAuth.
+
+### Netlify
+
+`netlify.toml` sudah menyiapkan:
+
+- Publish directory: `.` (root repo).
+- Header keamanan: `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`.
+- Cache control untuk `sw.js`, `index.html`, CSS, JS, dan ikon.
+
+### Hosting statis lain
+
+Deploy seluruh isi repo ke hosting statis apa pun (Cloudflare Pages, Vercel, dsb.). Pastikan:
+
+- HTTPS aktif (wajib untuk service worker, Web Crypto, dan Google OAuth).
+- `sw.js` disajikan dari root domain.
+- Header keamanan dari `_headers` didukung atau direplikasi.
+
+---
+
+## 💾 Data, Backup & Privasi
+
+### Penyimpanan lokal
+- Data utama disimpan di `localStorage`, terpisah per workspace/ruang.
+- **PIN hanya mengunci sesi aplikasi**; data lokal tidak dienkripsi.
+- Jangan gunakan perangkat bersama tanpa PIN dan kunci otomatis.
+- Kapasitas `localStorage` terbatas (umumnya 5–10 MB per origin). Lampiran struk dikompresi untuk menghemat ruang.
+
+### Backup
+- **Backup lokal:** buat file JSON dan simpan di perangkat lain.
+- **Google Drive:** backup manual ke `appDataFolder` (maksimal 10 file terbaru).
+- **Pemulihan:** dari file JSON atau dari daftar backup Google Drive.
+- Disarankan backup rutin sebelum mengganti perangkat atau membersihkan data browser.
+
+### Privasi
+- Tidak ada server RISLY yang menyimpan data pengguna.
+- Sinkronisasi cloud hanya aktif jika Anda mengonfigurasinya sendiri.
+- Google Drive hanya dipakai untuk login dan backup manual; tidak ada sinkronisasi otomatis ke Google.
+- Kebijakan privasi lengkap: [`privacy.html`](privacy.html).
+
+---
+
+## 🔄 Update & Cache PWA
+
+Saat merilis perubahan:
+
+1. Naikkan versi di **dua tempat**:
+   - `js/config.js` → `APP.version`
+   - `sw.js` → `const VERSION`
+2. Deploy ulang.
+3. Pengguna dapat memeriksa update lewat **Pengaturan → Periksa update**.
+
+Service worker memakai strategi *stale-while-revalidate* untuk aset lokal. Jika perubahan belum terlihat setelah deploy, lakukan hard refresh atau tutup lalu buka kembali PWA.
+
+---
+
+## 🧪 Troubleshooting
+
+**"RISLY sedang offline"**
+Server statis tidak berjalan. Jalankan `start.cmd`/`start.sh`, lalu refresh. Jika PWA sudah ter-install dan pernah dibuka, aplikasi tetap bisa berjalan dari cache.
+
+**Google login: Error 403 `access_denied`**
+Aplikasi OAuth masih berstatus *Testing* dan akun belum terdaftar. Tambahkan akun ke **OAuth consent screen → Test users**, atau publish aplikasi.
+
+**Google login: Error 400 `redirect_uri_mismatch`**
+Redirect URI belum cocok. Tambahkan URL aplikasi dan `oauth-callback.html` persis tanpa garis miring di akhir, lalu tunggu beberapa menit.
+
+**Google Drive API belum aktif**
+Aktifkan **Google Drive API** di Google Cloud Console, tunggu ±2 menit, lalu coba lagi.
+
+**Login Google berhasil tetapi data tidak muncul**
+Pastikan akun Google tersebut sudah tertaut ke workspace yang benar. Gunakan **Pengaturan → Gabung ruang lain** dengan kode undangan bila perlu.
+
+**Perubahan kode tidak terlihat**
+Service worker masih menyajikan cache lama. Naikkan versi `sw.js`, hard refresh, atau unregister service worker dari DevTools.
+
+**Pengingat tidak muncul di iOS**
+Notifikasi PWA paling optimal saat aplikasi dipasang ke Home Screen dan diizinkan di pengaturan iOS.
+
+---
+
+## 🤝 Kontribusi
+
+Kontribusi terbuka untuk perbaikan bug, peningkatan UI/UX, atau fitur baru.
+
+1. Fork repository.
+2. Buat branch fitur: `git checkout -b fitur/nama-fitur`.
+3. Commit perubahan dengan pesan yang jelas.
+4. Push dan buka Pull Request.
+5. Jelaskan perubahan, langkah pengujian, dan screenshot bila relevan.
+
+Mohon menjaga gaya kode yang sudah ada (Vanilla JS, template string, tanpa build step) dan tidak menambahkan secret/API key pribadi ke repository.
 
 ---
 
 ## 📄 Lisensi
 
-Distributed under the MIT License. See `LICENSE` for more information.
-```
-
-EOF
+Dirilis di bawah lisensi **MIT**. Anda bebas menggunakan, memodifikasi, dan mendistribusikan ulang dengan tetap menyertakan atribusi.
 
 ---
 
-### Ringkasan File
-File `README.md` di atas telah disiapkan mencakup:
-1. **Fitur Utama:** Penjelasan menyeluruh modul keuangan yang ada pada aplikasi.
-2. **Arsitektur Sistem:** Penjelasan pola Vanilla JS SPA + Store Management + Service Worker PWA beserta diagram arsitekturnya.
-3. **Struktur Direktori:** Pemetaan terperinci seluruh file proyek di folder `css/`, `js/`, `js/forms/`, dan `js/views/`.
-4. **Panduan Instalasi:** Cara menjalankan aplikasi secara lokal dan tips penggunaan PWA di iOS & Android.
+<p align="center">
+  Dibuat untuk keuangan yang lebih rapi, tenang, dan terencana. 💙
+</p>
