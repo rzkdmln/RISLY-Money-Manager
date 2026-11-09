@@ -3076,27 +3076,19 @@ function submitBudgetTotal(form) {
 
 function syncBudgetAllocHint(form) {
   if (!form) return;
-  const hint = form.querySelector('[data-budget-alloc-hint]');
-  if (!hint) return;
-  const total = Number(form.querySelector('[name="total"]')?.value || 0) || 0;
+  const totalInput = form.querySelector('[name="total"]');
+  if (!totalInput) return;
   let allocated = 0;
   form.querySelectorAll('input[name^="budget_"]').forEach((input) => {
     allocated += Number(input.value || 0) || 0;
   });
-  const remaining = total - allocated;
-  hint.textContent = 'Alokasi kategori: ' + money(allocated) + ' dari ' + money(total) + ' (sisa ' + money(Math.max(0, remaining)) + (remaining < 0 ? ', melebihi total' : '') + ').';
+  totalInput.value = String(Math.round(allocated));
 }
 function submitBudgetCategories(form) {
   const entries = {};
   new FormData(form).forEach((value, key) => {
     if (key.startsWith('budget_')) entries[key.slice(7)] = Number(value) || 0;
   });
-  const totalRaw = formValue(form, 'total');
-  const total = Number(totalRaw);
-  if (totalRaw !== null && (!Number.isFinite(total) || total < 0)) {
-    showFormError(form, 'Total anggaran tidak valid.');
-    return;
-  }
   const warning = Number(formValue(form, 'warning'));
   const danger = Number(formValue(form, 'danger'));
   const hasThresholds = form.querySelector('[name="warning"]') && form.querySelector('[name="danger"]');
@@ -3107,7 +3099,7 @@ function submitBudgetCategories(form) {
     }
     store.updateSettings({ budgetWarning: warning, budgetDanger: danger });
   }
-  if (totalRaw !== null) entries.__total__ = total;
+  entries.__total__ = Object.keys(entries).reduce((sum, key) => sum + (Number(entries[key]) || 0), 0);
   store.setBudgets(ui.budgetMonth || monthKey(), entries);
   toast('Anggaran disimpan.', 'success');
   closeModal({ silent: true });

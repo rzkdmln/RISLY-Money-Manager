@@ -22,7 +22,7 @@ export function budgetsView() {
 
   const allocated = categories.reduce((sum, item) => sum + safeNumber(item.limit), 0);
   const unallocated = status.total - allocated;
-  const unallocatedText = status.total > 0
+  const unallocatedText = status.total > 0 && Math.abs(unallocated) > 0
     ? 'Tidak teralokasi ke kategori: ' + money(Math.max(0, unallocated)) + (unallocated < 0 ? ' (melebihi total)' : '') + '.'
     : '';
 
@@ -69,7 +69,7 @@ export function budgetsView() {
           '</div>' +
           (unallocatedText ? '<p class="text-[11px] text-slate-400 mt-2">' + unallocatedText + '</p>' : '') +
           (status.remaining < 0 ? '<p class="budget-alert mt-3">' + icon('alert-triangle', 'w-3.5 h-3.5') + ' Anggaran terlampaui ' + money(Math.abs(status.remaining)) + '.</p>' : status.percent >= status.warning ? '<p class="budget-alert budget-alert-warning mt-3">' + icon('info', 'w-3.5 h-3.5') + ' ' + (status.percent >= status.danger ? 'Sangat dekat' : 'Mendekati') + ' batas anggaran. Sisa harian aman ' + money(sisaHarian(status.remaining, month)) + '.</p>' : '<p class="budget-alert budget-alert-safe mt-3">' + icon('check-circle', 'w-3.5 h-3.5') + ' Arus kas masih sehat. Pertahankan ritme belanja.</p>') +
-        '</div>' : '<p class="text-sm leading-6 text-slate-500 dark:text-slate-400">Isi total anggaran untuk melihat progres, sisa dana, dan rekomendasi batas belanja harian.</p>') +
+        '</div>' : '<p class="text-sm leading-6 text-slate-500 dark:text-slate-400">Atur batas kategori untuk melihat progres, sisa dana, dan rekomendasi batas belanja harian.</p>') +
       '</div>' +
     '</section>' +
     '' +
@@ -87,7 +87,7 @@ export function budgetCategoriesModal(month) {
         '<span class="tx-icon" style="--tx-color:' + escapeAttr(item.category.color) + '">' + icon(item.category.icon, 'w-4 h-4') + '</span>' +
         '<div class="min-w-0 flex-1">' +
           '<p class="text-sm font-semibold text-slate-900 dark:text-white truncate">' + escapeHTML(item.category.name) + '</p>' +
-          '<p class="text-[11px] text-slate-500 dark:text-slate-400">' + money(item.spent) + ' terpakai' + (item.limit ? ' · ' + formatPercent(item.percent) : ' · belum ada batas') + '</p>' +
+          '<p class="budget-cat-meta text-[11px] text-slate-500 dark:text-slate-400">' + money(item.spent) + ' terpakai' + (item.limit ? ' · ' + formatPercent(item.percent) : ' · belum ada batas') + '</p>' +
         '</div>' +
         '<div class="budget-input">' +
           '<span>Rp</span>' +
@@ -109,12 +109,13 @@ export function budgetCategoriesModal(month) {
     '<form data-form="budget-categories" class="space-y-4">' +
       '<div>' +
         '<p class="card-kicker">Total anggaran</p>' +
-        '<label class="field-label mt-1">Atur total' +
+        '<label class="field-label mt-1">Total otomatis' +
           '<div class="input-with-prefix mt-1.5">' +
             '<span>Rp</span>' +
-            '<input class="field" type="number" name="total" min="0" step="1000" inputmode="numeric" value="' + Math.round(status.total) + '" placeholder="0">' +
+            '<input class="field" type="number" name="total" value="' + Math.round(categories.reduce((s, i) => s + safeNumber(i.limit), 0)) + '" readonly aria-readonly="true">' +
           '</div>' +
         '</label>' +
+        '<p class="text-[11px] text-slate-400 mt-1">Dihitung otomatis dari jumlah batas kategori.</p>' +
       '</div>' +
 
       '<div class="pt-4 border-t border-slate-200 dark:border-slate-700">' +
@@ -125,7 +126,6 @@ export function budgetCategoriesModal(month) {
           '<button type="button" class="btn btn-ghost btn-sm" data-action="copy-budget" title="Salin anggaran bulan sebelumnya">' + icon('copy', 'w-3.5 h-3.5') + ' Salin bulan lalu</button>' +
         '</div>' +
         '<p class="text-[11px] text-slate-400">Salin: menyalin nominal anggaran dari bulan lalu.</p>' +
-        '<p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1" data-budget-alloc-hint>Alokasi kategori: ' + money(categories.reduce((s,i)=>s+safeNumber(i.limit),0)) + ' dari ' + money(status.total) + ' (sisa ' + money(Math.max(0, status.total - categories.reduce((s,i)=>s+safeNumber(i.limit),0))) + ').</p>' +
       '</div>' +
 
       '<div class="pt-4 border-t border-slate-200 dark:border-slate-700">' +
