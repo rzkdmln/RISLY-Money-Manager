@@ -872,7 +872,8 @@ function openBudgetCategoryAmountLightbox(categoryId, categoryName, amount, mont
           <label class="field-label">Nominal batas
             <div class="input-with-prefix mt-1.5">
               <span>Rp</span>
-              <input class="field" type="number" name="amount" min="0" step="1000" inputmode="numeric" value="${amount ? Math.round(amount) : ''}" placeholder="0" aria-label="Batas ${escapeAttr(categoryName)}">
+              <input class="field" type="text" inputmode="numeric" name="amountDisplay" value="${amount ? String(Math.round(amount)).replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''}" placeholder="0" aria-label="Batas ${escapeAttr(categoryName)}" autocomplete="off">
+              <input type="hidden" name="amount" value="${Math.round(amount || 0)}">
             </div>
           </label>
           <p class="text-[11px] text-slate-400 mt-2">Isi 0 untuk menghapus batas.</p>
@@ -889,10 +890,28 @@ function openBudgetCategoryAmountLightbox(categoryId, categoryName, amount, mont
     node.addEventListener('click', close);
   });
   const form = overlay.querySelector('form');
+  const displayInput = form.querySelector('input[name="amountDisplay"]');
+  const hiddenInput = form.querySelector('input[name="amount"]');
+  const formatThousands = (raw) => {
+    const digits = String(raw || '').replace(/\D/g, '');
+    if (!digits) return '';
+    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+  if (displayInput && hiddenInput) {
+    displayInput.addEventListener('input', () => {
+      const raw = displayInput.value.replace(/\D/g, '');
+      hiddenInput.value = raw || '0';
+      displayInput.value = formatThousands(raw);
+      try { displayInput.setSelectionRange(displayInput.value.length, displayInput.value.length); } catch { /* noop */ }
+    });
+  }
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     const value = Number(form.amount.value) || 0;
     store.setBudget(month, categoryId, value);
+    const updatedStatus = store.budgetStatus(month);
+    const newTotal = (updatedStatus.categories || []).reduce((sum, item) => sum + (Number(item.limit) || 0), 0);
+    store.setBudget(month, '__total__', newTotal);
     overlay.remove();
     const panel = document.getElementById('modal-root')?.querySelector('.modal-panel');
     if (panel) {
