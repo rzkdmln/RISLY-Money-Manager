@@ -1044,6 +1044,8 @@ body.is-auth { background: var(--bg); }
 .period-preset.is-active:hover { color: #fff; }
 .filter-title { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 750; color: var(--muted); }
 .filter-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.filter-grid.filter-grid-modal { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.filter-grid.filter-grid-modal .filter-search { grid-column: span 2; }
 .filter-search { grid-column: span 2; }
 .filter-bottom { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--border); flex-wrap: wrap; }
 .day-group { display: flex; flex-direction: column; gap: 2px; }
@@ -1456,15 +1458,28 @@ body.is-auth { background: var(--bg); }
 .report-category-percent { width: 38px; font-size: 8.5px; color: var(--muted-2); text-align: right; }
 .report-highlight { display: flex; align-items: center; gap: 7px; margin-top: 13px; padding: 9px 10px; border-radius: 9px; background: var(--brand-soft); color: var(--brand); }
 .report-highlight p { margin: 0; font-size: 11px; line-height: 1.5; color: var(--text-soft); }
+.closing-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.closing-fact { min-width: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.closing-fact span { display: block; font-size: 8.5px; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; color: var(--muted-2); }
+.closing-fact strong { display: block; margin-top: 3px; font-size: 12px; font-weight: 750; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.closing-fact em { display: block; margin-top: 1px; font-size: 10.5px; font-style: normal; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.closing-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.closing-status { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.closing-note { margin: 0; font-size: 11px; line-height: 1.5; color: var(--muted); }
+.closing-status + .closing-note { margin-top: 6px; }
+@media (max-width: 639px) {
+  .closing-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .closing-fact:first-child { grid-column: span 2; }
+}
 .creator-row { display: flex; align-items: center; gap: 8px; }
 .creator-avatar { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex: 0 0 auto; border-radius: 999px; color: #fff; background: var(--creator-color, var(--brand)); font-size: 10px; font-weight: 750; }
 .report-divider { height: 1px; margin: 12px 0; background: var(--border); }
 .table-wrap { overflow-x: auto; margin: 0 -5px; }
 .report-table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
-.report-table th { padding: 7px 5px; border-bottom: 1px solid var(--border); text-align: left; font-size: 10px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; color: var(--muted-2); }
-.report-table td { padding: 8px 5px; border-bottom: 1px solid var(--border); color: var(--text-soft); }
+.report-table th { padding: 7px 5px; border: 1px solid var(--border); text-align: left; font-size: 10px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; color: var(--muted-2); background: var(--surface-2); }
+.report-table td { padding: 8px 5px; border: 1px solid var(--border); color: var(--text-soft); }
 .report-table td.text-right { white-space: nowrap; }
-.report-table tr:last-child td { border-bottom: 0; }
+.report-table tr:last-child td { border-bottom: 1px solid var(--border); }
 .export-card {
   display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap;
   padding: 20px; border-radius: var(--radius-lg); border: 1px solid color-mix(in srgb, var(--brand) 18%, var(--border));

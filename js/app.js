@@ -95,7 +95,7 @@ import {
 } from './utils.js';
 
 import { dashboardView } from './views/dashboard.js';
-import { transactionsView, dayDetailView } from './views/transactions.js';
+import { transactionsView, dayDetailView, transactionFilterModal } from './views/transactions.js';
 import { calendarView } from './views/calendar.js';
 import { notesView, tasksSheet } from './views/notes.js';
 import { accountsView } from './views/accounts.js';
@@ -2007,8 +2007,11 @@ async function handleAction(action, element) {
       break;
 
     /* Transactions filters */
-    case 'tx-toggle-filter':
-      ui.txFilterOpen = !ui.txFilterOpen;
+    case 'tx-open-filter':
+      openModal({ size: 'md', className: 'form-modal', html: transactionFilterModal() });
+      break;
+    case 'apply-tx-filter':
+      closeModal({ silent: true });
       renderApplication();
       break;
     case 'tx-preset-month':
@@ -2050,6 +2053,14 @@ async function handleAction(action, element) {
       ui.txUser = 'all';
       ui.txQuery = '';
       ui.txPage = 1;
+      {
+        const modal = document.querySelector('[data-tx-filter-modal]');
+        if (modal) {
+          modal.querySelectorAll('select[data-filter]').forEach((select) => { select.value = 'all'; });
+          const search = modal.querySelector('#tx-search');
+          if (search) search.value = '';
+        }
+      }
       renderApplication();
       break;
     case 'tx-page':

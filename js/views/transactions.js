@@ -109,21 +109,6 @@ export function transactionsView() {
   const pageItems = all.slice(pageStart, pageStart + TX_PAGE_SIZE);
   const groups = transactionDayGroups(pageItems);
   const pageNumbers = paginationPages(ui.txPage, totalPages);
-  const categories = store.categories();
-  const accounts = store.data.accounts.filter((account) => !account.deletedAt);
-  const users = store.activeUsers();
-
-  // Buat opsi tahun otomatis dinamis berdasarkan transaksi yang ada
-  const currentYear = new Date().getFullYear();
-  const transactionYears = new Set(
-    store.transactions().map((tx) => String(tx.date || '').slice(0, 4)).filter((year) => /^\d{4}$/.test(year)),
-  );
-  transactionYears.add(String(currentYear));
-  const sortedYears = [...transactionYears].sort((a, b) => Number(b) - Number(a));
-  let yearOptions = `<option value="all" ${ui.txYear === 'all' ? 'selected' : ''}>Semua tahun</option>`;
-  sortedYears.forEach((year) => {
-    yearOptions += `<option value="${year}" ${ui.txYear === year ? 'selected' : ''}>${year}</option>`;
-  });
 
   const groupHtml = groups.length
     ? groups.map((group) => `<section class="day-group min-w-0 w-full overflow-hidden">
@@ -135,7 +120,8 @@ export function transactionsView() {
   return `<div class="page-stack min-w-0 w-full overflow-hidden">
     ${pageHeader({
       title: 'Transaksi',
-      actions: `<button type="button" class="btn btn-secondary btn-sm hidden sm:inline-flex" data-action="import-transactions">${icon('upload', 'w-3.5 h-3.5')} Import</button>`,
+      actions: `<button type="button" class="btn btn-secondary btn-sm hidden sm:inline-flex" data-action="tx-open-filter">${icon('filter', 'w-3.5 h-3.5')} Filter</button>
+        <button type="button" class="btn btn-secondary btn-sm hidden sm:inline-flex" data-action="import-transactions">${icon('upload', 'w-3.5 h-3.5')} Import</button>`,
     })}
 
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 min-w-0 w-full">
@@ -161,86 +147,10 @@ export function transactionsView() {
       </div>
     </div>
 
-    <div class="sm:hidden">
-      <button type="button" class="btn btn-secondary btn-sm w-full" data-action="import-transactions">${icon('upload', 'w-3.5 h-3.5')} Import transaksi</button>
+    <div class="sm:hidden grid grid-cols-2 gap-2">
+      <button type="button" class="btn btn-secondary btn-sm" data-action="tx-open-filter">${icon('filter', 'w-3.5 h-3.5')} Filter</button>
+      <button type="button" class="btn btn-secondary btn-sm" data-action="import-transactions">${icon('upload', 'w-3.5 h-3.5')} Import</button>
     </div>
-
-    <section class="card filter-card min-w-0 w-full overflow-hidden">
-      <div class="filter-top min-w-0">
-        <button type="button" class="btn btn-secondary btn-sm shrink-0" data-action="tx-toggle-filter" aria-expanded="${ui.txFilterOpen}">
-          ${icon('filter', 'w-4 h-4')} Filter ${icon(ui.txFilterOpen ? 'chevron-up' : 'chevron-down', 'w-3.5 h-3.5')}
-        </button>
-        ${ui.txFilterOpen ? `<button type="button" class="link-button shrink-0" data-action="reset-tx-filter">Reset</button>` : ''}
-      </div>
-      ${ui.txFilterOpen ? `<div class="filter-grid min-w-0 w-full">
-        <label class="field-label min-w-0">Tahun
-          <select class="field mt-1.5 min-w-0 w-full" id="tx-filter-year" data-filter="tx-year">
-            ${yearOptions}
-          </select>
-        </label>
-        <label class="field-label min-w-0">Bulan
-          <select class="field mt-1.5 min-w-0 w-full" id="tx-filter-month" data-filter="tx-month">
-            <option value="all" ${ui.txMonth === 'all' ? 'selected' : ''}>Semua bulan</option>
-            <option value="01" ${ui.txMonth === '01' ? 'selected' : ''}>Januari</option>
-            <option value="02" ${ui.txMonth === '02' ? 'selected' : ''}>Februari</option>
-            <option value="03" ${ui.txMonth === '03' ? 'selected' : ''}>Maret</option>
-            <option value="04" ${ui.txMonth === '04' ? 'selected' : ''}>April</option>
-            <option value="05" ${ui.txMonth === '05' ? 'selected' : ''}>Mei</option>
-            <option value="06" ${ui.txMonth === '06' ? 'selected' : ''}>Juni</option>
-            <option value="07" ${ui.txMonth === '07' ? 'selected' : ''}>Juli</option>
-            <option value="08" ${ui.txMonth === '08' ? 'selected' : ''}>Agustus</option>
-            <option value="09" ${ui.txMonth === '09' ? 'selected' : ''}>September</option>
-            <option value="10" ${ui.txMonth === '10' ? 'selected' : ''}>Oktober</option>
-            <option value="11" ${ui.txMonth === '11' ? 'selected' : ''}>November</option>
-            <option value="12" ${ui.txMonth === '12' ? 'selected' : ''}>Desember</option>
-          </select>
-        </label>
-        <label class="field-label min-w-0">Jenis
-          <select class="field mt-1.5 min-w-0 w-full" id="tx-filter-type" data-filter="tx-type">
-            <option value="all" ${ui.txType === 'all' ? 'selected' : ''}>Semua jenis</option>
-            <option value="expense" ${ui.txType === 'expense' ? 'selected' : ''}>Pengeluaran</option>
-            <option value="income" ${ui.txType === 'income' ? 'selected' : ''}>Pemasukan</option>
-            <option value="transfer" ${ui.txType === 'transfer' ? 'selected' : ''}>Transfer</option>
-          </select>
-        </label>
-        <label class="field-label min-w-0">Akun
-          <select class="field mt-1.5 min-w-0 w-full" id="tx-filter-account" data-filter="tx-account">
-            <option value="all">Semua akun</option>
-            ${accounts.map((account) => `<option value="${escapeAttr(account.id)}" ${ui.txAccount === account.id ? 'selected' : ''}>${escapeHTML(account.name)}${account.archived ? ' (arsip)' : ''}</option>`).join('')}
-          </select>
-        </label>
-        <label class="field-label min-w-0">Kategori
-          <select class="field mt-1.5 min-w-0 w-full" id="tx-filter-category" data-filter="tx-category">
-            <option value="all">Semua kategori</option>
-            <optgroup label="Pengeluaran">
-              ${categories.filter((cat) => cat.type === 'expense').map((cat) => `<option value="${escapeAttr(cat.id)}" ${ui.txCategory === cat.id ? 'selected' : ''}>${escapeHTML(cat.name)}</option>`).join('')}
-            </optgroup>
-            <optgroup label="Pemasukan">
-              ${categories.filter((cat) => cat.type === 'income').map((cat) => `<option value="${escapeAttr(cat.id)}" ${ui.txCategory === cat.id ? 'selected' : ''}>${escapeHTML(cat.name)}</option>`).join('')}
-            </optgroup>
-          </select>
-        </label>
-        <label class="field-label min-w-0">Pencatat
-          <select class="field mt-1.5 min-w-0 w-full" id="tx-filter-user" data-filter="tx-user">
-            <option value="all">Semua</option>
-            ${users.map((user) => `<option value="${escapeAttr(user.id)}" ${ui.txUser === user.id ? 'selected' : ''}>${escapeHTML(user.name)}</option>`).join('')}
-          </select>
-        </label>
-        <label class="field-label filter-search min-w-0">Cari
-          <span class="search-field mt-1.5 min-w-0 w-full">
-            ${icon('search', 'w-4 h-4')}
-            <input class="field min-w-0 w-full" id="tx-search" type="search" inputmode="search" placeholder="Catatan, kategori, akun…" value="${escapeAttr(ui.txQuery)}">
-          </span>
-        </label>
-      </div>
-      <div class="filter-bottom min-w-0">
-        <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 min-w-0 overflow-hidden">
-          ${badge(`${all.length} hasil`, 'slate', 'badge-soft')}
-          ${summary.transfers ? `<span class="truncate">Transfer ${money(summary.transfers)}</span>` : ''}
-        </div>
-      </div>`
-    : ''}
-    </section>
 
     <div class="space-y-5 min-w-0 w-full">${groupHtml}</div>
 
@@ -254,6 +164,104 @@ export function transactionsView() {
         <button type="button" class="pagination-btn" data-action="tx-page" data-page="${ui.txPage + 1}" ${ui.txPage >= totalPages ? 'disabled' : ''} aria-label="Halaman berikutnya">${icon('chevron-right', 'w-4 h-4')}</button>
       </div>
     </div>` : ''}
+  </div>`;
+}
+
+function transactionFilterFields() {
+  const categories = store.categories();
+  const accounts = store.data.accounts.filter((account) => !account.deletedAt);
+  const users = store.activeUsers();
+
+  const currentYear = new Date().getFullYear();
+  const transactionYears = new Set(
+    store.transactions().map((tx) => String(tx.date || '').slice(0, 4)).filter((year) => /^\d{4}$/.test(year)),
+  );
+  transactionYears.add(String(currentYear));
+  const sortedYears = [...transactionYears].sort((a, b) => Number(b) - Number(a));
+  let yearOptions = `<option value="all" ${ui.txYear === 'all' ? 'selected' : ''}>Semua tahun</option>`;
+  sortedYears.forEach((year) => {
+    yearOptions += `<option value="${year}" ${ui.txYear === year ? 'selected' : ''}>${year}</option>`;
+  });
+
+  return `<div class="filter-grid filter-grid-modal min-w-0 w-full">
+    <label class="field-label min-w-0">Tahun
+      <select class="field mt-1.5 min-w-0 w-full" id="tx-filter-year" data-filter="tx-year">
+        ${yearOptions}
+      </select>
+    </label>
+    <label class="field-label min-w-0">Bulan
+      <select class="field mt-1.5 min-w-0 w-full" id="tx-filter-month" data-filter="tx-month">
+        <option value="all" ${ui.txMonth === 'all' ? 'selected' : ''}>Semua bulan</option>
+        <option value="01" ${ui.txMonth === '01' ? 'selected' : ''}>Januari</option>
+        <option value="02" ${ui.txMonth === '02' ? 'selected' : ''}>Februari</option>
+        <option value="03" ${ui.txMonth === '03' ? 'selected' : ''}>Maret</option>
+        <option value="04" ${ui.txMonth === '04' ? 'selected' : ''}>April</option>
+        <option value="05" ${ui.txMonth === '05' ? 'selected' : ''}>Mei</option>
+        <option value="06" ${ui.txMonth === '06' ? 'selected' : ''}>Juni</option>
+        <option value="07" ${ui.txMonth === '07' ? 'selected' : ''}>Juli</option>
+        <option value="08" ${ui.txMonth === '08' ? 'selected' : ''}>Agustus</option>
+        <option value="09" ${ui.txMonth === '09' ? 'selected' : ''}>September</option>
+        <option value="10" ${ui.txMonth === '10' ? 'selected' : ''}>Oktober</option>
+        <option value="11" ${ui.txMonth === '11' ? 'selected' : ''}>November</option>
+        <option value="12" ${ui.txMonth === '12' ? 'selected' : ''}>Desember</option>
+      </select>
+    </label>
+    <label class="field-label min-w-0">Jenis
+      <select class="field mt-1.5 min-w-0 w-full" id="tx-filter-type" data-filter="tx-type">
+        <option value="all" ${ui.txType === 'all' ? 'selected' : ''}>Semua jenis</option>
+        <option value="expense" ${ui.txType === 'expense' ? 'selected' : ''}>Pengeluaran</option>
+        <option value="income" ${ui.txType === 'income' ? 'selected' : ''}>Pemasukan</option>
+        <option value="transfer" ${ui.txType === 'transfer' ? 'selected' : ''}>Transfer</option>
+      </select>
+    </label>
+    <label class="field-label min-w-0">Akun
+      <select class="field mt-1.5 min-w-0 w-full" id="tx-filter-account" data-filter="tx-account">
+        <option value="all" ${ui.txAccount === 'all' ? 'selected' : ''}>Semua akun</option>
+        ${accounts.map((account) => `<option value="${escapeAttr(account.id)}" ${ui.txAccount === account.id ? 'selected' : ''}>${escapeHTML(account.name)}${account.archived ? ' (arsip)' : ''}</option>`).join('')}
+      </select>
+    </label>
+    <label class="field-label min-w-0">Kategori
+      <select class="field mt-1.5 min-w-0 w-full" id="tx-filter-category" data-filter="tx-category">
+        <option value="all" ${ui.txCategory === 'all' ? 'selected' : ''}>Semua kategori</option>
+        <optgroup label="Pengeluaran">
+          ${categories.filter((cat) => cat.type === 'expense').map((cat) => `<option value="${escapeAttr(cat.id)}" ${ui.txCategory === cat.id ? 'selected' : ''}>${escapeHTML(cat.name)}</option>`).join('')}
+        </optgroup>
+        <optgroup label="Pemasukan">
+          ${categories.filter((cat) => cat.type === 'income').map((cat) => `<option value="${escapeAttr(cat.id)}" ${ui.txCategory === cat.id ? 'selected' : ''}>${escapeHTML(cat.name)}</option>`).join('')}
+        </optgroup>
+      </select>
+    </label>
+    <label class="field-label min-w-0">Pencatat
+      <select class="field mt-1.5 min-w-0 w-full" id="tx-filter-user" data-filter="tx-user">
+        <option value="all" ${ui.txUser === 'all' ? 'selected' : ''}>Semua</option>
+        ${users.map((user) => `<option value="${escapeAttr(user.id)}" ${ui.txUser === user.id ? 'selected' : ''}>${escapeHTML(user.name)}</option>`).join('')}
+      </select>
+    </label>
+    <label class="field-label filter-search min-w-0">Cari
+      <span class="search-field mt-1.5 min-w-0 w-full">
+        ${icon('search', 'w-4 h-4')}
+        <input class="field min-w-0 w-full" id="tx-search" type="search" inputmode="search" placeholder="Catatan, kategori, akun…" value="${escapeAttr(ui.txQuery)}">
+      </span>
+    </label>
+  </div>`;
+}
+
+export function transactionFilterModal() {
+  return `<div class="modal-form" data-tx-filter-modal>
+    <header class="modal-header">
+      <div>
+        <p class="modal-kicker">Saring transaksi</p>
+        <h2 class="modal-title">Filter</h2>
+      </div>
+      <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
+    </header>
+    <div class="modal-body">
+      ${transactionFilterFields()}
+    </div>
+    <footer class="modal-footer">
+      <button type="button" class="link-button" data-action="reset-tx-filter">Reset</button>
+      <button type="button" class="btn btn-primary btn-sm" data-action="apply-tx-filter">${icon('check', 'w-4 h-4')} Tampilkan</button>
+    </footer>
   </div>`;
 }
 
