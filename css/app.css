@@ -1583,7 +1583,12 @@ body.is-auth { background: var(--bg); }
 .modal-title { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -.025em; color: var(--text); }
 .modal-body { padding: 16px 18px; flex: 1; min-height: 0; overflow-y: auto; }
 .tx-optional-details { border: 1px dashed var(--border-strong); border-radius: 10px; padding: 8px 12px; margin-top: 13px; background: var(--surface-2); }
-.tx-optional-details > summary { cursor: pointer; font-size: 12px; font-weight: 700; color: var(--muted); list-style: none; user-select: none; }
+.tx-optional-details > summary {
+  cursor: pointer; font-size: 12.5px; font-weight: 700; color: var(--text);
+  list-style: none; user-select: none;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 2px 0;
+}
 .tx-optional-details > summary::-webkit-details-marker { display: none; }
 .tx-optional-details > summary::before { content: '▸ '; }
 .tx-optional-details[open] > summary::before { content: '▾ '; }

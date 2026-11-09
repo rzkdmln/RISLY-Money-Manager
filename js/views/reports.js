@@ -84,36 +84,31 @@ export function reportsView() {
         </div>
         ${closing.closed ? badge('Bulan tertutup', 'blue', 'badge-soft') : badge('Belum ditutup', 'slate', 'badge-soft')}
       </div>
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 min-w-0 w-full">
-        <div class="stat-card stat-green min-w-0 overflow-hidden">
-          <div class="stat-top min-w-0"><span class="truncate">Pemasukan</span><span class="stat-icon shrink-0">${icon('arrow-down-left', 'w-4 h-4')}</span></div>
-          <div class="stat-value text-base sm:text-xl truncate">${money(closing.income)}</div>
-          <div class="stat-hint truncate">${closing.count} transaksi</div>
+      <div class="closing-facts">
+        <div class="closing-fact">
+          <span>Kategori terbesar</span>
+          <strong>${closing.topCategory ? escapeHTML(closing.topCategory.name) : 'Belum ada pengeluaran'}</strong>
+          <em>${closing.topCategory ? money(closing.topCategory.total) : '—'}</em>
         </div>
-        <div class="stat-card stat-red min-w-0 overflow-hidden">
-          <div class="stat-top min-w-0"><span class="truncate">Pengeluaran</span><span class="stat-icon shrink-0">${icon('arrow-up-right', 'w-4 h-4')}</span></div>
-          <div class="stat-value text-base sm:text-xl truncate">${money(closing.expense)}</div>
-          <div class="stat-hint truncate">${closing.topCategory ? `Terbesar: ${closing.topCategory.name}` : 'Tanpa pengeluaran'}</div>
+        <div class="closing-fact">
+          <span>Rata-rata pengeluaran</span>
+          <strong>${money(closing.average)}</strong>
+          <em>per transaksi</em>
         </div>
-        <div class="stat-card stat-blue min-w-0 overflow-hidden">
-          <div class="stat-top min-w-0"><span class="truncate">Arus kas bersih</span><span class="stat-icon shrink-0">${icon('trending-up', 'w-4 h-4')}</span></div>
-          <div class="stat-value text-base sm:text-xl truncate ${closing.net < 0 ? 'amount-expense' : ''}">${closing.net > 0 ? '+' : ''}${money(closing.net)}</div>
-          <div class="stat-hint truncate">${formatPercent(closing.savingsRate)} tabungan</div>
-        </div>
-        <div class="stat-card stat-amber min-w-0 overflow-hidden">
-          <div class="stat-top min-w-0"><span class="truncate">Rata-rata harian</span><span class="stat-icon shrink-0">${icon('calendar', 'w-4 h-4')}</span></div>
-          <div class="stat-value text-base sm:text-xl truncate">${money(closing.average)}</div>
-          <div class="stat-hint truncate">${closing.transfers ? `Transfer ${money(closing.transfers)}` : 'Tanpa transfer'}</div>
+        <div class="closing-fact">
+          <span>Transfer</span>
+          <strong>${money(closing.transfers)}</strong>
+          <em>${closing.transfers ? 'total bulan ini' : 'tanpa transfer'}</em>
         </div>
       </div>
-      <div class="flex flex-wrap items-center justify-between gap-2 mt-4">
-        <div class="flex flex-wrap items-center gap-2">
-          ${closing.closed
-            ? `<span class="badge badge-soft">Buku tertutup</span>`
-            : `<span class="badge badge-soft">Buku masih terbuka</span>`}
-          ${store.isMonthLocked(month) ? `<span class="badge badge-soft" title="${store.lockedMonths().find((e) => e.month === month)?.lockedBy || '—'}">${icon('lock', 'w-3 h-3')} Terkunci</span>` : ''}
+      <div class="closing-actions">
+        <div class="min-w-0">
+          ${store.isMonthLocked(month) ? `<div class="closing-status"><span class="badge badge-soft" title="${escapeAttr(store.lockedMonths().find((e) => e.month === month)?.lockedBy || '—')}">${icon('lock', 'w-3 h-3')} Terkunci</span></div>` : ''}
+          <p class="closing-note">${closing.closed
+            ? 'Buku bulan ini sudah ditutup. Buka kembali jika perlu mengubah transaksi pada periode ini.'
+            : 'Tutup buku akan mengunci transaksi bulan ini agar laporan tidak berubah.'}</p>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2 shrink-0">
           ${closing.closed
             ? `<button type="button" class="btn btn-secondary btn-sm" data-action="reopen-month">${icon('unlock', 'w-3.5 h-3.5')} Buka kembali</button>`
             : `<button type="button" class="btn btn-primary btn-sm" data-action="close-month">${icon('lock', 'w-3.5 h-3.5')} Tutup buku</button>`}
