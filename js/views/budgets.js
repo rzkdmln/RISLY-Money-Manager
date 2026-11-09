@@ -72,6 +72,30 @@ export function budgetsView() {
         '</div>' : '<p class="text-sm leading-6 text-slate-500 dark:text-slate-400">Atur batas kategori untuk melihat progres, sisa dana, dan rekomendasi batas belanja harian.</p>') +
       '</div>' +
     '</section>' +
+    '<section class="card mt-4">' +
+      '<div class="card-heading">' +
+        '<div><p class="card-kicker">Rincian</p><h2 class="section-title">Batas per kategori</h2></div>' +
+      '</div>' +
+      '<div class="table-wrap">' +
+        '<table class="report-table">' +
+          '<thead><tr><th>Kategori</th><th class="text-right">Terpakai</th><th class="text-right">Batas</th><th class="text-right">%</th></tr></thead>' +
+          '<tbody>' + categories.map((item) => {
+            return '<tr>' +
+              '<td><span class="flex items-center gap-2 min-w-0"><span class="legend-dot" style="--legend-color:' + escapeAttr(item.category.color) + '"></span><span class="font-medium text-slate-800 dark:text-slate-100">' + escapeHTML(item.category.name) + '</span></span></td>' +
+              '<td class="text-right">' + money(item.spent) + '</td>' +
+              '<td class="text-right">' + (item.limit ? money(item.limit) : '-') + '</td>' +
+              '<td class="text-right">' + (item.limit ? formatPercent(item.percent) : '-') + '</td>' +
+            '</tr>';
+          }).join('') + (categories.length ? '' : '<tr><td colspan="4" class="text-center text-slate-400">Belum ada kategori.</td></tr>') +
+          '</tbody>' +
+        '</table>' +
+      '</div>' +
+      '<div class="report-divider"></div>' +
+      '<div class="flex items-center justify-between">' +
+        '<span class="text-sm font-semibold text-slate-700 dark:text-slate-200">Total</span>' +
+        '<strong class="text-lg text-slate-900 dark:text-white">' + money(status.total) + '</strong>' +
+      '</div>' +
+    '</section>' +
     '' +
   '</div>';
 }

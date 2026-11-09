@@ -113,10 +113,12 @@ export function settingsView(user) {
           ${icon('users', 'w-5 h-5 text-blue-500')}
         </div>
       <form data-form="settings-household">
-        <label class="field-label">Nama ruang
-          <input class="field mt-1.5" name="householdName" maxlength="60" value="${escapeAttr(store.data.settings.householdName)}" required>
-        </label>
-        <button type="submit" class="btn btn-primary w-full mt-4">${icon('save', 'w-4 h-4')} Simpan</button>
+        <div class="flex items-end gap-2">
+          <label class="field-label flex-1">Nama ruang
+            <input class="field mt-1.5" name="householdName" maxlength="60" value="${escapeAttr(store.data.settings.householdName)}" required>
+          </label>
+          <button type="submit" class="btn btn-primary shrink-0">${icon('save', 'w-4 h-4')} Simpan</button>
+        </div>
       </form>
       <div class="settings-list mt-4">
         ${store.activeUsers().map((member) => `<div class="settings-row">
@@ -146,7 +148,7 @@ export function settingsView(user) {
           <button type="button" class="btn btn-secondary btn-sm" data-action="export-backup">${icon('download', 'w-3.5 h-3.5')} Backup</button>
           <button type="button" class="btn btn-secondary btn-sm" data-action="import-backup">${icon('upload', 'w-3.5 h-3.5')} Restore</button>
           <button type="button" class="btn btn-danger-soft btn-sm" data-action="reset-app">${icon('trash', 'w-3.5 h-3.5')} Reset</button>
-          <button type="button" class="btn btn-secondary btn-sm mt-2" data-action="check-update">${icon('refresh', 'w-4 h-4')} Periksa pembaruan</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-action="check-update">${icon('refresh', 'w-4 h-4')} Periksa pembaruan</button>
         </div>
       </section>
     </div>

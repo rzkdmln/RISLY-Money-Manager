@@ -848,7 +848,7 @@ function openTasksSheet() {
 }
 
 function openBudgetCategoriesModal() {
-  openModal({ size: 'lg', className: '', html: budgetCategoriesModal(ui.budgetMonth || monthKey()) });
+  openModal({ size: 'lg', className: 'form-modal', html: `<div class="modal-body">${budgetCategoriesModal(ui.budgetMonth || monthKey())}</div>` });
 }
 
 function openBudgetCategoryAmountLightbox(categoryId, categoryName, amount, month) {
@@ -915,7 +915,7 @@ function openBudgetCategoryAmountLightbox(categoryId, categoryName, amount, mont
     overlay.remove();
     const panel = document.getElementById('modal-root')?.querySelector('.modal-panel');
     if (panel) {
-      panel.innerHTML = budgetCategoriesModal(month);
+      panel.innerHTML = `<div class="modal-body">${budgetCategoriesModal(month)}</div>`;
       panel.classList.add('modal-in');
     }
     try { renderApplication(); } catch (error) { console.error(error); }

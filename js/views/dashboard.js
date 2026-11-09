@@ -147,7 +147,7 @@ export function dashboardView(user) {
 
         <!-- Header -->
         <div class="flex items-center justify-between min-w-0">
-          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">${personalScope ? 'Kekayaan Pribadi' : 'Total Kekayaan Keluarga'}</p>
+          <p class="text-xs font-semibold text-white">${personalScope ? 'Kekayaan Pribadi' : 'Total Kekayaan Keluarga'}</p>
           <button type="button" class="p-2 text-slate-400 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-colors shrink-0" data-action="toggle-privacy" aria-label="Sembunyikan nominal">
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>
           </button>
@@ -156,18 +156,18 @@ export function dashboardView(user) {
         <!-- Area Nominal Besar -->
         <div class="mb-4 min-w-0">
           <h2 class="text-4xl sm:text-5xl font-extrabold text-white truncate tracking-tight">${money(personalScope ? myNetWorth : netWorth)}</h2>
-          <p class="mt-1 text-xs text-slate-400">${personalScope ? 'Kekayaan Keluarga' : 'Kekayaan Pribadi'}: ${money(personalScope ? netWorth : myNetWorth)}</p>
+          <p class="mt-1 text-xs text-white">${personalScope ? 'Kekayaan Keluarga' : 'Kekayaan Pribadi'}: ${money(personalScope ? netWorth : myNetWorth)}</p>
         </div>
 
         <!-- Arus Kas -->
         <div class="pt-5 border-t border-white/10">
           <div class="grid grid-cols-2 gap-2 sm:gap-4 min-w-0">
             <div class="min-w-0">
-              <span class="block text-[12px] font-bold uppercase tracking-wider text-slate-400 mb-1 truncate">Masuk</span>
+              <span class="block text-[12px] font-bold uppercase tracking-wider text-white mb-1 truncate">Masuk</span>
               <span class="block text-sm sm:text-base font-bold text-emerald-600 dark:text-emerald-400 truncate">+${money(income)}</span>
             </div>
             <div class="min-w-0 border-l border-slate-100 dark:border-slate-800/60 pl-2 sm:pl-4">
-              <span class="block text-[12px] font-bold uppercase tracking-wider text-slate-400 mb-1 truncate">Keluar</span>
+              <span class="block text-[12px] font-bold uppercase tracking-wider text-white mb-1 truncate">Keluar</span>
               <span class="block text-sm sm:text-base font-bold text-rose-600 dark:text-rose-400 truncate">-${money(expense)}</span>
             </div>
           </div>
