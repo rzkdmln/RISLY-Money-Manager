@@ -630,8 +630,40 @@ function openTransactionModal(tx = null, defaults = {}) {
   openModal({
     size: 'lg',
     className: 'form-modal',
+    labelledBy: 'transaction-modal-title',
     html: transactionForm(tx, { ...defaults, type: defaults.type || tx?.type || 'expense' }),
   });
+}
+
+function openReceiptLightbox(src) {
+  const host = document.getElementById('modal-root') || document.body;
+  const previousFocus = document.activeElement;
+  const overlay = document.createElement('div');
+  overlay.className = 'receipt-lightbox';
+  overlay.innerHTML = `<div class="receipt-lightbox-backdrop" data-receipt-lightbox-close></div>
+    <figure class="receipt-lightbox-panel" role="dialog" aria-modal="true" aria-label="Foto struk">
+      <figcaption class="receipt-lightbox-head">
+        <span class="receipt-lightbox-title">Foto struk</span>
+        <button type="button" class="icon-btn modal-close" data-receipt-lightbox-close aria-label="Tutup">${icon('x')}</button>
+      </figcaption>
+      <img src="${escapeAttr(src)}" alt="Struk">
+    </figure>`;
+  host.appendChild(overlay);
+  const close = () => {
+    overlay.remove();
+    document.removeEventListener('keydown', onKey);
+    if (previousFocus && typeof previousFocus.focus === 'function') {
+      try { previousFocus.focus({ preventScroll: true }); } catch { /* noop */ }
+    }
+  };
+  const onKey = (event) => {
+    if (event.key === 'Escape') close();
+  };
+  overlay.querySelectorAll('[data-receipt-lightbox-close]').forEach((node) => {
+    node.addEventListener('click', close);
+  });
+  document.addEventListener('keydown', onKey);
+  overlay.querySelector('button')?.focus({ preventScroll: true });
 }
 
 function openRecurringModal(rule = null, defaults = {}) {
@@ -2290,32 +2322,32 @@ async function handleAction(action, element) {
       syncSplitTotal(form);
       break;
     }
+    case 'choose-receipt': {
+      const form = element.closest('form');
+      form?.querySelector('input[data-receipt-file]')?.click();
+      break;
+    }
     case 'remove-receipt': {
       const form = element.closest('form');
       const hidden = form?.querySelector('input[name="receipt"]');
       const wrap = form?.querySelector('[data-receipt-wrap]');
+      const preview = form?.querySelector('[data-receipt-preview]');
       const file = form?.querySelector('input[data-receipt-file]');
       const uploadWrap = form?.querySelector('[data-receipt-upload]');
-      const selected = form?.querySelector('[data-receipt-selected]');
+      const fileName = form?.querySelector('[data-receipt-name]');
       if (hidden) hidden.value = '';
+      if (preview) preview.removeAttribute('src');
       if (wrap) wrap.classList.add('hidden');
       if (file) file.value = '';
       if (uploadWrap) uploadWrap.classList.remove('hidden');
-      if (selected) selected.classList.add('hidden');
+      if (fileName) fileName.textContent = 'Struk terlampir';
       break;
     }
     case 'view-receipt': {
       const form = element.closest('form');
       const receipt = form?.querySelector('input[name="receipt"]')?.value || element?.closest('[data-receipt-wrap]')?.querySelector('img')?.src;
       if (!receipt) break;
-      openModal({
-        size: 'lg',
-        className: 'form-modal',
-        html: `<div class="text-center">
-          <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
-          <img src="${escapeAttr(receipt)}" alt="Struk" class="mt-4 max-w-full max-h-[70vh] rounded border shadow-lg">
-        </div>`,
-      });
+      openReceiptLightbox(receipt);
       break;
     }
     case 'import-transactions':
@@ -3508,7 +3540,6 @@ function bindEvents() {
       const preview = form?.querySelector('[data-receipt-preview]');
       const wrap = form?.querySelector('[data-receipt-wrap]');
       const uploadWrap = form?.querySelector('[data-receipt-upload]');
-      const selected = form?.querySelector('[data-receipt-selected]');
       const fileName = form?.querySelector('[data-receipt-name]');
       const file = target.files?.[0];
       if (!file) return;
@@ -3536,17 +3567,11 @@ function bindEvents() {
           if (preview) { preview.src = dataUrl; preview.classList.remove('hidden'); }
           if (wrap) wrap.classList.remove('hidden');
           if (uploadWrap) uploadWrap.classList.add('hidden');
-          if (selected) selected.classList.remove('hidden');
           if (fileName) fileName.textContent = file.name;
         };
         img.src = String(reader.result || '');
       };
       reader.readAsDataURL(file);
-    }
-    if (target.matches('[data-receipt-change]')) {
-      const form = target.closest('form');
-      const fileInput = form?.querySelector('input[data-receipt-file]');
-      fileInput?.click();
     }
     if (target.matches('select[data-account-type-select]')) {
       const form = target.closest('form[data-form="account"]');

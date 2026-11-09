@@ -131,11 +131,14 @@ export function transactionForm(tx = null, defaults = {}) {
 
   return `<form data-form="transaction" data-id="${escapeAttr(tx?.id || '')}" class="modal-form" novalidate>
     <header class="modal-header">
-      <div class="min-w-0">
-        <p class="modal-kicker">${editing ? 'Perbarui catatan' : 'Catat aliran uang'}</p>
-        <h2 class="modal-title">${editing ? 'Ubah transaksi' : 'Transaksi baru'}</h2>
+      <div class="modal-heading">
+        <span class="modal-heading-icon type-${escapeAttr(type)}" aria-hidden="true">${icon(typeData.icon, 'w-4.5 h-4.5')}</span>
+        <div class="min-w-0">
+          <p class="modal-kicker">${editing ? 'Perbarui catatan' : 'Catat aliran uang'}</p>
+          <h2 class="modal-title" id="transaction-modal-title">${editing ? 'Ubah transaksi' : 'Transaksi baru'}</h2>
+        </div>
       </div>
-      <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
+      <button type="button" class="icon-btn modal-close" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
     </header>
 
     <div class="modal-body">
@@ -230,23 +233,38 @@ export function transactionForm(tx = null, defaults = {}) {
       </label>
 
       <div class="receipt-field mt-3">
-        <div class="receipt-label">Lampiran struk (opsional)</div>
-        <div class="receipt-upload-wrap" data-receipt-upload>
+        <div class="receipt-field-head">
+          <div class="receipt-label">Lampiran struk <span class="receipt-optional">Opsional</span></div>
+          <p class="receipt-hint">JPG atau PNG · maksimal 450 KB</p>
+        </div>
+
+        <div class="receipt-upload-wrap ${receipt ? 'hidden' : ''}" data-receipt-upload>
           <label class="receipt-upload-btn" aria-label="Pilih foto struk">
-            <svg class="w-5 h-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-            <span>Pilih foto struk</span>
+            <span class="receipt-upload-icon" aria-hidden="true">${icon('upload', 'w-4.5 h-4.5')}</span>
+            <span class="receipt-upload-text">
+              <strong>Pilih foto struk</strong>
+              <small>Ketuk untuk memilih dari galeri</small>
+            </span>
             <input class="field sr-only" type="file" name="receiptFile" accept="image/*" data-receipt-file>
           </label>
-          <p class="receipt-hint text-[10px] text-slate-400 mt-0.5">Maksimal 450 KB, JPG atau PNG</p>
-          <div class="receipt-selected hidden" data-receipt-selected>
-            <span class="receipt-file-name truncate" data-receipt-name></span>
-            <button type="button" class="receipt-change-btn" data-action="choose-receipt" data-receipt-change>Ganti</button>
-          </div>
         </div>
+
         <input type="hidden" name="receipt" value="${escapeAttr(receipt)}">
         <div class="receipt-preview ${receipt ? '' : 'hidden'}" data-receipt-wrap>
-          <img src="${receipt ? escapeAttr(receipt) : ''}" alt="Struk" class="max-h-48 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer" data-receipt-preview data-action="view-receipt" title="Klik untuk memperbesar">
-          <button type="button" class="btn btn-danger-soft btn-sm" data-action="remove-receipt">${icon('trash', 'w-3.5 h-3.5')} Hapus struk</button>
+          <button type="button" class="receipt-preview-image" data-action="view-receipt" aria-label="Perbesar foto struk" title="Klik untuk memperbesar">
+            <img src="${receipt ? escapeAttr(receipt) : ''}" alt="Struk" data-receipt-preview>
+            <span class="receipt-preview-badge" aria-hidden="true">${icon('eye', 'w-3 h-3')}</span>
+          </button>
+          <div class="receipt-preview-bar">
+            <div class="receipt-preview-meta">
+              <strong data-receipt-name>Struk terlampir</strong>
+              <small>Klik gambar untuk melihat ukuran penuh</small>
+            </div>
+            <div class="receipt-preview-actions">
+              <button type="button" class="receipt-action-btn" data-action="choose-receipt" data-receipt-change>${icon('upload', 'w-3.5 h-3.5')} Ganti</button>
+              <button type="button" class="receipt-action-btn is-danger" data-action="remove-receipt">${icon('trash', 'w-3.5 h-3.5')} Hapus</button>
+            </div>
+          </div>
         </div>
       </div>
 
