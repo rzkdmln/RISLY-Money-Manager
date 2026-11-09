@@ -90,7 +90,6 @@ import {
   sanitizeNoteHTML,
   safeNumber,
   shiftMonthKey,
-  monthKey,
   todayISO,
   toDateTimeLocal,
 } from './utils.js';
