@@ -3079,8 +3079,18 @@ function submitBudgetCategories(form) {
   new FormData(form).forEach((value, key) => {
     if (key.startsWith('budget_')) entries[key.slice(7)] = Number(value) || 0;
   });
+  const warning = Number(formValue(form, 'warning'));
+  const danger = Number(formValue(form, 'danger'));
+  const hasThresholds = form.querySelector('[name="warning"]') && form.querySelector('[name="danger"]');
+  if (hasThresholds) {
+    if (!Number.isFinite(warning) || !Number.isFinite(danger) || warning < 1 || danger > 100 || danger <= warning) {
+      showFormError(form, 'Ambang bahaya harus lebih besar dari peringatan (1–100%).');
+      return;
+    }
+    store.updateSettings({ budgetWarning: warning, budgetDanger: danger });
+  }
   store.setBudgets(ui.budgetMonth || monthKey(), entries);
-  toast('Batas kategori disimpan.', 'success');
+  toast('Batas kategori dan ambang disimpan.', 'success');
   closeModal({ silent: true });
   renderApplication();
 }

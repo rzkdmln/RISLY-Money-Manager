@@ -52,7 +52,7 @@ export function dashboardView(user) {
   const recentSource = personalScope
     ? store.transactions().filter(isPersonalTx)
     : store.transactions();
-  const recent = recentSource.slice(0, 6);
+  const recent = recentSource.slice(0, 5);
   const spendingMap = new Map();
   scopedTransactions
     .filter((tx) => tx.type === 'expense')

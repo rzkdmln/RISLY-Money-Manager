@@ -48,15 +48,18 @@ export function budgetsView() {
             '<p class="budget-hero-value">' + (hasBudget ? money(status.total) : 'Belum diatur') + '</p>' +
             '' +
           '</div>' +
-          '<form data-form="budget-total" class="budget-set-form">' +
-            '<label class="field-label">Atur total' +
-              '<div class="input-with-prefix mt-1.5">' +
-                '<span>Rp</span>' +
-                '<input class="field" type="number" name="amount" min="0" step="1000" inputmode="numeric" value="' + Math.round(status.total) + '" placeholder="0">' +
-              '</div>' +
-            '</label>' +
-            '<button type="submit" class="btn btn-primary">' + icon('save', 'w-4 h-4') + ' Simpan</button>' +
-          '</form>' +
+          '<div class="flex flex-col items-end gap-2">' +
+            '<form data-form="budget-total" class="budget-set-form">' +
+              '<label class="field-label">Atur total' +
+                '<div class="input-with-prefix mt-1.5">' +
+                  '<span>Rp</span>' +
+                  '<input class="field" type="number" name="amount" min="0" step="1000" inputmode="numeric" value="' + Math.round(status.total) + '" placeholder="0">' +
+                '</div>' +
+              '</label>' +
+              '<button type="submit" class="btn btn-primary">' + icon('save', 'w-4 h-4') + ' Simpan</button>' +
+            '</form>' +
+            '<button type="button" class="btn btn-secondary btn-sm" data-action="open-budget-categories">' + icon('edit', 'w-3.5 h-3.5') + ' Edit</button>' +
+          '</div>' +
         '</div>' +
         (hasBudget ? '<div class="budget-hero-progress">' +
           '<div class="flex items-end justify-between gap-3 mb-2">' +
@@ -80,18 +83,6 @@ export function budgetsView() {
         '</div>' : '<p class="text-sm leading-6 text-slate-500 dark:text-slate-400">Isi total anggaran untuk melihat progres, sisa dana, dan rekomendasi batas belanja harian.</p>') +
       '</div>' +
     '</section>' +
-
-    '<div class="card">' +
-      '<div class="card-heading">' +
-        '<div>' +
-          '<p class="card-kicker">Batas per kategori</p>' +
-          '<h2 class="section-title">Kendali pengeluaran</h2>' +
-
-        '</div>' +
-        '<button type="button" class="btn btn-secondary btn-sm" data-action="open-budget-categories">' + icon('edit', 'w-3.5 h-3.5') + ' Edit</button>' +
-      '</div>' +
-    '</div>' +
-
     '' +
   '</div>';
 }
@@ -133,31 +124,28 @@ export function budgetCategoriesModal(month) {
         '<button type="button" class="btn btn-ghost btn-sm" data-action="carry-budget" title="Bawa anggaran bulan sebelumnya">' + icon('arrow-left', 'w-3.5 h-3.5') + ' Bawa dari bulan lalu</button>' +
       '</div>' +
       '<p class="text-[11px] text-slate-400">Salin: menyalin nominal dari bulan lalu tanpa penanda. Bawa: menyalin sekaligus menandai asal bulan (carry).</p>' +
+
+      '<div class="mt-5 pt-4 border-t border-slate-200 dark:border-slate-700">' +
+        '<p class="card-kicker">Warna peringatan</p>' +
+        '<h2 class="section-title mb-2">Ambang batas</h2>' +
+        '<div class="grid grid-cols-2 gap-3">' +
+          '<label class="field-label">Peringatan (%)' +
+            '<input class="field mt-1.5" type="number" name="warning" min="1" max="99" value="' + status.warning + '">' +
+          '</label>' +
+          '<label class="field-label">Bahaya (%)' +
+            '<input class="field mt-1.5" type="number" name="danger" min="2" max="100" value="' + status.danger + '">' +
+          '</label>' +
+        '</div>' +
+        '<div class="threshold-preview mt-3">' +
+          '<span class="bg-emerald-500">Aman</span>' +
+          '<span class="bg-amber-500">Peringatan &gt;= ' + status.warning + '%</span>' +
+          '<span class="bg-red-500">Bahaya &gt;= ' + status.danger + '%</span>' +
+        '</div>' +
+      '</div>' +
+
       '<div class="flex justify-end gap-2 mt-4">' +
         '<button type="button" class="btn btn-secondary" data-action="close-modal">Batal</button>' +
         '<button type="submit" class="btn btn-primary">' + icon('save', 'w-4 h-4') + ' Simpan</button>' +
-      '</div>' +
-    '</form>' +
-    '<form data-form="budget-thresholds" class="space-y-3 mt-5 pt-4 border-t border-slate-200 dark:border-slate-700">' +
-      '<div class="flex items-center justify-between gap-3 mb-2">' +
-        '<div>' +
-          '<p class="card-kicker">Warna peringatan</p>' +
-          '<h2 class="section-title">Ambang batas</h2>' +
-        '</div>' +
-        '<button type="submit" class="btn btn-secondary btn-sm">Simpan</button>' +
-      '</div>' +
-      '<div class="grid grid-cols-2 gap-3">' +
-        '<label class="field-label">Peringatan (%)' +
-          '<input class="field mt-1.5" type="number" name="warning" min="1" max="99" value="' + status.warning + '">' +
-        '</label>' +
-        '<label class="field-label">Bahaya (%)' +
-          '<input class="field mt-1.5" type="number" name="danger" min="2" max="100" value="' + status.danger + '">' +
-        '</label>' +
-      '</div>' +
-      '<div class="threshold-preview mt-3">' +
-        '<span class="bg-emerald-500">Aman</span>' +
-        '<span class="bg-amber-500">Peringatan &gt;= ' + status.warning + '%</span>' +
-        '<span class="bg-red-500">Bahaya &gt;= ' + status.danger + '%</span>' +
       '</div>' +
     '</form>' +
   '</div>';
