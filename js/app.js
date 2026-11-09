@@ -1663,9 +1663,17 @@ async function handleAction(action, element) {
         frequency: fd.get('recurringFrequency') || 'monthly',
         calcOpen: ui.calcOpen,
       };
-      closeModal({ silent: true });
-      if (original) openTransactionModal({ ...original, ...values }, values);
-      else openTransactionModal(null, values);
+      const nextTx = original ? { ...original, ...values } : null;
+      const nextHtml = transactionForm(nextTx, { ...values, type: values.type });
+      const modalRoot = document.getElementById('modal-root');
+      const panel = modalRoot?.querySelector('.modal-panel');
+      if (panel) {
+        panel.innerHTML = nextHtml;
+        panel.classList.add('modal-in');
+      } else {
+        closeModal({ silent: true });
+        openTransactionModal(nextTx, values);
+      }
       break;
     }
     case 'delete-rec': {

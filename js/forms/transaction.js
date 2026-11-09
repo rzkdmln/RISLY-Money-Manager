@@ -92,6 +92,7 @@ export function transactionForm(tx = null, defaults = {}) {
   const currentUser = store.currentUser;
   const recurring = Boolean(defaults.recurring) || Boolean(tx?.makeRecurring);
   const defaultFrequency = defaults.frequency || 'monthly';
+  const optionalOpen = Boolean(payee || tagsValue || (Array.isArray(splits) && splits.length) || recurring);
   const recurringTitle = defaults.recurringTitle || note || (store.categoryById(categoryId)?.name || 'Transaksi berulang');
 
   function splitRowHtml(split = {}) {
@@ -227,44 +228,6 @@ export function transactionForm(tx = null, defaults = {}) {
       <label class="field-label">Catatan
         <textarea class="field textarea mt-1.5" name="note" rows="2" maxlength="280" placeholder="Contoh: belanja mingguan, gaji, transfer tabungan…">${escapeHTML(note)}</textarea>
       </label>
-      <div class="form-grid">
-        <label class="field-label">Payee / merchant (opsional)
-          <input class="field mt-1.5" name="payee" maxlength="80" value="${escapeAttr(payee)}" placeholder="Contoh: Indomaret, PLN, GoPay">
-        </label>
-        <label class="field-label">Tag (opsional)</label>
-        <div class="tag-input mt-1.5" data-tag-input>
-          <input type="hidden" name="tags" value="${escapeAttr(tagsValue)}" data-tag-value>
-          <div class="tag-input-chips" data-tag-chips role="list">
-            ${tagsArray.map(t => {
-              const tagLabel = t.startsWith('#') ? t : '#' + t;
-              return `
-              <span class="tag-chip" role="listitem" data-tag="${escapeAttr(tagLabel)}">
-                ${escapeHTML(tagLabel)}
-                <button type="button" class="tag-chip-remove" data-tag-remove aria-label="Hapus tag ${escapeHTML(t)}">×</button>
-              </span>
-            `;
-            }).join('')}
-            <input type="text" class="tag-input-field" placeholder="contoh: keluarga, makan" data-tag-field autocomplete="off" spellcheck="false" role="textbox" aria-label="Tambah tag">
-          </div>
-          <p class="text-[10px] text-slate-400 mt-1">Spasi, koma, titik, atau Enter untuk tambah tag</p>
-        </div>
-      </div>
-
-      ${!isTransfer ? `<label class="toggle-row compact-toggle">
-        <span><strong>Split transaksi</strong><small>Pecah nominal ke beberapa kategori</small></span>
-        <input type="checkbox" name="makeSplit" value="1" class="sr-only" ${splits.length ? 'checked' : ''} data-toggle-split>
-        <span class="switch ${splits.length ? 'is-on' : ''}"></span>
-      </label>
-      <div class="split-section mt-2" ${splits.length ? '' : 'hidden'}>
-        <div data-split-rows class="space-y-2">
-          ${(splits.length ? splits : [{}]).map((s) => splitRowHtml(s)).join('')}
-        </div>
-        <div class="split-footer">
-          <button type="button" class="btn btn-secondary btn-sm" data-action="add-split">${icon('plus', 'w-3.5 h-3.5')} Tambah baris split</button>
-          <span class="split-total" data-split-total>${splits.length ? `Total ${formatCurrency(tx?.amount || 0)}` : 'Belum ada nominal'}</span>
-        </div>
-        <p class="text-[11px] text-slate-400 mt-1">Total nominal otomatis dijumlahkan dari baris split.</p>
-      </div>` : ''}
 
       <div class="receipt-field mt-3">
         <div class="receipt-label">Lampiran struk (opsional)</div>
@@ -287,33 +250,74 @@ export function transactionForm(tx = null, defaults = {}) {
         </div>
       </div>
 
-
-      ${!editing ? `<div class="recurring-box">
-        <label class="toggle-row">
-          <span>
-            <strong>Jadikan transaksi berulang</strong>
-            <small>Buat jadwal otomatis setelah transaksi ini.</small>
-          </span>
-          <input type="checkbox" name="makeRecurring" value="1" class="sr-only" ${recurring ? 'checked' : ''} data-toggle-recurring>
-          <span class="switch ${recurring ? 'is-on' : ''}"></span>
-        </label>
-        <div class="recurring-extra" ${recurring ? '' : 'hidden'}>
-          <label class="field-label">Nama jadwal
-            <input class="field mt-1.5" name="recurringTitle" value="${escapeAttr(recurringTitle)}" maxlength="80">
+      <details class="tx-optional-details" ${optionalOpen ? 'open' : ''}>
+        <summary>Opsi lainnya (opsional)</summary>
+        <div class="form-grid">
+          <label class="field-label">Payee / merchant (opsional)
+            <input class="field mt-1.5" name="payee" maxlength="80" value="${escapeAttr(payee)}" placeholder="Contoh: Indomaret, PLN, GoPay">
           </label>
-          <div class="form-grid">
-            <label class="field-label">Frekuensi
-              <select class="field mt-1.5" name="recurringFrequency">
-                ${Object.entries(FREQUENCIES).map(([id, item]) => `<option value="${id}" ${defaultFrequency === id ? 'selected' : ''}>${escapeHTML(item.label)}</option>`).join('')}
-              </select>
-            </label>
-            <label class="field-label">Setiap
-              <input class="field mt-1.5" type="number" name="recurringInterval" min="1" max="12" value="1" inputmode="numeric">
-            </label>
+          <label class="field-label">Tag (opsional)</label>
+          <div class="tag-input mt-1.5" data-tag-input>
+            <input type="hidden" name="tags" value="${escapeAttr(tagsValue)}" data-tag-value>
+            <div class="tag-input-chips" data-tag-chips role="list">
+              ${tagsArray.map(t => {
+                const tagLabel = t.startsWith('#') ? t : '#' + t;
+                return `
+                <span class="tag-chip" role="listitem" data-tag="${escapeAttr(tagLabel)}">
+                  ${escapeHTML(tagLabel)}
+                  <button type="button" class="tag-chip-remove" data-tag-remove aria-label="Hapus tag ${escapeHTML(t)}">×</button>
+                </span>
+              `;
+              }).join('')}
+              <input type="text" class="tag-input-field" placeholder="contoh: keluarga, makan" data-tag-field autocomplete="off" spellcheck="false" role="textbox" aria-label="Tambah tag">
+            </div>
+            <p class="text-[10px] text-slate-400 mt-1">Spasi, koma, titik, atau Enter untuk tambah tag</p>
           </div>
-          <p class="text-[11px] text-slate-400">Jadwal berikutnya dihitung setelah tanggal transaksi ini. Posting otomatis saat aplikasi dibuka.</p>
         </div>
-      </div>` : ''}
+
+        ${!isTransfer ? `<label class="toggle-row compact-toggle mt-3">
+          <span><strong>Split transaksi</strong><small>Pecah nominal ke beberapa kategori</small></span>
+          <input type="checkbox" name="makeSplit" value="1" class="sr-only" ${splits.length ? 'checked' : ''} data-toggle-split>
+          <span class="switch ${splits.length ? 'is-on' : ''}"></span>
+        </label>
+        <div class="split-section mt-2" ${splits.length ? '' : 'hidden'}>
+          <div data-split-rows class="space-y-2">
+            ${(splits.length ? splits : [{}]).map((s) => splitRowHtml(s)).join('')}
+          </div>
+          <div class="split-footer">
+            <button type="button" class="btn btn-secondary btn-sm" data-action="add-split">${icon('plus', 'w-3.5 h-3.5')} Tambah baris split</button>
+            <span class="split-total" data-split-total>${splits.length ? `Total ${formatCurrency(tx?.amount || 0)}` : 'Belum ada nominal'}</span>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">Total nominal otomatis dijumlahkan dari baris split.</p>
+        </div>` : ''}
+
+        ${!editing ? `<div class="recurring-box mt-3">
+          <label class="toggle-row">
+            <span>
+              <strong>Jadikan transaksi berulang</strong>
+              <small>Buat jadwal otomatis setelah transaksi ini.</small>
+            </span>
+            <input type="checkbox" name="makeRecurring" value="1" class="sr-only" ${recurring ? 'checked' : ''} data-toggle-recurring>
+            <span class="switch ${recurring ? 'is-on' : ''}"></span>
+          </label>
+          <div class="recurring-extra" ${recurring ? '' : 'hidden'}>
+            <label class="field-label">Nama jadwal
+              <input class="field mt-1.5" name="recurringTitle" value="${escapeAttr(recurringTitle)}" maxlength="80">
+            </label>
+            <div class="form-grid">
+              <label class="field-label">Frekuensi
+                <select class="field mt-1.5" name="recurringFrequency">
+                  ${Object.entries(FREQUENCIES).map(([id, item]) => `<option value="${id}" ${defaultFrequency === id ? 'selected' : ''}>${escapeHTML(item.label)}</option>`).join('')}
+                </select>
+              </label>
+              <label class="field-label">Setiap
+                <input class="field mt-1.5" type="number" name="recurringInterval" min="1" max="12" value="1" inputmode="numeric">
+              </label>
+            </div>
+            <p class="text-[11px] text-slate-400">Jadwal berikutnya dihitung setelah tanggal transaksi ini. Posting otomatis saat aplikasi dibuka.</p>
+          </div>
+        </div>` : ''}
+      </details>
 
       <p class="form-error hidden" data-form-error role="alert"></p>
     </div>
