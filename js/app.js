@@ -1952,6 +1952,14 @@ async function handleAction(action, element) {
       ui.budgetMonth = shiftMonthKey(ui.budgetMonth || monthKey(), 1);
       renderApplication();
       break;
+    case 'report-prev':
+      ui.reportMonth = shiftMonthKey(ui.reportMonth || monthKey(), -1);
+      renderApplication();
+      break;
+    case 'report-next':
+      ui.reportMonth = shiftMonthKey(ui.reportMonth || monthKey(), 1);
+      renderApplication();
+      break;
     case 'copy-budget': {
       const ok = await confirmDialog({
         title: 'Salin anggaran bulan lalu?',

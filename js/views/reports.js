@@ -36,7 +36,8 @@ export function reportsView() {
   return `<div class="page-stack">
     ${pageHeader({
       title: 'Laporan',
-      actions: `<button type="button" class="btn btn-secondary text-blue-600 hover:text-blue-700 dark:text-blue-400 flex-none" data-action="open-export-modal">${icon('download', 'w-4 h-4')} Unduh</button>`,
+      actions: `<div class="month-nav budget-month-nav"><button type="button" class="icon-btn" data-action="report-prev" aria-label="Bulan sebelumnya"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg></button><input type="month" class="field field-compact budget-month-input" id="report-month-picker" value="${escapeAttr(month)}" data-filter="report-month" aria-label="Pilih bulan laporan"><button type="button" class="icon-btn" data-action="report-next" aria-label="Bulan berikutnya"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></button></div>
+          <button type="button" class="btn btn-secondary text-blue-600 hover:text-blue-700 dark:text-blue-400 flex-none" data-action="open-export-modal">${icon('download', 'w-4 h-4')} Unduh</button>`,
     })}
 
     <section class="card report-control">
@@ -47,9 +48,7 @@ export function reportsView() {
           <p class="text-lg font-bold text-slate-900 dark:text-white">${escapeHTML(formatMonth(month))}</p>
         </div>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <input type="month" class="field field-compact flex-1 min-w-0" id="report-month-picker" value="${escapeAttr(month)}" data-filter="report-month" aria-label="Pilih bulan laporan">
-      </div>
+      <div class="flex flex-wrap items-center gap-2"></div>
     </section>
 
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
@@ -278,32 +277,6 @@ export function reportsView() {
     </div>
 
     <div class="grid lg:grid-cols-5 gap-4">
-      <section class="card lg:col-span-3">
-        <div class="card-heading">
-          <div>
-            <p class="card-kicker">Pratinjau</p>
-            <h2 class="section-title">Transaksi bulan ini</h2>
-          </div>
-          <button type="button" class="link-button" data-action="nav" data-route="transactions">Lihat semua</button>
-        </div>
-        ${transactions.length ? `<div class="table-wrap">
-          <table class="report-table">
-            <thead><tr><th>Tanggal</th><th>Keterangan</th><th>Akun</th><th class="text-right">Nominal</th></tr></thead>
-            <tbody>
-              ${transactions.slice(0, 10).map((tx) => {
-                const category = store.categoryById(tx.categoryId);
-                return `<tr>
-                  <td class="whitespace-nowrap">${escapeHTML(formatDate(tx.date, { day: '2-digit', month: 'short' }))}</td>
-                  <td><span class="font-medium text-slate-800 dark:text-slate-100">${escapeHTML(tx.note || category?.name || (tx.type === 'transfer' ? 'Transfer' : 'Transaksi'))}</span><span class="block text-[12px] text-slate-400">${escapeHTML(category?.name || (tx.type === 'transfer' ? 'Transfer antar akun' : '—'))}</span></td>
-                  <td>${escapeHTML(store.accountName(tx.accountId))}</td>
-                  <td class="text-right ${tx.type === 'income' ? 'amount-income' : tx.type === 'expense' ? 'amount-expense' : 'amount-transfer'}">${tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : ''}${money(tx.amount)}</td>
-                </tr>`;
-              }).join('')}
-            </tbody>
-          </table>
-        </div>` : '<p class="text-sm text-slate-500 dark:text-slate-400">Belum ada transaksi pada periode ini.</p>'}
-      </section>
-
       <section class="card lg:col-span-2">
         <div class="card-heading">
           <div>

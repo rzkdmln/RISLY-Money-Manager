@@ -1463,6 +1463,7 @@ body.is-auth { background: var(--bg); }
 .report-table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
 .report-table th { padding: 7px 5px; border-bottom: 1px solid var(--border); text-align: left; font-size: 10px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; color: var(--muted-2); }
 .report-table td { padding: 8px 5px; border-bottom: 1px solid var(--border); color: var(--text-soft); }
+.report-table td.text-right { white-space: nowrap; }
 .report-table tr:last-child td { border-bottom: 0; }
 .export-card {
   display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap;
