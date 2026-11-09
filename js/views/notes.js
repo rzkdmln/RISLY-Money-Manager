@@ -106,13 +106,13 @@ export function notesView() {
   const filtered = ui.notesQuery || ui.notesTag;
   const actions = ui.notesTab === 'trashed'
     ? ''
-    : `<div class="flex items-center gap-2">
+    : `<div class="flex items-center gap-2 justify-end">
         <div class="view-toggle shrink-0" role="group" aria-label="Tampilan">
           <button type="button" class="${ui.notesView === 'grid' ? 'is-active' : ''}" data-action="notes-view" data-view="grid" aria-label="Tampilan kartu">${icon('layout-grid', 'w-4 h-4')}</button>
           <button type="button" class="${ui.notesView === 'list' ? 'is-active' : ''}" data-action="notes-view" data-view="list" aria-label="Tampilan daftar">${icon('layout-list', 'w-4 h-4')}</button>
         </div>
-        <button type="button" class="btn btn-secondary" data-action="add-note">${icon('sticky-note', 'w-4 h-4')} Catatan</button>
-        <button type="button" class="btn btn-primary" data-action="add-todo">${icon('plus', 'w-4 h-4')} Tugas</button>
+        <button type="button" class="btn btn-secondary flex-none" data-action="add-note">${icon('sticky-note', 'w-4 h-4')} Catatan</button>
+        <button type="button" class="btn btn-primary flex-none" data-action="add-todo">${icon('plus', 'w-4 h-4')} Tugas</button>
       </div>`;
 
   return `<div class="page-stack min-w-0 w-full overflow-hidden">

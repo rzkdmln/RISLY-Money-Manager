@@ -1805,7 +1805,7 @@ body.is-auth { background: var(--bg); }
   .page-stack { gap: 14px; }
   .page-title { font-size: 23px; }
   .page-subtitle { font-size: 11.5px; }
-  .page-actions { width: 100%; }
+  .page-actions { width: 100%; justify-content: flex-end; }
   .page-actions .btn { flex: 1; }
   .page-actions .accounts-actions .btn { flex: 0 0 auto; }
   .card { padding: 15px; border-radius: 16px; }

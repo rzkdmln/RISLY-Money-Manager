@@ -265,7 +265,7 @@ export function dashboardView(user) {
         <section class="card min-w-0 w-full overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-5 shadow-sm border border-slate-200 dark:border-slate-800">
           <div class="flex items-center justify-between mb-4">
              <h2 class="text-sm font-bold text-slate-900 dark:text-white">Jadwal Mendatang</h2>
-             <button type="button" class="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" data-action="nav" data-route="recurring">Semua</button>
+             <button type="button" class="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400" data-action="nav" data-route="recurring">Semua</button>
           </div>
           <div class="space-y-1 min-w-0 w-full">${upcomingHtml}</div>
         </section>
@@ -273,7 +273,7 @@ export function dashboardView(user) {
         <section class="card min-w-0 w-full overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-5 shadow-sm border border-slate-200 dark:border-slate-800">
           <div class="flex items-center justify-between mb-4">
              <h2 class="text-sm font-bold text-slate-900 dark:text-white">Tugas Terdekat</h2>
-             <button type="button" class="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" data-action="nav" data-route="notes">Buka</button>
+             <button type="button" class="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400" data-action="nav" data-route="notes">Buka</button>
           </div>
           <div class="space-y-1 min-w-0 w-full">${tasksHtml}</div>
         </section>

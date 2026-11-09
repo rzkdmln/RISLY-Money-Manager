@@ -167,7 +167,7 @@ export function transactionsView() {
 
     <section class="card filter-card min-w-0 w-full overflow-hidden">
       <div class="filter-top min-w-0">
-        <button type="button" class="link-button shrink-0" data-action="tx-toggle-filter" aria-expanded="${ui.txFilterOpen}">
+        <button type="button" class="btn btn-secondary btn-sm shrink-0" data-action="tx-toggle-filter" aria-expanded="${ui.txFilterOpen}">
           ${icon('filter', 'w-4 h-4')} Filter ${icon(ui.txFilterOpen ? 'chevron-up' : 'chevron-down', 'w-3.5 h-3.5')}
         </button>
         ${ui.txFilterOpen ? `<button type="button" class="link-button shrink-0" data-action="reset-tx-filter">Reset</button>` : ''}

@@ -59,7 +59,7 @@ export function calendarView() {
   return `<div class="page-stack">
     ${pageHeader({
       title: 'Kalender',
-      actions: `<button type="button" class="btn btn-primary" data-action="add-tx" data-type="expense">${icon('plus', 'w-4 h-4')} Transaksi</button>`,
+      actions: `<button type="button" class="btn btn-primary flex-none" data-action="add-tx" data-type="expense">${icon('plus', 'w-4 h-4')} Transaksi</button>`,
     })}
 
     <section class="card calendar-card">
