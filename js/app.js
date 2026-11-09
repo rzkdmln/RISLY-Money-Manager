@@ -3074,6 +3074,18 @@ function submitBudgetTotal(form) {
   renderApplication();
 }
 
+function syncBudgetAllocHint(form) {
+  if (!form) return;
+  const hint = form.querySelector('[data-budget-alloc-hint]');
+  if (!hint) return;
+  const total = Number(form.querySelector('[name="total"]')?.value || 0) || 0;
+  let allocated = 0;
+  form.querySelectorAll('input[name^="budget_"]').forEach((input) => {
+    allocated += Number(input.value || 0) || 0;
+  });
+  const remaining = total - allocated;
+  hint.textContent = 'Alokasi kategori: ' + money(allocated) + ' dari ' + money(total) + ' (sisa ' + money(Math.max(0, remaining)) + (remaining < 0 ? ', melebihi total' : '') + ').';
+}
 function submitBudgetCategories(form) {
   const entries = {};
   new FormData(form).forEach((value, key) => {
@@ -3431,6 +3443,10 @@ function bindEvents() {
     }
     const noteForm = target.closest('form[data-form="note"][data-id]');
     if (noteForm) scheduleNoteAutosave(noteForm);
+    const budgetForm = target.closest('form[data-form="budget-categories"]');
+    if (budgetForm && (target.name === 'total' || String(target.name || '').startsWith('budget_'))) {
+      syncBudgetAllocHint(budgetForm);
+    }
   });
 
   // Tag input: buat chip saat Enter, spasi, koma, atau titik

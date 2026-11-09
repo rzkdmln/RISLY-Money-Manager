@@ -123,9 +123,9 @@ export function budgetCategoriesModal(month) {
         '<div class="budget-category-list">' + rowHtml + '</div>' +
         '<div class="flex flex-wrap gap-2 mt-3">' +
           '<button type="button" class="btn btn-ghost btn-sm" data-action="copy-budget" title="Salin anggaran bulan sebelumnya">' + icon('copy', 'w-3.5 h-3.5') + ' Salin bulan lalu</button>' +
-          '<button type="button" class="btn btn-ghost btn-sm" data-action="carry-budget" title="Bawa anggaran bulan sebelumnya">' + icon('arrow-left', 'w-3.5 h-3.5') + ' Bawa dari bulan lalu</button>' +
         '</div>' +
-        '<p class="text-[11px] text-slate-400">Salin: menyalin nominal dari bulan lalu tanpa penanda. Bawa: menyalin sekaligus menandai asal bulan (carry).</p>' +
+        '<p class="text-[11px] text-slate-400">Salin: menyalin nominal anggaran dari bulan lalu.</p>' +
+        '<p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1" data-budget-alloc-hint>Alokasi kategori: ' + money(categories.reduce((s,i)=>s+safeNumber(i.limit),0)) + ' dari ' + money(status.total) + ' (sisa ' + money(Math.max(0, status.total - categories.reduce((s,i)=>s+safeNumber(i.limit),0))) + ').</p>' +
       '</div>' +
 
       '<div class="pt-4 border-t border-slate-200 dark:border-slate-700">' +
