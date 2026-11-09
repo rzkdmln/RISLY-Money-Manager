@@ -379,6 +379,8 @@ img, svg { display: block; }
    ========================================================================== */
 
 .page-stack { display: flex; flex-direction: column; gap: 20px; }
+.space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 0 !important; margin-bottom: 0 !important; }
+.dashboard-view .page-heading { gap: 0; }
 
 .page-heading {
   display: flex; align-items: flex-end; justify-content: space-between; gap: 18px;
@@ -1700,7 +1702,7 @@ body.is-auth { background: var(--bg); }
   .topbar { padding-left: 16px; padding-right: 16px; }
   .mobile-brand { display: flex; }
   .topbar-date { display: none; }
-  .page-content { padding: 20px 16px calc(106px + var(--safe-bottom)); }
+  .page-content { padding: 20px 16px calc(80px + var(--safe-bottom)); }
   .fab { right: 16px; bottom: calc(82px + var(--safe-bottom)); width: 52px; height: 52px; border-radius: 16px; }
   .bottom-nav {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;

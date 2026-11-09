@@ -113,7 +113,7 @@ export function dashboardView(user) {
       </button>`).join('')
     : `<p class="mini-empty text-center p-4">Tidak ada tugas yang mendekati tenggat. <button type="button" class="link-button font-semibold" data-action="add-todo">Tambah tugas</button></p>`;
 
-  return `<div class="page-stack min-w-0 w-full overflow-hidden space-y-6">
+  return `<div class="page-stack min-w-0 w-full overflow-hidden dashboard-view">
     ${pageHeader({
       eyebrow: `Ringkasan ${escapeHTML(formatMonth(month))}`,
       title: `${escapeHTML(greeting())}, ${escapeHTML(user?.name || '')} <span class="wave">👋</span>`,
