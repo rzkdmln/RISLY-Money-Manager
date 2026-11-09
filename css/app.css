@@ -216,7 +216,7 @@ img, svg { display: block; }
 }
 .dark .sidebar { background: linear-gradient(180deg, rgba(96, 165, 250, .035), transparent 220px), var(--surface); }
 
-.sidebar-brand { display: flex; align-items: center; gap: 11px; padding: 4px 8px 0; }
+.sidebar-brand { display: flex; align-items: center; gap: 11px; padding: 4px 8px 0; transition: gap .28s ease, padding .3s cubic-bezier(.4, 0, .2, 1); }
 .sidebar-brand > img,
 .sidebar-brand > div {
   opacity: 1;
@@ -259,7 +259,7 @@ img, svg { display: block; }
 @media (min-width: 1024px) {
   .app-shell.sidebar-collapsed .sidebar { width: 72px; padding-left: 10px; padding-right: 10px; }
   .app-shell.sidebar-collapsed .app-main { padding-left: 72px; }
-  .app-shell.sidebar-collapsed .sidebar-brand { justify-content: center; padding-left: 0; padding-right: 0; }
+  .app-shell.sidebar-collapsed .sidebar-brand { justify-content: center; gap: 0; padding-left: 0; padding-right: 0; }
   .app-shell.sidebar-collapsed .sidebar-brand > img,
   .app-shell.sidebar-collapsed .sidebar-brand > div {
     opacity: 0;
@@ -1843,6 +1843,10 @@ body.is-auth { background: var(--bg); }
   #modal-root { padding: 10px; align-items: center; }
   .modal-panel { max-height: calc(100dvh - 20px); }
   .sheet-panel { border-radius: 20px 20px 0 0; }
+  .modal-center.profile-sheet { align-self: flex-start; }
+  .sheet-panel.profile-sheet { border-radius: 0 0 20px 20px; }
+  .modal-panel.profile-sheet { transform: translateY(-24px); }
+  .modal-panel.profile-sheet.modal-in { transform: translateY(0); }
   .modal-header { padding: 14px 15px 11px; }
   .modal-body { padding: 14px 15px; }
   .modal-footer { padding: 10px 15px calc(10px + var(--safe-bottom)); }

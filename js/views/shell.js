@@ -127,8 +127,7 @@ export function updateSyncSlots(status) {
 
 export function profileSheet(user) {
   const status = Cloud.getStatus();
-  return `<div class="sheet-handle"></div>
-    <div class="p-5 sm:p-6">
+  return `<div class="p-5 sm:p-6">
       <div class="flex items-center gap-4">
         ${avatar(user, 'xl')}
         <div class="min-w-0">
