@@ -10,7 +10,6 @@ export function goalsView() {
 
   return `<div class="page-stack">
     ${pageHeader({
-      eyebrow: 'Rencana',
       title: 'Target keuangan',
       subtitle: '',
       actions: `<button type="button" class="btn btn-primary" data-action="add-goal">${icon('plus', 'w-4 h-4')} Target baru</button>`,

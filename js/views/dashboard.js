@@ -117,7 +117,7 @@ export function dashboardView(user) {
     ${pageHeader({
       eyebrow: `Ringkasan ${escapeHTML(formatMonth(month))}`,
       title: `${escapeHTML(greeting())}, ${escapeHTML(user?.name || '')} <span class="wave">👋</span>`,
-      actions: `<div class="segmented-control shrink-0" role="group" aria-label="Scope kekayaan">
+      actions: `<div class="segmented-control shrink-0 hidden sm:flex" role="group" aria-label="Scope kekayaan">
         <button type="button" class="${!personalScope ? 'is-active' : ''}" data-action="set-networth-filter" data-scope="all">Keluarga</button>
         <button type="button" class="${personalScope ? 'is-active' : ''}" data-action="set-networth-filter" data-scope="mine">Saya</button>
       </div>`,
@@ -137,8 +137,16 @@ export function dashboardView(user) {
         <div class="accounts-hero-ring"></div>
         <div class="accounts-hero-ring accounts-hero-ring-two"></div>
 
+        <!-- Scope switcher (mobile only) -->
+        <div class="sm:hidden mb-4">
+          <div class="segmented-control shrink-0" role="group" aria-label="Scope kekayaan">
+            <button type="button" class="${!personalScope ? 'is-active' : ''}" data-action="set-networth-filter" data-scope="all">Keluarga</button>
+            <button type="button" class="${personalScope ? 'is-active' : ''}" data-action="set-networth-filter" data-scope="mine">Saya</button>
+          </div>
+        </div>
+
         <!-- Header -->
-        <div class="flex items-center justify-between min-w-0 mb-6">
+        <div class="flex items-center justify-between min-w-0">
           <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">${personalScope ? 'Kekayaan Pribadi' : 'Total Kekayaan Keluarga'}</p>
           <button type="button" class="p-2 text-slate-400 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-colors shrink-0" data-action="toggle-privacy" aria-label="Sembunyikan nominal">
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>
@@ -146,7 +154,7 @@ export function dashboardView(user) {
         </div>
 
         <!-- Area Nominal Besar -->
-        <div class="mb-8 min-w-0">
+        <div class="mb-4 min-w-0">
           <h2 class="text-4xl sm:text-5xl font-extrabold text-white truncate tracking-tight">${money(personalScope ? myNetWorth : netWorth)}</h2>
           <p class="mt-1 text-xs text-slate-400">${personalScope ? 'Kekayaan Keluarga' : 'Kekayaan Pribadi'}: ${money(personalScope ? netWorth : myNetWorth)}</p>
         </div>

@@ -90,6 +90,7 @@ import {
   sanitizeNoteHTML,
   safeNumber,
   shiftMonthKey,
+  monthKey,
   todayISO,
   toDateTimeLocal,
 } from './utils.js';
@@ -99,7 +100,7 @@ import { transactionsView, dayDetailView } from './views/transactions.js';
 import { calendarView } from './views/calendar.js';
 import { notesView, tasksSheet } from './views/notes.js';
 import { accountsView } from './views/accounts.js';
-import { budgetsView } from './views/budgets.js';
+import { budgetsView, budgetCategoriesModal } from './views/budgets.js';
 import { recurringView } from './views/recurring.js';
 import { categoriesView } from './views/categories.js';
 import { goalsView, goalForm } from './views/goals.js';
@@ -815,6 +816,10 @@ function openTasksSheet() {
   openModal({ size: 'md', className: 'sheet-panel', html: tasksSheet() });
 }
 
+function openBudgetCategoriesModal() {
+  openModal({ size: 'lg', className: '', html: budgetCategoriesModal(ui.budgetMonth || monthKey()) });
+}
+
 function openForgotPinModal() {
   const status = Cloud.getStatus();
   const canCloud = status.provider !== 'local';
@@ -1418,6 +1423,9 @@ async function handleAction(action, element) {
     }
     case 'open-more':
       openMoreSheet();
+      break;
+    case 'open-budget-categories':
+      openBudgetCategoriesModal();
       break;
     case 'open-tasks':
       openTasksSheet();
@@ -3047,6 +3055,7 @@ function submitBudgetCategories(form) {
   });
   store.setBudgets(ui.budgetMonth || monthKey(), entries);
   toast('Batas kategori disimpan.', 'success');
+  closeModal({ silent: true });
   renderApplication();
 }
 
@@ -3059,6 +3068,7 @@ function submitBudgetThresholds(form) {
   }
   store.updateSettings({ budgetWarning: warning, budgetDanger: danger });
   toast('Ambang peringatan disimpan.', 'success');
+  closeModal({ silent: true });
   renderApplication();
 }
 

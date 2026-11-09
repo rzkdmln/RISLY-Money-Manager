@@ -120,7 +120,7 @@ function memberOverview() {
   return `<div class="page-stack min-w-0 w-full overflow-hidden">
     ${pageHeader({
       title: 'Akun',
-      actions: `<div class="flex items-center gap-2 flex-wrap justify-end">
+      actions: `<div class="flex items-center gap-2 flex-wrap justify-end accounts-actions">
         <button type="button" class="btn btn-secondary" data-action="add-tx" data-type="transfer">${icon('arrow-left-right', 'w-4 h-4')} Transfer</button>
         <button type="button" class="btn btn-primary" data-action="add-account">${icon('plus', 'w-4 h-4')} Akun</button>
       </div>`,
@@ -144,7 +144,6 @@ function memberOverview() {
     <section class="card min-w-0 w-full overflow-hidden">
       <div class="card-heading min-w-0">
         <div class="min-w-0 flex-1">
-          <p class="card-kicker">Anggota keluarga</p>
           <h2 class="section-title truncate">Kekayaan per anggota</h2>
         </div>
         ${badge(`${buckets.length} anggota`, 'slate', 'badge-soft')}

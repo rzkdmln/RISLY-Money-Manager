@@ -160,7 +160,6 @@ export function moreSheet() {
     <div class="p-5 sm:p-6">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-xs font-semibold uppercase tracking-[.16em] text-slate-400">Jelajahi</p>
           <h2 class="text-xl font-bold text-slate-900 dark:text-white">Menu lainnya</h2>
         </div>
         <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>

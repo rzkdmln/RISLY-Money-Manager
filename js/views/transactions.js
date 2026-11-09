@@ -244,7 +244,7 @@ export function transactionsView() {
 
     <div class="space-y-5 min-w-0 w-full">${groupHtml}</div>
 
-    ${totalPages > 1 ? `<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 min-w-0 w-full">
+    ${totalPages > 1 ? `<div class="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3 pt-2 min-w-0 w-full">
       <p class="text-xs text-slate-500 dark:text-slate-400 text-center sm:text-left">Menampilkan ${pageStart + 1}–${Math.min(pageStart + TX_PAGE_SIZE, all.length)} dari ${all.length} transaksi</p>
       <div class="flex items-center justify-center gap-1 flex-wrap min-w-0">
         <button type="button" class="pagination-btn" data-action="tx-page" data-page="${ui.txPage - 1}" ${ui.txPage <= 1 ? 'disabled' : ''} aria-label="Halaman sebelumnya">${icon('chevron-left', 'w-4 h-4')}</button>
