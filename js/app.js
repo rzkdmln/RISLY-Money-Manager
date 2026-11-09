@@ -1945,19 +1945,19 @@ async function handleAction(action, element) {
 
     /* Budgets */
     case 'budget-prev':
-      ui.budgetMonth = shiftMonthKey(ui.budgetMonth || monthKey(), -1);
+      if (element.dataset.target === 'report') {
+        ui.reportMonth = shiftMonthKey(ui.reportMonth || monthKey(), -1);
+      } else {
+        ui.budgetMonth = shiftMonthKey(ui.budgetMonth || monthKey(), -1);
+      }
       renderApplication();
       break;
     case 'budget-next':
-      ui.budgetMonth = shiftMonthKey(ui.budgetMonth || monthKey(), 1);
-      renderApplication();
-      break;
-    case 'report-prev':
-      ui.reportMonth = shiftMonthKey(ui.reportMonth || monthKey(), -1);
-      renderApplication();
-      break;
-    case 'report-next':
-      ui.reportMonth = shiftMonthKey(ui.reportMonth || monthKey(), 1);
+      if (element.dataset.target === 'report') {
+        ui.reportMonth = shiftMonthKey(ui.reportMonth || monthKey(), 1);
+      } else {
+        ui.budgetMonth = shiftMonthKey(ui.budgetMonth || monthKey(), 1);
+      }
       renderApplication();
       break;
     case 'copy-budget': {
@@ -3572,7 +3572,10 @@ function bindEvents() {
           if (target.value) ui.calendarMonth = target.value;
           break;
         case 'budget-month':
-          if (target.value) ui.budgetMonth = target.value;
+          if (target.value) {
+            if (target.dataset.target === 'report') ui.reportMonth = target.value;
+            else ui.budgetMonth = target.value;
+          }
           break;
         case 'report-month':
           if (target.value) ui.reportMonth = target.value;

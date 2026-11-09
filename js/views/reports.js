@@ -36,8 +36,10 @@ export function reportsView() {
   return `<div class="page-stack">
     ${pageHeader({
       title: 'Laporan',
-      actions: `<div class="month-nav budget-month-nav"><button type="button" class="icon-btn" data-action="report-prev" aria-label="Bulan sebelumnya"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg></button><input type="month" class="field field-compact budget-month-input" id="report-month-picker" value="${escapeAttr(month)}" data-filter="report-month" aria-label="Pilih bulan laporan"><button type="button" class="icon-btn" data-action="report-next" aria-label="Bulan berikutnya"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></button></div>
-          <button type="button" class="btn btn-secondary text-blue-600 hover:text-blue-700 dark:text-blue-400 flex-none" data-action="open-export-modal">${icon('download', 'w-4 h-4')} Unduh</button>`,
+      actions: `<div class="flex flex-col items-end gap-2">
+            <div class="month-nav budget-month-nav"><button type="button" class="icon-btn" data-action="budget-prev" data-target="report" aria-label="Bulan sebelumnya"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg></button><input type="month" class="field field-compact budget-month-input" id="budget-month-picker" value="${escapeAttr(month)}" data-filter="budget-month" data-target="report" aria-label="Pilih bulan anggaran"><button type="button" class="icon-btn" data-action="budget-next" data-target="report" aria-label="Bulan berikutnya"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></button></div>
+            <button type="button" class="btn btn-secondary text-blue-600 hover:text-blue-700 dark:text-blue-400 flex-none" data-action="open-export-modal">${icon('download', 'w-4 h-4')} Unduh</button>
+          </div>`,
     })}
 
     <section class="card report-control">
