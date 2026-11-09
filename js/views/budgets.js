@@ -48,18 +48,7 @@ export function budgetsView() {
             '<p class="budget-hero-value">' + (hasBudget ? money(status.total) : 'Belum diatur') + '</p>' +
             '' +
           '</div>' +
-          '<div class="flex flex-col items-end gap-2">' +
-            '<form data-form="budget-total" class="budget-set-form">' +
-              '<label class="field-label">Atur total' +
-                '<div class="input-with-prefix mt-1.5">' +
-                  '<span>Rp</span>' +
-                  '<input class="field" type="number" name="amount" min="0" step="1000" inputmode="numeric" value="' + Math.round(status.total) + '" placeholder="0">' +
-                '</div>' +
-              '</label>' +
-              '<button type="submit" class="btn btn-primary">' + icon('save', 'w-4 h-4') + ' Simpan</button>' +
-            '</form>' +
-            '<button type="button" class="btn btn-secondary btn-sm" data-action="open-budget-categories">' + icon('edit', 'w-3.5 h-3.5') + ' Edit</button>' +
-          '</div>' +
+          '<button type="button" class="btn btn-secondary btn-sm" data-action="open-budget-categories">' + icon('edit', 'w-3.5 h-3.5') + ' Edit anggaran</button>' +
         '</div>' +
         (hasBudget ? '<div class="budget-hero-progress">' +
           '<div class="flex items-end justify-between gap-3 mb-2">' +
@@ -112,22 +101,36 @@ export function budgetCategoriesModal(month) {
   return '<div class="p-5 sm:p-6">' +
     '<div class="flex items-center justify-between gap-3 mb-4">' +
       '<div>' +
-        '<p class="card-kicker">Batas per kategori</p>' +
-        '<h2 class="section-title">Kendali pengeluaran</h2>' +
+        '<p class="card-kicker">Anggaran</p>' +
+        '<h2 class="section-title">Edit anggaran</h2>' +
       '</div>' +
       '<button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">' + icon('x') + '</button>' +
     '</div>' +
-    '<form data-form="budget-categories" class="space-y-3">' +
-      '<div class="budget-category-list">' + rowHtml + '</div>' +
-      '<div class="flex flex-wrap gap-2">' +
-        '<button type="button" class="btn btn-ghost btn-sm" data-action="copy-budget" title="Salin anggaran bulan sebelumnya">' + icon('copy', 'w-3.5 h-3.5') + ' Salin bulan lalu</button>' +
-        '<button type="button" class="btn btn-ghost btn-sm" data-action="carry-budget" title="Bawa anggaran bulan sebelumnya">' + icon('arrow-left', 'w-3.5 h-3.5') + ' Bawa dari bulan lalu</button>' +
+    '<form data-form="budget-categories" class="space-y-4">' +
+      '<div>' +
+        '<p class="card-kicker">Total anggaran</p>' +
+        '<label class="field-label mt-1">Atur total' +
+          '<div class="input-with-prefix mt-1.5">' +
+            '<span>Rp</span>' +
+            '<input class="field" type="number" name="total" min="0" step="1000" inputmode="numeric" value="' + Math.round(status.total) + '" placeholder="0">' +
+          '</div>' +
+        '</label>' +
       '</div>' +
-      '<p class="text-[11px] text-slate-400">Salin: menyalin nominal dari bulan lalu tanpa penanda. Bawa: menyalin sekaligus menandai asal bulan (carry).</p>' +
 
-      '<div class="mt-5 pt-4 border-t border-slate-200 dark:border-slate-700">' +
+      '<div class="pt-4 border-t border-slate-200 dark:border-slate-700">' +
+        '<p class="card-kicker">Batas per kategori</p>' +
+        '<h3 class="section-title mb-2">Kendali pengeluaran</h3>' +
+        '<div class="budget-category-list">' + rowHtml + '</div>' +
+        '<div class="flex flex-wrap gap-2 mt-3">' +
+          '<button type="button" class="btn btn-ghost btn-sm" data-action="copy-budget" title="Salin anggaran bulan sebelumnya">' + icon('copy', 'w-3.5 h-3.5') + ' Salin bulan lalu</button>' +
+          '<button type="button" class="btn btn-ghost btn-sm" data-action="carry-budget" title="Bawa anggaran bulan sebelumnya">' + icon('arrow-left', 'w-3.5 h-3.5') + ' Bawa dari bulan lalu</button>' +
+        '</div>' +
+        '<p class="text-[11px] text-slate-400">Salin: menyalin nominal dari bulan lalu tanpa penanda. Bawa: menyalin sekaligus menandai asal bulan (carry).</p>' +
+      '</div>' +
+
+      '<div class="pt-4 border-t border-slate-200 dark:border-slate-700">' +
         '<p class="card-kicker">Warna peringatan</p>' +
-        '<h2 class="section-title mb-2">Ambang batas</h2>' +
+        '<h3 class="section-title mb-2">Ambang batas</h3>' +
         '<div class="grid grid-cols-2 gap-3">' +
           '<label class="field-label">Peringatan (%)' +
             '<input class="field mt-1.5" type="number" name="warning" min="1" max="99" value="' + status.warning + '">' +
@@ -143,7 +146,7 @@ export function budgetCategoriesModal(month) {
         '</div>' +
       '</div>' +
 
-      '<div class="flex justify-end gap-2 mt-4">' +
+      '<div class="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">' +
         '<button type="button" class="btn btn-secondary" data-action="close-modal">Batal</button>' +
         '<button type="submit" class="btn btn-primary">' + icon('save', 'w-4 h-4') + ' Simpan</button>' +
       '</div>' +
