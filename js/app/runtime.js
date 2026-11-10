@@ -204,28 +204,6 @@ export function renderRouteWithFocus() {
   renderApplication({ focus: snapshot });
 }
 
-export function rememberFocus() {
-  const active = document.activeElement;
-  if (!active?.id) return null;
-  return {
-    id: active.id,
-    start: typeof active.selectionStart === 'number' ? active.selectionStart : null,
-    end: typeof active.selectionEnd === 'number' ? active.selectionEnd : null,
-  };
-}
-
-function restoreFocus(snapshot) {
-  if (!snapshot?.id) return;
-  const node = document.getElementById(snapshot.id);
-  if (!node) return;
-  node.focus({ preventScroll: true });
-  if (snapshot.start !== null && typeof node.setSelectionRange === 'function') {
-    try {
-      node.setSelectionRange(snapshot.start, snapshot.end ?? snapshot.start);
-    } catch { /* not a text field */ }
-  }
-}
-
 export const debounceSearch = debounce((callback) => callback(), 280);
 
 export function noteActivity() {
