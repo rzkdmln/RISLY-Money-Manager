@@ -13,8 +13,8 @@ import {
   resetFailedAttempts,
   registerFailedAttempt,
   getLockRemaining,
-} from '../../auth.js';
-import { ui, toast } from '../../ui.js';
+} from '../../core/auth.js';
+import { ui, toast } from '../../ui/ui.js';
 
 export const authSubmissions = {
   login: async (form) => {

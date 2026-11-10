@@ -23,10 +23,11 @@ import {
 import { navigate, renderApplication } from '../runtime.js';
 import { lockApplication, leaveApplication } from '../session.js';
 import { requestNotifications, checkForUpdate } from '../pwa.js';
-import { store } from '../../store.js';
-import { Cloud } from '../../cloud.js';
+import { store } from '../../core/store.js';
+import { Cloud } from '../../services/cloud.js';
 import {
   ui,
+  prefs,
   closeModal,
   confirmDialog,
   openModal,
@@ -34,10 +35,10 @@ import {
   setTheme,
   toast,
   togglePrivacy,
-} from '../../ui.js';
-import { icon } from '../../icons.js';
+} from '../../ui/ui.js';
+import { icon } from '../../ui/icons.js';
 import { flushNoteAutosave } from '../note-editor.js';
-import { monthKey } from '../../utils.js';
+import { monthKey } from '../../core/utils.js';
 import { changePinForm, profileForm } from '../../forms/account.js';
 
 export const navigationActions = {

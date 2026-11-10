@@ -8,7 +8,7 @@ import { stringValue } from '../../core/utils.js';
 import { enterApplication } from '../session.js';
 import { store } from '../../core/store.js';
 import { signInWithGoogleFlow } from '../auth-flow.js';
-import { ui, toast, closeModal } from '../../ui.js';
+import { ui, toast, closeModal } from '../../ui/ui.js';
 
 export const workspaceSubmissions = {
   'join-workspace': async (form) => {

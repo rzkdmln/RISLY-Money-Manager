@@ -18,8 +18,8 @@ import {
   todayISO,
   currentTimeHHMM,
   normalizeTime,
-} from '../../utils.js';
-import { ui, confirmDialog, closeModal, toast } from '../../ui.js';
+} from '../../core/utils.js';
+import { ui, confirmDialog, closeModal, toast } from '../../ui/ui.js';
 import { transactionForm } from '../../forms/transaction.js';
 import { syncPaymentSplit } from '../payment-split.js';
 

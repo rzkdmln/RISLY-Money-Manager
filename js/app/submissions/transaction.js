@@ -17,8 +17,8 @@ import {
   todayISO,
   formValue,
   stringValue,
-} from '../../utils.js';
-import { ui, closeModal, toast } from '../../ui.js';
+} from '../../core/utils.js';
+import { ui, closeModal, toast } from '../../ui/ui.js';
 import { renderApplication } from '../runtime.js';
 
 export const transactionSubmissions = {

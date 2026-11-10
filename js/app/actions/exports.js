@@ -21,11 +21,11 @@ import {
   backupNow,
   pickBackupFile,
   resetApplication,
-} from '../../backup.js';
-import { monthKey, shiftMonthKey, formatMonth, escapeHTML } from '../../utils.js';
-import { ui } from '../../ui.js';
-import { store } from '../../store.js';
-import { closeModal, confirmDialog, toast } from '../../ui.js';
+} from '../../services/backup.js';
+import { monthKey, shiftMonthKey, formatMonth, escapeHTML } from '../../core/utils.js';
+import { ui } from '../../ui/ui.js';
+import { store } from '../../core/store.js';
+import { closeModal, confirmDialog, toast } from '../../ui/ui.js';
 import { renderApplication } from '../runtime.js';
 
 export const exportActions = {

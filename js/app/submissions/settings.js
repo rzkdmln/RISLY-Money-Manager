@@ -8,7 +8,7 @@ import {
   toast,
 } from '../../ui/ui.js';
 import { renderApplication } from '../runtime.js';
-import { store } from '../../store.js';
+import { store } from '../../core/store.js';
 
 export const settingsSubmissions = {
   'auto-lock': (form) => {
