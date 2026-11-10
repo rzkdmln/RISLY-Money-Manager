@@ -9,6 +9,7 @@
 import { store } from '../store.js';
 import { Cloud } from '../cloud.js';
 import { APP, ROUTES } from '../config.js';
+import { loginView } from '../views/auth.js';
 import { shellView, updateChrome, updateSyncSlots } from '../views/shell.js';
 import { destroyCharts, renderDashboardCharts } from '../charts.js';
 import { emptyState, closeModal, ui } from '../ui.js';
