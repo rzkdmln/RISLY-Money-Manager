@@ -200,17 +200,18 @@ import {
   openDriveRestoreModal,
   driveRestoreFile,
 } from './backup.js';
+import { appHooks } from './app/hooks.js';
 
 /* -------------------------------------------------------------------------- */
 /*  Runtime state                                                            */
 /* -------------------------------------------------------------------------- */
 
-const root = document.getElementById('app-root');
+export const root = document.getElementById('app-root');
 let renderTimer = null;
 export let noteSaveTimer = null;
 let deferredInstallPrompt = null;
-let swRegistration = null;
-let lastActivityWrite = 0;
+export let swRegistration = null;
+export let lastActivityWrite = 0;
 let lastReminderCheck = 0;
 
 const ROUTE_VIEWS = {
@@ -307,7 +308,7 @@ export function refreshColorField(field) {
   applyColorFieldValue(field, selected);
 }
 
-function setColorFieldBase(field, color) {
+export function setColorFieldBase(field, color) {
   if (!field || !color) return;
   field.dataset.colorBase = color;
   const custom = field.querySelector('[data-color-custom]');
@@ -325,7 +326,7 @@ export function stringValue(form, name) {
   return String(formValue(form, name) ?? '').trim();
 }
 
-function rememberFocus() {
+export function rememberFocus() {
   const active = document.activeElement;
   if (!active?.id) return null;
   return {
@@ -347,19 +348,19 @@ function restoreFocus(snapshot) {
   }
 }
 
-function setSplashStatus(text) {
+export function setSplashStatus(text) {
   const node = document.getElementById('splash-status');
   if (node) node.textContent = text;
 }
 
-function hideSplash() {
+export function hideSplash() {
   const splash = document.getElementById('app-splash');
   if (!splash) return;
   splash.classList.add('is-hidden');
   setTimeout(() => splash.remove(), 450);
 }
 
-function scheduleRender(delay = 60) {
+export function scheduleRender(delay = 60) {
   clearTimeout(renderTimer);
   renderTimer = setTimeout(() => {
     renderTimer = null;
@@ -607,7 +608,7 @@ export async function leaveApplication() {
   toast('Anda sudah keluar.', 'info');
 }
 
-function checkAutoLock() {
+export function checkAutoLock() {
   const session = getSession();
   if (!session || !store.currentUser) return;
   if (isSessionExpired(session, store.data.settings.autoLockMinutes)) {
@@ -628,7 +629,7 @@ export function runRecurring({ notify = false } = {}) {
   }
 }
 
-function checkReminders() {
+export function checkReminders() {
   if (!store.currentUser) return;
   const now = Date.now();
   if (now - lastReminderCheck < 45_000) return;
@@ -1933,9 +1934,9 @@ function bindEvents() {
   });
 }
 
-const debounceSearch = debounce((callback) => callback(), 280);
+export const debounceSearch = debounce((callback) => callback(), 280);
 
-function noteActivity() {
+export function noteActivity() {
   if (!store.currentUser) return;
   const now = Date.now();
   if (now - lastActivityWrite < 30_000) return;
@@ -1946,6 +1947,13 @@ function noteActivity() {
 /* -------------------------------------------------------------------------- */
 /*  Boot                                                                     */
 /* -------------------------------------------------------------------------- */
+
+Object.assign(appHooks, {
+  enterApplication,
+  renderApplication,
+  renderAuth,
+  signInWithGoogleFlow,
+});
 
 function bindStore() {
   store.subscribe((event) => {

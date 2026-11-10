@@ -83,3 +83,7 @@ export const budgetSubmissions = {
     totalInput.value = String(Math.round(allocated));
   },
 };
+
+export function syncBudgetAllocHint(form) {
+  budgetSubmissions['syncBudgetAllocHint'](form);
+}

@@ -21,12 +21,7 @@ import {
 import { APP } from './config.js';
 import { GoogleDrive, googleAccountBadge } from './gdrive.js';
 import { clearSession } from './auth.js';
-import {
-  enterApplication,
-  renderApplication,
-  renderAuth,
-  signInWithGoogleFlow,
-} from './app.js';
+import { appHooks } from './app/hooks.js';
 
 /* ------------------------------------------------------------------------ */
 /*  Local backup                                                            */
@@ -73,10 +68,10 @@ export function pickBackupFile() {
         clearSession();
         store.setCurrentUser(null);
         ui.appMounted = false;
-        renderAuth();
+        appHooks.renderAuth();
       } else {
         ui.appMounted = false;
-        renderApplication();
+        appHooks.renderApplication();
       }
       toast('Backup berhasil dipulihkan.', 'success');
     } catch (error) {
@@ -107,7 +102,7 @@ export async function resetApplication() {
   ui.locked = false;
   ui.appMounted = false;
   closeModal({ silent: true });
-  renderAuth();
+  appHooks.renderAuth();
   toast('Ruang direset.', 'info');
 }
 
@@ -138,13 +133,13 @@ export function refreshDriveUi() {
 /** Make sure we have a Drive token, signing in again when the old session expired. */
 export async function ensureDriveAccess() {
   if (!GoogleDrive.isConnected()) {
-    await signInWithGoogleFlow();
+    await appHooks.signInWithGoogleFlow();
     return;
   }
   try {
     await GoogleDrive.token();
   } catch {
-    await signInWithGoogleFlow();
+    await appHooks.signInWithGoogleFlow();
   }
 }
 
@@ -255,11 +250,11 @@ export async function driveRestoreFile(fileId) {
     }
     closeModal({ silent: true });
     if (!user) {
-      renderAuth();
+      appHooks.renderAuth();
       toast('Backup dari Drive berhasil dipulihkan.', 'success');
       return;
     }
-    enterApplication(user, { fresh: true });
+    appHooks.enterApplication(user, { fresh: true });
     toast('Backup dari Drive berhasil dipulihkan.', 'success');
   } catch (error) {
     console.error(error);
