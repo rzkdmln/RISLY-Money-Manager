@@ -1,14 +1,12 @@
 /**
  * RISLY — Router.
  *
- * Pemetaan route ke view, parsing hash dari URL, dan navigasi antar halaman.
+ * Pemetaan route ke view dan parsing hash dari URL.
  * Diekstrak dari js/app.js (Fase 2) bersama runtime.js.
  *
- * Catatan sengaja: router.js mengimpor renderApplication dari runtime.js
- * agar navigate() dapat memicu render ulang saat hash sama atau pakai
- * history.replaceState. Siklus runtime ↔ router aman karena
- * renderApplication hanya dipanggil saat fungsi dieksekusi (saat runtime
- * sudah siap), bukan saat evaluasi modul.
+ * router.js sengaja tidak mengimpor runtime.js agar tidak terdapat
+ * siklus import. Navigasi yang memicu render ulang (navigate) tetap
+ * di runtime.js di mana renderApplication didefinisikan.
  */
 
 import { store } from '../store.js';
@@ -25,7 +23,6 @@ import { categoriesView } from '../views/categories.js';
 import { goalsView } from '../views/goals.js';
 import { reportsView } from '../views/reports.js';
 import { settingsView } from '../views/settings.js';
-import { renderApplication } from './runtime.js';
 
 export const ROUTE_VIEWS = {
   dashboard: () => dashboardView(store.currentUser),
@@ -48,21 +45,4 @@ export function routeFromHash() {
     .trim()
     .toLowerCase();
   return ROUTES[raw] ? raw : 'dashboard';
-}
-
-export function navigate(route, { replace = false } = {}) {
-  if (!ROUTES[route]) return;
-  if (route === 'accounts') ui.accountsMember = null;
-  closeModal({ silent: true });
-  const target = `#/${route}`;
-  if (location.hash === target) {
-    renderApplication();
-    return;
-  }
-  if (replace) {
-    history.replaceState(null, '', target);
-    renderApplication();
-  } else {
-    location.hash = target;
-  }
 }

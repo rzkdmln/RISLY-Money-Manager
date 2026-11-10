@@ -51,6 +51,27 @@ export function scheduleRender(delay = 60) {
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Navigasi                                                                  */
+/* -------------------------------------------------------------------------- */
+
+export function navigate(route, { replace = false } = {}) {
+  if (!ROUTES[route]) return;
+  if (route === 'accounts') ui.accountsMember = null;
+  closeModal({ silent: true });
+  const target = `#/${route}`;
+  if (location.hash === target) {
+    renderApplication();
+    return;
+  }
+  if (replace) {
+    history.replaceState(null, '', target);
+    renderApplication();
+  } else {
+    location.hash = target;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Shell mounting                                                            */
 /* -------------------------------------------------------------------------- */
 

@@ -7,8 +7,7 @@ import { openAccountModal } from '../modals.js';
 import { openModal } from '../../ui.js';
 import { store } from '../../store.js';
 import { ui, closeModal, confirmDialog, toast } from '../../ui.js';
-import { navigate } from '../router.js';
-import { renderApplication } from '../runtime.js';
+import { navigate, renderApplication } from '../runtime.js';
 import { goalForm } from '../../views/goals.js';
 
 export const accountActions = {
