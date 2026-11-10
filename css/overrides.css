@@ -1,0 +1,20 @@
+﻿/* -------------------------------------------------------------------------- */
+/*  Design token overrides for Tailwind color utilities (step 1: colors)       */
+/* -------------------------------------------------------------------------- */
+.text-slate-900, .text-slate-800, .text-slate-700 { color: var(--text) !important; }
+.text-slate-600, .text-slate-500, .text-slate-400 { color: var(--muted) !important; }
+.text-slate-300, .text-slate-200, .text-slate-100 { color: var(--muted-2) !important; }
+.text-blue-700, .text-blue-600, .text-blue-500, .text-blue-400 { color: var(--brand) !important; }
+.text-emerald-600, .text-emerald-500, .text-emerald-400 { color: var(--green) !important; }
+.text-rose-600, .text-rose-700, .text-rose-400, .text-red-500, .text-red-600 { color: var(--red) !important; }
+.text-amber-800, .text-amber-700, .text-amber-600, .text-amber-500, .text-amber-400, .text-amber-300, .text-amber-200 { color: var(--amber) !important; }
+.text-violet-500 { color: var(--violet) !important; }
+.text-cyan-500 { color: var(--cyan) !important; }
+.dark .dark\:text-slate-900, .dark .dark\:text-slate-800, .dark .dark\:text-slate-700 { color: var(--text) !important; }
+.dark .dark\:text-slate-600, .dark .dark\:text-slate-500, .dark .dark\:text-slate-400 { color: var(--muted) !important; }
+.dark .dark\:text-slate-300, .dark .dark\:text-slate-200, .dark .dark\:text-slate-100 { color: var(--muted-2) !important; }
+.dark .dark\:text-blue-700, .dark .dark\:text-blue-600, .dark .dark\:text-blue-500, .dark .dark\:text-blue-400 { color: var(--brand) !important; }
+.dark .dark\:text-emerald-600, .dark .dark\:text-emerald-500, .dark .dark\:text-emerald-400 { color: var(--green) !important; }
+.dark .dark\:text-rose-600, .dark .dark\:text-rose-700, .dark .dark\:text-rose-400, .dark .dark\:text-red-500 { color: var(--red) !important; }
+.dark .dark\:text-amber-200, .dark .dark\:text-amber-300 { color: var(--amber) !important; }
+

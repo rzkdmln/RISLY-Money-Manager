@@ -1,0 +1,274 @@
+﻿/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+@media (max-width: 1279px) {
+  .filter-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .filter-search { grid-column: span 2; }
+}
+
+@media (max-width: 1023px) {
+  .sidebar { display: none; }
+  .app-main { padding-left: 0; }
+  .topbar { padding-left: 16px; padding-right: 16px; }
+  .mobile-brand { display: flex; }
+  .topbar-date { display: none; }
+  .page-content { padding: 20px 16px calc(80px + var(--safe-bottom)); }
+  .fab { right: 16px; bottom: calc(82px + var(--safe-bottom)); width: 52px; height: 52px; border-radius: 16px; }
+  .bottom-nav {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
+    display: flex; align-items: stretch; justify-content: space-around;
+    padding: 6px 8px calc(6px + var(--safe-bottom));
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    border-top: 1px solid var(--border);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  @supports not (background: color-mix(in srgb, red 50%, blue)) {
+    .bottom-nav { background: var(--surface); }
+  }
+  .bottom-nav-item {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    flex: 1; min-height: 46px; padding: 3px;
+    border: 0; border-radius: 9px; background: transparent;
+    color: var(--muted-2); font-size: 10px; font-weight: 650;
+    text-decoration: none;
+  }
+  .bottom-nav-item.is-active { color: var(--brand); }
+  .bottom-nav-item.is-active svg { stroke-width: 2.15; }
+  .toast-root { bottom: calc(92px + var(--safe-bottom)); right: 12px; left: 12px; width: auto; }
+  .settings-grid { grid-template-columns: 1fr; }
+  .notes-grid { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+  .chart-box { height: 210px; }
+}
+
+@media (max-width: 767px) {
+  /* Kunci pembungkus utama agar aplikasi tidak melebar ke kanan */
+  html, body, .app-shell, .app-main, .page-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Mencegah card, grid, dan elemen flex mendorong lebar layar */
+  .page-stack,
+  .card,
+  .stat-card,
+  .day-group,
+  .networth-card,
+  .accounts-hero,
+  .tx-row,
+  .schedule-item {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Perbaikan Aksi Cepat / Quick Actions agar tidak overflow */
+  .quick-grid,
+  .quick-actions-grid,
+  .actions-wrapper {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .quick-tile,
+  .quick-actions-grid .btn,
+  .actions-wrapper .btn {
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 8px !important;
+    font-size: 9.5px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Pemotongan teks judul & catatan pada baris transaksi agar tidak memanjangkan kontainer */
+  .tx-title,
+  .tx-meta,
+  .schedule-title {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    min-width: 0 !important;
+  }
+
+  /* Perbaikan input & select agar ukurannya pas & tidak memaksa melebarkan kontainer */
+  input[type="date"].field,
+  input[type="month"].field,
+  input[type="datetime-local"].field,
+  input[type="time"].field,
+  select.field,
+  .filter-grid .field,
+  .filter-grid select,
+  .filter-grid input {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .page-stack { gap: 14px; }
+  .page-title { font-size: 23px; }
+  .page-subtitle { font-size: 11.5px; }
+  .page-actions { width: 100%; justify-content: flex-end; }
+  .page-actions .btn { flex: 1; }
+  .page-actions .accounts-actions .btn { flex: 0 0 auto; }
+  .card { padding: 15px; border-radius: 16px; }
+  .networth-card { padding: 18px; border-radius: 20px; }
+  .accounts-hero { padding: 18px; border-radius: 20px; }
+  .networth-flow { gap: 12px; margin-top: 18px; }
+  .networth-flow-value { font-size: 11.5px; }
+  .networth-accounts { margin-top: 16px; }
+  .networth-account { max-width: 100%; }
+  .networth-actions { margin-top: 14px; }
+  .donut-layout { grid-template-columns: 1fr; gap: 6px; }
+  .chart-box-donut { height: 184px; }
+  .chart-box-bars { height: 205px; }
+
+  /* Grid filter transaksi pada tampilan mobile */
+  .filter-card { overflow: hidden !important; }
+  .filter-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  .filter-search { grid-column: span 2 !important; }
+
+  .calendar-card { padding: 12px; }
+  .calendar-grid { gap: 2px; }
+  .calendar-cell { min-height: 66px; padding: 4px; border-radius: 8px; }
+  .calendar-day-number { width: 18px; height: 18px; font-size: 11px; }
+  .calendar-amount { font-size: 6.5px; }
+  .calendar-legend { gap: 9px; }
+  .calendar-weekdays { margin-top: 12px; }
+  .notes-controls { flex-wrap: wrap; }
+  .notes-search-field { flex-basis: 100%; }
+  .notes-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .note-card { min-height: 158px; padding: 10px; }
+  .note-title { font-size: 11.5px; }
+  .note-card-actions { opacity: .8; }
+  .note-preview { font-size: 11px; max-height: 72px; }
+  .settings-profile { padding: 13px; }
+  .settings-profile > .flex { width: 100%; }
+  .form-grid { grid-template-columns: 1fr; gap: 10px; }
+  .date-time-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .date-display { pointer-events: none; }
+  .date-native { pointer-events: auto; }
+  .budget-hero-main { align-items: stretch; }
+  .budget-set-form { width: 100%; }
+  .budget-set-form .field-label { flex: 1; width: auto; }
+  .budget-category-row { padding: 9px; }
+  .recurring-side { align-items: flex-end; }
+  .recurring-actions .card-icon-btn:nth-child(2) { display: none; }
+  .reports .report-category-row { grid-template-columns: minmax(80px, 1fr) auto auto; }
+  .report-category-bar { display: none; }
+  .export-card { padding: 16px; }
+  .modal-panel { border-radius: 18px; }
+  #modal-root { padding: 0 10px; align-items: center; }
+  .modal-panel { max-height: calc(100dvh - 20px); }
+  .sheet-panel { border-radius: 20px 20px 0 0; align-self: flex-end; }
+  .modal-center { align-self: flex-end; }
+  .modal-center.profile-sheet { align-self: flex-start; }
+  .sheet-panel.profile-sheet { border-radius: 0 0 20px 20px; align-self: flex-start; }
+  .modal-panel.profile-sheet { transform: translateY(-24px); }
+  .modal-panel.profile-sheet.modal-in { transform: translateY(0); }
+  .modal-header { padding: 14px 15px 12px; }
+  .modal-heading { gap: 9px; }
+  .modal-heading-icon { width: 34px; height: 34px; border-radius: 10px; }
+  .modal-body { padding: 14px 15px; }
+  .receipt-field { padding: 11px; }
+  .modal-footer { padding: 10px 15px calc(10px + var(--safe-bottom)); }
+  .modal-footer .btn { padding-left: 11px; padding-right: 11px; }
+  .type-segment-btn { font-size: 11px; }
+  .calc-display { font-size: 24px; }
+  .auth-card { padding: 20px; border-radius: 22px; }
+  .auth-heading h1 { font-size: 21px; }
+  .auth-shell { max-width: 430px; }
+}
+
+@media (max-width: 420px) {
+  .notes-grid { grid-template-columns: 1fr; }
+  .quick-tile { padding: 8px; font-size: 9.5px; }
+  .stat-card { padding: 11px; }
+  .stat-value { font-size: 15px; }
+  .filter-grid { grid-template-columns: 1fr; }
+  .filter-search { grid-column: span 1; }
+  .calendar-cell { min-height: 57px; }
+  .calendar-amount { font-size: 6px; }
+  .calendar-cell-footer { display: none; }
+  .auth-links { justify-content: center; }
+  .auth-footer { flex-direction: column; gap: 4px; }
+  .more-grid { grid-template-columns: 1fr; }
+  .theme-options { grid-template-columns: 1fr; }
+  .data-usage { grid-template-columns: 1fr 1fr; }
+  .receipt-field-head { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .receipt-hint { white-space: normal; }
+  .receipt-preview-bar { flex-direction: column; align-items: stretch; gap: 6px; }
+  .receipt-preview-actions { justify-content: flex-end; }
+  .receipt-lightbox { padding: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==========================================================================
+   Print
+   ========================================================================== */
+
+@media print {
+  .sidebar, .topbar, .bottom-nav, .fab, .toast-root, #modal-root { display: none !important; }
+  .app-main { padding: 0 !important; }
+  .page-content { padding: 0 !important; max-width: none !important; }
+  body { background: #fff !important; color: #000 !important; }
+  .card, .stat-card, .accounts-hero, .networth-card { box-shadow: none !important; break-inside: avoid; }
+  .page-actions, .link-button, .btn { display: none !important; }
+}
+
+/* Cegah Auto-Zoom pada Form Input */
+input, select, textarea {
+  font-size: 16px !important; /* Mencegah Safari auto-zoom saat fokus */
+}
+
+/* Matikan Behavior Gesture bawaan iOS & Kunci Geser Horizontal */
+html, body {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+  position: relative;
+  touch-action: pan-y; /* HANYA izinkan scroll atas-bawah (mati geser kiri-kanan) */
+  overscroll-behavior-x: none; /* Mencegah efek bounce geser samping */
+  overscroll-behavior-y: none; /* Mencegah efek bounce saat scroll habis */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Izinkan seleksi teks khusus di elemen input */
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Kunci pembungkus utama app shell */
+.app-shell,
+.app-main,
+.page-content {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+
+
