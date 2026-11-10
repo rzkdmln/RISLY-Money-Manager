@@ -168,7 +168,6 @@ let deferredInstallPrompt = null;
 let swRegistration = null;
 let lastActivityWrite = 0;
 let lastReminderCheck = 0;
-let suppressRender = false;
 
 const ROUTE_VIEWS = {
   dashboard: () => dashboardView(store.currentUser),
@@ -317,7 +316,6 @@ function hideSplash() {
 }
 
 function scheduleRender(delay = 60) {
-  if (suppressRender) return;
   clearTimeout(renderTimer);
   renderTimer = setTimeout(() => {
     renderTimer = null;
