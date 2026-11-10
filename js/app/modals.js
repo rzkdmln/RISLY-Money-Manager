@@ -14,7 +14,8 @@ import { accountForm, categoryForm } from '../forms/account.js';
 import { cloudProviderFields } from '../forms/cloud.js';
 import { noteEditorForm } from '../forms/note.js';
 import { budgetCategoriesModal } from '../views/budgets.js';
-import { profileSheet, moreSheet, tasksSheet } from '../views/shell.js';
+import { profileSheet, moreSheet } from '../views/shell.js';
+import { tasksSheet } from '../views/notes.js';
 import { renderApplication } from './runtime.js';
 
 function openTransactionModal(tx = null, defaults = {}) {
