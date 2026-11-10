@@ -367,6 +367,32 @@ function openInstallHelp() {
   });
 }
 
+function openJoinWorkspaceModal() {
+  openModal({
+    size: 'sm',
+    className: 'form-modal',
+    html: `<form data-form="join-workspace" class="modal-form" novalidate>
+      <header class="modal-header">
+        <div>
+          <p class="modal-kicker">Ruang keluarga</p>
+          <h2 class="modal-title">Gabung dengan kode</h2>
+        </div>
+        <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
+      </header>
+      <div class="modal-body">
+        <label class="field-label">Kode undangan
+          <input class="field mt-1.5" name="inviteCode" maxlength="8" autocomplete="off" placeholder="ABC123" required>
+        </label>
+        <p class="form-error hidden" data-form-error role="alert"></p>
+      </div>
+      <footer class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-action="close-modal">Batal</button>
+        <button type="submit" class="btn btn-primary">Lanjut dengan Google</button>
+      </footer>
+    </form>`,
+  });
+}
+
 function authCloudFields(config = {}) {
   return cloudProviderFields(config, {
     includeLocal: false,
@@ -404,4 +430,4 @@ function openAuthCloudModal() {
   });
 }
 
-export { openTransactionModal, openReceiptLightbox, openRecurringModal, openAccountModal, openCategoryModal, openNoteEditor, renderGlobalSearchResults, openGlobalSearch, openAutoLockModal, openThemeModal, openWeekModal, openProfileSheet, openMoreSheet, openTasksSheet, openBudgetCategoriesModal, openBudgetCategoryAmountLightbox, openForgotPinModal, openInstallHelp, authCloudFields, openAuthCloudModal };
+export { openTransactionModal, openReceiptLightbox, openRecurringModal, openAccountModal, openCategoryModal, openNoteEditor, renderGlobalSearchResults, openGlobalSearch, openAutoLockModal, openThemeModal, openWeekModal, openProfileSheet, openMoreSheet, openTasksSheet, openBudgetCategoriesModal, openBudgetCategoryAmountLightbox, openForgotPinModal, openInstallHelp, openJoinWorkspaceModal, authCloudFields, openAuthCloudModal };
