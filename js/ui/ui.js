@@ -1,4 +1,4 @@
-import { APP } from './config.js';
+import { APP } from '../core/config.js';
 import { icon } from './icons.js';
 import {
   clamp,

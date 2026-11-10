@@ -7,7 +7,7 @@ import {
   openTransactionModal,
   openAccountModal,
 } from '../modals.js';
-import { store } from '../../store.js';
+import { store } from '../../core/store.js';
 import { toggleCalculator } from '../calculator.js';
 import { openNativeDatePicker } from '../calculator.js';
 import { renderApplication } from '../runtime.js';

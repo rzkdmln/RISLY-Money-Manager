@@ -6,15 +6,15 @@
  * siklus ke js/app.js.
  */
 
-import { store } from '../store.js';
-import { Cloud } from '../cloud.js';
-import { APP, ROUTES } from '../config.js';
+import { store } from '../core/store.js';
+import { Cloud } from '../services/cloud.js';
+import { APP, ROUTES } from '../core/config.js';
 import { loginView } from '../views/auth.js';
 import { shellView, updateChrome, updateSyncSlots } from '../views/shell.js';
-import { destroyCharts, renderDashboardCharts } from '../charts.js';
-import { emptyState, closeModal, ui } from '../ui.js';
-import { monthKey, debounce } from '../utils.js';
-import { updateSessionActivity } from '../auth.js';
+import { destroyCharts, renderDashboardCharts } from '../services/charts.js';
+import { emptyState, closeModal, ui } from '../ui/ui.js';
+import { monthKey, debounce } from '../core/utils.js';
+import { updateSessionActivity } from '../core/auth.js';
 import { ROUTE_VIEWS, routeFromHash } from './router.js';
 import { rememberFocus, restoreFocus } from './focus.js';
 

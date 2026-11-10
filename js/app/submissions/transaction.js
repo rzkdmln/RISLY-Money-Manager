@@ -3,8 +3,8 @@
  * Domain: transactions
  */
 
-import { showFormError } from '../../ui.js';
-import { store } from '../../store.js';
+import { showFormError } from '../../ui/ui.js';
+import { store } from '../../core/store.js';
 import {
   expressionResult,
   parseDateDMY,

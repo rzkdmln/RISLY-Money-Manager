@@ -4,9 +4,9 @@
  */
 
 import { openAccountModal } from '../modals.js';
-import { openModal } from '../../ui.js';
-import { store } from '../../store.js';
-import { ui, closeModal, confirmDialog, toast } from '../../ui.js';
+import { openModal } from '../../ui/ui.js';
+import { store } from '../../core/store.js';
+import { ui, closeModal, confirmDialog, toast } from '../../ui/ui.js';
 import { navigate, renderApplication } from '../runtime.js';
 import { goalForm } from '../../views/goals.js';
 

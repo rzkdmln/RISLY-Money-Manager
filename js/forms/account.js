@@ -1,8 +1,8 @@
-import { ACCOUNT_TYPES, DEFAULT_CATEGORY_COLORS, ICON_CHOICES } from '../config.js';
-import { COLOR_HARMONY_MODES, harmonySwatchMarkup, quickSwatchMarkup } from '../colors.js';
-import { icon } from '../icons.js';
-import { store } from '../store.js';
-import { escapeAttr, escapeHTML } from '../utils.js';
+import { ACCOUNT_TYPES, DEFAULT_CATEGORY_COLORS, ICON_CHOICES } from '../core/config.js';
+import { COLOR_HARMONY_MODES, harmonySwatchMarkup, quickSwatchMarkup } from '../ui/colors.js';
+import { icon } from '../ui/icons.js';
+import { store } from '../core/store.js';
+import { escapeAttr, escapeHTML } from '../core/utils.js';
 
 function colorPicker(selected, inputName = 'color') {
   const base = selected || '#3B82F6';

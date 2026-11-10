@@ -3,10 +3,10 @@
  * Domain: filters
  */
 
-import { openModal } from '../../ui.js';
+import { openModal } from '../../ui/ui.js';
 import { transactionFilterModal } from '../../views/transactions.js';
-import { ui } from '../../ui.js';
-import { closeModal } from '../../ui.js';
+import { ui } from '../../ui/ui.js';
+import { closeModal } from '../../ui/ui.js';
 import { renderApplication } from '../runtime.js';
 
 export const filterActions = {

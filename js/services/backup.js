@@ -5,9 +5,9 @@
  */
 
 /* Imports */
-import { store } from './store.js';
-import { toast, openModal, closeModal, confirmDialog, ui } from './ui.js';
-import { icon } from './icons.js';
+import { store } from '../core/store.js';
+import { toast, openModal, closeModal, confirmDialog, ui } from '../ui/ui.js';
+import { icon } from '../ui/icons.js';
 import {
   escapeAttr,
   escapeHTML,
@@ -17,11 +17,11 @@ import {
   localDateISO,
   nowISO,
   readFileAsText,
-} from './utils.js';
-import { APP } from './config.js';
+} from '../core/utils.js';
+import { APP } from '../core/config.js';
 import { GoogleDrive, googleAccountBadge } from './gdrive.js';
-import { clearSession } from './auth.js';
-import { appHooks } from './app/hooks.js';
+import { clearSession } from '../core/auth.js';
+import { appHooks } from '../app/hooks.js';
 
 /* ------------------------------------------------------------------------ */
 /*  Local backup                                                            */

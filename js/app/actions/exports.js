@@ -3,20 +3,20 @@
  * Domain: exports
  */
 
-import { openExportModal } from '../../export.js';
+import { openExportModal } from '../../services/export.js';
 import { addPaymentRow, syncPaymentSplit } from '../payment-split.js';
 import { openReceiptLightbox } from '../modals.js';
 import {
   openImportFormModal,
   openImportFilePicker,
   downloadImportTemplate,
-} from '../../import.js';
+} from '../../services/import.js';
 import {
   exportExcel,
   exportExcelRange,
   exportPdf,
   exportPdfRange,
-} from '../../export.js';
+} from '../../services/export.js';
 import {
   backupNow,
   pickBackupFile,

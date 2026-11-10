@@ -3,14 +3,14 @@
  * Domain: budgets
  */
 
-import { store } from '../../store.js';
+import { store } from '../../core/store.js';
 import {
   closeModal,
   confirmDialog,
   toast,
-} from '../../ui.js';
+} from '../../ui/ui.js';
 import { renderApplication } from '../runtime.js';
-import { shiftMonthKey, monthKey, escapeHTML, formatMonth } from '../../utils.js';
+import { shiftMonthKey, monthKey, escapeHTML, formatMonth } from '../../core/utils.js';
 
 export const budgetActions = {
   'budget-prev': (element) => {

@@ -1,7 +1,7 @@
-import { store } from '../store.js';
-import { icon } from '../icons.js';
-import { badge, emptyState, money, pageHeader, ui } from '../ui.js';
-import { escapeAttr, escapeHTML, formatDateLong, formatPercent, normalizeSearch } from '../utils.js';
+import { store } from '../core/store.js';
+import { icon } from '../ui/icons.js';
+import { badge, emptyState, money, pageHeader, ui } from '../ui/ui.js';
+import { escapeAttr, escapeHTML, formatDateLong, formatPercent, normalizeSearch } from '../core/utils.js';
 import { dayGroupHeader, transactionDayGroups, txRow } from './common.js';
 
 const TX_PAGE_SIZE = 10;

@@ -5,18 +5,18 @@
  * dipasang ke appHooks agar backup.js tidak perlu mengimpor dari js/app.js.
  */
 
-import { store } from '../store.js';
-import { Cloud } from '../cloud.js';
-import { ROUTES } from '../config.js';
+import { store } from '../core/store.js';
+import { Cloud } from '../services/cloud.js';
+import { ROUTES } from '../core/config.js';
 import {
   clearSession,
   createSession,
   getSession,
   isSessionExpired,
-} from '../auth.js';
-import { ui, toast, closeModal, savePrefs } from '../ui.js';
-import { GoogleDrive } from '../gdrive.js';
-import { clearPendingGoogleLogin } from '../google-auth-relay.js';
+} from '../core/auth.js';
+import { ui, toast, closeModal, savePrefs } from '../ui/ui.js';
+import { GoogleDrive } from '../services/gdrive.js';
+import { clearPendingGoogleLogin } from '../services/google-auth-relay.js';
 import { renderApplication, renderAuth } from './runtime.js';
 import { openNoteEditor } from './modals.js';
 

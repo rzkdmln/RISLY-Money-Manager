@@ -3,7 +3,7 @@
  * Domain: import
  */
 
-import { submitImport } from '../../import.js';
+import { submitImport } from '../../services/import.js';
 import { renderApplication } from '../runtime.js';
 
 export const importSubmissions = {

@@ -1,5 +1,5 @@
-import { store } from './store.js';
-import { formatCompact, formatCurrency, formatMonthShort, isPrivacyHidden, monthKey } from './utils.js';
+import { store } from '../core/store.js';
+import { formatCompact, formatCurrency, formatMonthShort, isPrivacyHidden, monthKey } from '../core/utils.js';
 
 const charts = new Map();
 

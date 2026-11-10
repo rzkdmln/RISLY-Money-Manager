@@ -4,15 +4,15 @@
  */
 
 import { openForgotPinModal, openAuthCloudModal } from '../modals.js';
-import { Cloud } from '../../cloud.js';
-import { store } from '../../store.js';
-import { clearSession } from '../../auth.js';
+import { Cloud } from '../../services/cloud.js';
+import { store } from '../../core/store.js';
+import { clearSession } from '../../core/auth.js';
 import {
   ui,
   closeModal,
   confirmDialog,
   toast,
-} from '../../ui.js';
+} from '../../ui/ui.js';
 import { renderAuth } from '../runtime.js';
 
 export const authActions = {

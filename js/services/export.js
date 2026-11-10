@@ -5,9 +5,9 @@
  */
 
 /* Imports */
-import { store } from './store.js';
-import { openModal, toast, ui } from './ui.js';
-import { icon } from './icons.js';
+import { store } from '../core/store.js';
+import { openModal, toast, ui } from '../ui/ui.js';
+import { icon } from '../ui/icons.js';
 import { typeLabel } from './import.js';
 import {
   escapeAttr,
@@ -17,7 +17,7 @@ import {
   formatMonth,
   monthKey,
   todayISO,
-} from './utils.js';
+} from '../core/utils.js';
 
 /* ------------------------------------------------------------------------ */
 /*  Label helpers                                                           */

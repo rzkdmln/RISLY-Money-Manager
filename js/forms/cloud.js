@@ -5,9 +5,9 @@
  * every provider renders exactly the same inputs.
  */
 
-import { APP, CLOUD_PROVIDERS } from '../config.js';
-import { icon } from '../icons.js';
-import { escapeAttr, escapeHTML } from '../utils.js';
+import { APP, CLOUD_PROVIDERS } from '../core/config.js';
+import { icon } from '../ui/icons.js';
+import { escapeAttr, escapeHTML } from '../core/utils.js';
 
 export function cloudProviderFields(config = {}, options = {}) {
   const {

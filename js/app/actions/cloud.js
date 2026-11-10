@@ -9,16 +9,16 @@ import { renderApplication, renderAuth } from '../runtime.js';
 import { navigate } from '../runtime.js';
 import { openJoinWorkspaceModal } from '../modals.js';
 import { openAuthCloudModal } from '../modals.js';
-import { Cloud } from '../../cloud.js';
-import { GoogleDrive } from '../../gdrive.js';
-import { store } from '../../store.js';
-import { clearSession } from '../../auth.js';
+import { Cloud } from '../../services/cloud.js';
+import { GoogleDrive } from '../../services/gdrive.js';
+import { store } from '../../core/store.js';
+import { clearSession } from '../../core/auth.js';
 import {
   ui,
   closeModal,
   confirmDialog,
   toast,
-} from '../../ui.js';
+} from '../../ui/ui.js';
 import {
   backupNow,
   pickBackupFile,
@@ -27,9 +27,9 @@ import {
   openDriveRestoreModal,
   driveRestoreFile,
   refreshDriveUi,
-} from '../../backup.js';
+} from '../../services/backup.js';
 import { testCloudFromForm, createJsonBinFromForm } from '../submissions/cloud.js';
-import { CLOUD_PROVIDERS } from '../../config.js';
+import { CLOUD_PROVIDERS } from '../../core/config.js';
 
 export const cloudActions = {
   'sync-now': async () => {

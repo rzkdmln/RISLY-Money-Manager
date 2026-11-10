@@ -1,7 +1,7 @@
-import { FREQUENCIES, TX_TYPES } from '../config.js';
-import { icon } from '../icons.js';
-import { store } from '../store.js';
-import { progressBar, ui } from '../ui.js';
+import { FREQUENCIES, TX_TYPES } from '../core/config.js';
+import { icon } from '../ui/icons.js';
+import { store } from '../core/store.js';
+import { progressBar, ui } from '../ui/ui.js';
 import {
   currentTimeHHMM,
   escapeAttr,
@@ -16,7 +16,7 @@ import {
   safeNumber,
   timeFromISO,
   todayISO,
-} from '../utils.js';
+} from '../core/utils.js';
 
 export function accountOptions(selectedId, includeId = null, ownerId = null, placeholder = 'Pilih Akun') {
   const accounts = store.data.accounts

@@ -2,9 +2,9 @@
  * RISLY Money Manager — Note editor helpers.
  */
 
-import { openModal } from '../ui.js';
-import { store } from '../store.js';
-import { sanitizeNoteHTML, parseDateTimeLocal } from '../utils.js';
+import { openModal } from '../ui/ui.js';
+import { store } from '../core/store.js';
+import { sanitizeNoteHTML, parseDateTimeLocal } from '../core/utils.js';
 import { noteEditorForm } from '../forms/note.js';
 
 export let noteSaveTimer = null;

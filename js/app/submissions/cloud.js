@@ -3,10 +3,10 @@
  * Domain: cloud
  */
 
-import { APP } from '../../config.js';
-import { Cloud } from '../../cloud.js';
-import { store } from '../../store.js';
-import { ui, toast, closeModal } from '../../ui.js';
+import { APP } from '../../core/config.js';
+import { Cloud } from '../../services/cloud.js';
+import { store } from '../../core/store.js';
+import { ui, toast, closeModal } from '../../ui/ui.js';
 import { renderApplication, renderAuth } from '../runtime.js';
 
 export function parseCloudConfig(form) {

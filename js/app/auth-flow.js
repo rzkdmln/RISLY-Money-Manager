@@ -5,13 +5,13 @@
  * dipasang ke appHooks agar backup.js tidak perlu mengimpor dari js/app.js.
  */
 
-import { openModal, closeModal } from '../ui.js';
-import { icon } from '../icons.js';
-import { GoogleDrive } from '../gdrive.js';
+import { openModal, closeModal } from '../ui/ui.js';
+import { icon } from '../ui/icons.js';
+import { GoogleDrive } from '../services/gdrive.js';
 import {
   startGoogleAuthRedirect,
   startGoogleAuthPopup,
-} from '../google-auth-relay.js';
+} from '../services/google-auth-relay.js';
 
 /* -------------------------------------------------------------------------- */
 /*  Google waiting modal                                                      */

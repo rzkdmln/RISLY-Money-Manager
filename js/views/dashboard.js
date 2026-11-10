@@ -1,6 +1,6 @@
-import { Cloud } from '../cloud.js';
-import { store } from '../store.js';
-import { icon } from '../icons.js';
+import { Cloud } from '../services/cloud.js';
+import { store } from '../core/store.js';
+import { icon } from '../ui/icons.js';
 import {
   badge,
   emptyState,
@@ -11,7 +11,7 @@ import {
   sectionHeading,
   toneForPercent,
   ui,
-} from '../ui.js';
+} from '../ui/ui.js';
 import {
   escapeAttr,
   escapeHTML,
@@ -22,7 +22,7 @@ import {
   monthKey,
   relativeDay,
   todayISO,
-} from '../utils.js';
+} from '../core/utils.js';
 import { accountIcon, txRow } from './common.js';
 
 export function dashboardView(user) {

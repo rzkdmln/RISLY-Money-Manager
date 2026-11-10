@@ -5,7 +5,7 @@
 
 import { changeNoteEditorKind } from '../note-editor.js';
 import { todoItemRow } from '../../forms/note.js';
-import { icon } from '../../icons.js';
+import { icon } from '../../ui/icons.js';
 
 export const noteEditorActions = {
   'note-form-kind': (element) => {

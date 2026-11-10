@@ -2,8 +2,8 @@
  * RISLY Money Manager — Calculator & date input helpers.
  */
 
-import { expressionResult, formatAmountExpression, formatCurrency, parseDateDMY, todayISO } from '../utils.js';
-import { toast, ui } from '../ui.js';
+import { expressionResult, formatAmountExpression, formatCurrency, parseDateDMY, todayISO } from '../core/utils.js';
+import { toast, ui } from '../ui/ui.js';
 import { syncPaymentSplit } from './payment-split.js';
 
 function updateCalculator(form) {

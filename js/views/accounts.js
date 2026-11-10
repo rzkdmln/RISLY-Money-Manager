@@ -1,8 +1,8 @@
-import { ACCOUNT_TYPES } from '../config.js';
-import { store } from '../store.js';
-import { icon } from '../icons.js';
-import { avatar, badge, emptyState, money, pageHeader, prefs, ui } from '../ui.js';
-import { escapeAttr, escapeHTML, formatDate, formatPercent, safeNumber } from '../utils.js';
+import { ACCOUNT_TYPES } from '../core/config.js';
+import { store } from '../core/store.js';
+import { icon } from '../ui/icons.js';
+import { avatar, badge, emptyState, money, pageHeader, prefs, ui } from '../ui/ui.js';
+import { escapeAttr, escapeHTML, formatDate, formatPercent, safeNumber } from '../core/utils.js';
 import { accountIcon } from './common.js';
 
 const UNASSIGNED = '__unassigned__';

@@ -6,11 +6,11 @@
  */
 
 /* Imports */
-import { store } from './store.js';
-import { money, openModal, closeModal, toast, ui } from './ui.js';
-import { icon } from './icons.js';
-import { downloadBlob, escapeAttr, escapeHTML } from './utils.js';
-import { TX_TYPES } from './config.js';
+import { store } from '../core/store.js';
+import { money, openModal, closeModal, toast, ui } from '../ui/ui.js';
+import { icon } from '../ui/icons.js';
+import { downloadBlob, escapeAttr, escapeHTML } from '../core/utils.js';
+import { TX_TYPES } from '../core/config.js';
 
 /* ------------------------------------------------------------------------ */
 /*  Label helpers                                                           */

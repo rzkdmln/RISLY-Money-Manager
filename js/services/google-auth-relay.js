@@ -9,9 +9,9 @@
  * the result survives a PWA reload.
  */
 
-import { APP, FIREBASE_CONFIG } from './config.js';
+import { APP, FIREBASE_CONFIG } from '../core/config.js';
 import { DRIVE_API_SCOPE, DRIVE_SCOPE } from './gdrive.js';
-import { isIos } from './utils.js';
+import { isIos } from '../core/utils.js';
 
 const FIREBASE_VERSION = '10.12.5';
 const FIREBASE_APP_URL = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`;

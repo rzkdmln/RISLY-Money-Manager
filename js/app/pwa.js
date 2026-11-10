@@ -9,16 +9,16 @@ import {
   hideSplash,
 } from './runtime.js';
 import { checkReminders } from './session.js';
-import { store } from '../store.js';
-import { Cloud } from '../cloud.js';
+import { store } from '../core/store.js';
+import { Cloud } from '../services/cloud.js';
 import {
   toast,
   prefs,
   savePrefs,
   setTheme,
   ui,
-} from '../ui.js';
-import { isStandalone } from '../utils.js';
+} from '../ui/ui.js';
+import { isStandalone } from '../core/utils.js';
 
 let swRegistration = null;
 

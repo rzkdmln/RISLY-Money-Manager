@@ -6,7 +6,7 @@
 import {
   closeModal,
   toast,
-} from '../../ui.js';
+} from '../../ui/ui.js';
 import { renderApplication } from '../runtime.js';
 import { store } from '../../store.js';
 

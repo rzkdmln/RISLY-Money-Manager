@@ -2,12 +2,12 @@
  * RISLY Money Manager — Modals.
  */
 
-import { store } from '../store.js';
-import { Cloud } from '../cloud.js';
-import { icon } from '../icons.js';
-import { escapeAttr, escapeHTML, formatDate, normalizeSearch, monthKey } from '../utils.js';
-import { money, openModal, toast, prefs, savePrefs, setTheme, ui, closeModal, confirmDialog, emptyState } from '../ui.js';
-import { LOCK_OPTIONS, THEME_OPTIONS, WEEK_OPTIONS } from '../config.js';
+import { store } from '../core/store.js';
+import { Cloud } from '../services/cloud.js';
+import { icon } from '../ui/icons.js';
+import { escapeAttr, escapeHTML, formatDate, normalizeSearch, monthKey } from '../core/utils.js';
+import { money, openModal, toast, prefs, savePrefs, setTheme, ui, closeModal, confirmDialog, emptyState } from '../ui/ui.js';
+import { LOCK_OPTIONS, THEME_OPTIONS, WEEK_OPTIONS } from '../core/config.js';
 import { syncPaymentSplit } from './payment-split.js';
 import { transactionForm, recurringForm } from '../forms/transaction.js';
 import { accountForm, categoryForm } from '../forms/account.js';

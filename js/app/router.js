@@ -9,9 +9,9 @@
  * di runtime.js di mana renderApplication didefinisikan.
  */
 
-import { store } from '../store.js';
-import { closeModal, ui } from '../ui.js';
-import { ROUTES } from '../config.js';
+import { store } from '../core/store.js';
+import { closeModal, ui } from '../ui/ui.js';
+import { ROUTES } from '../core/config.js';
 import { dashboardView } from '../views/dashboard.js';
 import { transactionsView } from '../views/transactions.js';
 import { calendarView } from '../views/calendar.js';

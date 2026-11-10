@@ -4,7 +4,7 @@
  * The palette is generated from a single base colour with classic colour-wheel
  * rules (analogous, complementary, split, triadic, tetradic, monochromatic).
  */
-import { escapeAttr } from './utils.js';
+import { escapeAttr } from '../core/utils.js';
 
 export const COLOR_HARMONY_MODES = Object.freeze([
   { id: 'analogous', label: 'Analog' },

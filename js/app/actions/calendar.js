@@ -3,10 +3,10 @@
  * Domain: calendar
  */
 
-import { openModal } from '../../ui.js';
-import { ui } from '../../ui.js';
+import { openModal } from '../../ui/ui.js';
+import { ui } from '../../ui/ui.js';
 import { renderApplication } from '../runtime.js';
-import { shiftMonthKey, monthKey } from '../../utils.js';
+import { shiftMonthKey, monthKey } from '../../core/utils.js';
 import { dayDetailView } from '../../views/transactions.js';
 
 export const calendarActions = {

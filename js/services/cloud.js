@@ -1,5 +1,5 @@
-import { APP, CLOUD_PROVIDERS, FIREBASE_CONFIG } from './config.js';
-import { deepClone, nowISO } from './utils.js';
+import { APP, CLOUD_PROVIDERS, FIREBASE_CONFIG } from '../core/config.js';
+import { deepClone, nowISO } from '../core/utils.js';
 
 const FIREBASE_VERSION = '10.12.5';
 const FIREBASE_APP_URL = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`;

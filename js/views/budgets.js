@@ -1,6 +1,6 @@
-import { store } from '../store.js';
-import { icon } from '../icons.js';
-import { badge, money, pageHeader, progressBar, toneForPercent, ui } from '../ui.js';
+import { store } from '../core/store.js';
+import { icon } from '../ui/icons.js';
+import { badge, money, pageHeader, progressBar, toneForPercent, ui } from '../ui/ui.js';
 import {
   escapeAttr,
   escapeHTML,
@@ -9,7 +9,7 @@ import {
   monthKey,
   safeNumber,
   shiftMonthKey,
-} from '../utils.js';
+} from '../core/utils.js';
 
 export function budgetsView() {
   if (!ui.budgetMonth) ui.budgetMonth = monthKey();

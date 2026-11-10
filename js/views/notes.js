@@ -1,7 +1,7 @@
-import { PRIORITIES } from '../config.js';
-import { store } from '../store.js';
-import { icon } from '../icons.js';
-import { badge, emptyState, pageHeader, prefs, savePrefs, ui } from '../ui.js';
+import { PRIORITIES } from '../core/config.js';
+import { store } from '../core/store.js';
+import { icon } from '../ui/icons.js';
+import { badge, emptyState, pageHeader, prefs, savePrefs, ui } from '../ui/ui.js';
 import {
   escapeAttr,
   escapeHTML,
@@ -9,7 +9,7 @@ import {
   normalizeSearch,
   stripHTML,
   todayISO,
-} from '../utils.js';
+} from '../core/utils.js';
 import { noteCard } from './common.js';
 
 const TABS = [

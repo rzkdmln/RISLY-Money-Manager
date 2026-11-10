@@ -3,10 +3,10 @@
  * Domain: workspace
  */
 
-import { showFormError } from '../../ui.js';
-import { stringValue } from '../../utils.js';
+import { showFormError } from '../../ui/ui.js';
+import { stringValue } from '../../core/utils.js';
 import { enterApplication } from '../session.js';
-import { store } from '../../store.js';
+import { store } from '../../core/store.js';
 import { signInWithGoogleFlow } from '../auth-flow.js';
 import { ui, toast, closeModal } from '../../ui.js';
 

@@ -1,10 +1,10 @@
-import { APP } from '../config.js';
-import { getLockRemaining } from '../auth.js';
-import { googleGlyph } from '../gdrive.js';
-import { icon } from '../icons.js';
-import { store } from '../store.js';
-import { ui } from '../ui.js';
-import { escapeAttr, escapeHTML } from '../utils.js';
+import { APP } from '../core/config.js';
+import { getLockRemaining } from '../core/auth.js';
+import { googleGlyph } from '../services/gdrive.js';
+import { icon } from '../ui/icons.js';
+import { store } from '../core/store.js';
+import { ui } from '../ui/ui.js';
+import { escapeAttr, escapeHTML } from '../core/utils.js';
 
 function lastAccount() {
   try {

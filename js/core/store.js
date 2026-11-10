@@ -1,6 +1,6 @@
 import { APP } from './config.js';
-import { GoogleDrive } from './gdrive.js';
-import { Cloud } from './cloud.js';
+import { GoogleDrive } from '../services/gdrive.js';
+import { Cloud } from '../services/cloud.js';
 import { createSession, getSession } from './auth.js';
 import {
   createDefaultData,

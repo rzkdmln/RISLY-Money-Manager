@@ -3,7 +3,7 @@
  */
 
 import { paymentRowHint, paymentRowHtml } from '../forms/transaction.js';
-import { expressionResult, formatCurrency } from '../utils.js';
+import { expressionResult, formatCurrency } from '../core/utils.js';
 
 function refreshPaymentRowHint(row) {
   const hint = row?.querySelector('[data-payment-hint]');

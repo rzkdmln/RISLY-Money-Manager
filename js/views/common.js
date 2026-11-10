@@ -1,7 +1,7 @@
-import { ACCOUNT_TYPES, FREQUENCIES, NOTE_COLORS, PRIORITIES, TX_TYPES } from '../config.js';
-import { icon } from '../icons.js';
-import { store } from '../store.js';
-import { badge, money, progressBar, toneForPercent } from '../ui.js';
+import { ACCOUNT_TYPES, FREQUENCIES, NOTE_COLORS, PRIORITIES, TX_TYPES } from '../core/config.js';
+import { icon } from '../ui/icons.js';
+import { store } from '../core/store.js';
+import { badge, money, progressBar, toneForPercent } from '../ui/ui.js';
 import {
   escapeAttr,
   escapeHTML,
@@ -14,7 +14,7 @@ import {
   timeAgo,
   timeFromISO,
   todayISO,
-} from '../utils.js';
+} from '../core/utils.js';
 
 export function categoryOf(tx) {
   return store.categoryById(tx.categoryId);

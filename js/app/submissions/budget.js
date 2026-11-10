@@ -3,11 +3,11 @@
  * Domain: budgets
  */
 
-import { showFormError } from '../../ui.js';
-import { store } from '../../store.js';
-import { ui, toast, closeModal } from '../../ui.js';
+import { showFormError } from '../../ui/ui.js';
+import { store } from '../../core/store.js';
+import { ui, toast, closeModal } from '../../ui/ui.js';
 import { renderApplication } from '../runtime.js';
-import { monthKey, formValue } from '../../utils.js';
+import { monthKey, formValue } from '../../core/utils.js';
 
 export const budgetSubmissions = {
   'budget-total': (form) => {

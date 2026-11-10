@@ -1,7 +1,7 @@
-import { store } from '../store.js';
-import { icon } from '../icons.js';
-import { badge, emptyState, money, pageHeader } from '../ui.js';
-import { escapeAttr, escapeHTML, todayISO } from '../utils.js';
+import { store } from '../core/store.js';
+import { icon } from '../ui/icons.js';
+import { badge, emptyState, money, pageHeader } from '../ui/ui.js';
+import { escapeAttr, escapeHTML, todayISO } from '../core/utils.js';
 import { recurringRow } from './common.js';
 
 export function recurringView() {

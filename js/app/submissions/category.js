@@ -3,10 +3,10 @@
  * Domain: categories
  */
 
-import { showFormError } from '../../ui.js';
-import { stringValue } from '../../utils.js';
-import { store } from '../../store.js';
-import { ui, closeModal, toast } from '../../ui.js';
+import { showFormError } from '../../ui/ui.js';
+import { stringValue } from '../../core/utils.js';
+import { store } from '../../core/store.js';
+import { ui, closeModal, toast } from '../../ui/ui.js';
 import { renderApplication } from '../runtime.js';
 
 export const categorySubmissions = {

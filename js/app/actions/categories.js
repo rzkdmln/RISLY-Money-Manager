@@ -4,14 +4,14 @@
  */
 
 import { openCategoryModal } from '../modals.js';
-import { openModal } from '../../ui.js';
-import { store } from '../../store.js';
+import { openModal } from '../../ui/ui.js';
+import { store } from '../../core/store.js';
 import {
   ui,
   closeModal,
   confirmDialog,
   toast,
-} from '../../ui.js';
+} from '../../ui/ui.js';
 import { renderApplication } from '../runtime.js';
 import { subcategoryForm } from '../../forms/account.js';
 

@@ -1,7 +1,7 @@
-import { store } from '../store.js';
-import { icon } from '../icons.js';
-import { badge, emptyState, money, pageHeader, progressBar } from '../ui.js';
-import { escapeAttr, escapeHTML, formatDate } from '../utils.js';
+import { store } from '../core/store.js';
+import { icon } from '../ui/icons.js';
+import { badge, emptyState, money, pageHeader, progressBar } from '../ui/ui.js';
+import { escapeAttr, escapeHTML, formatDate } from '../core/utils.js';
 
 export function goalsView() {
   const goals = store.goals();

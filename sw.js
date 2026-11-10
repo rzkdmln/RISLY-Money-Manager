@@ -9,7 +9,7 @@
  *  - Cloud/API traffic is never cached.
  */
 
-const VERSION = 'risly-1.2.52';
+const VERSION = 'risly-1.2.55';
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 
@@ -71,22 +71,22 @@ const APP_SHELL = [
   './js/app/submissions/cloud.js',
   './js/app/submissions/import.js',
   './js/app/submissions/index.js',
-  './js/colors.js',
-  './js/auth.js',
-  './js/charts.js',
-  './js/cloud.js',
-  './js/config.js',
-  './js/data.js',
-  './js/gdrive.js',
-  './js/google-auth-relay.js',
-  './js/import.js',
-  './js/export.js',
-  './js/backup.js',
-  './js/icons.js',
-  './js/pull-to-refresh.js',
-  './js/store.js',
-  './js/ui.js',
-  './js/utils.js',
+  './js/ui/colors.js',
+  './js/core/auth.js',
+  './js/services/charts.js',
+  './js/services/cloud.js',
+  './js/core/config.js',
+  './js/core/data.js',
+  './js/services/gdrive.js',
+  './js/services/google-auth-relay.js',
+  './js/services/import.js',
+  './js/services/export.js',
+  './js/services/backup.js',
+  './js/ui/icons.js',
+  './js/ui/pull-to-refresh.js',
+  './js/core/store.js',
+  './js/ui/ui.js',
+  './js/core/utils.js',
   './js/forms/account.js',
   './js/forms/cloud.js',
   './js/forms/note.js',

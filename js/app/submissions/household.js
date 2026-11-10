@@ -3,11 +3,11 @@
  * Domain: household
  */
 
-import { showFormError } from '../../ui.js';
-import { stringValue, formValue } from '../../utils.js';
-import { store } from '../../store.js';
-import { Cloud } from '../../cloud.js';
-import { ui, toast } from '../../ui.js';
+import { showFormError } from '../../ui/ui.js';
+import { stringValue, formValue } from '../../core/utils.js';
+import { store } from '../../core/store.js';
+import { Cloud } from '../../services/cloud.js';
+import { ui, toast } from '../../ui/ui.js';
 import { renderApplication } from '../runtime.js';
 
 export const householdSubmissions = {

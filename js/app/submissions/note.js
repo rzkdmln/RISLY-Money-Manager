@@ -3,10 +3,10 @@
  * Domain: notes
  */
 
-import { showFormError } from '../../ui.js';
+import { showFormError } from '../../ui/ui.js';
 import { noteSaveTimer, collectNotePayload } from '../note-editor.js';
-import { store } from '../../store.js';
-import { ui, closeModal, toast } from '../../ui.js';
+import { store } from '../../core/store.js';
+import { ui, closeModal, toast } from '../../ui/ui.js';
 import { renderApplication } from '../runtime.js';
 
 export const noteSubmissions = {

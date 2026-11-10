@@ -1,6 +1,6 @@
-import { store } from '../store.js';
-import { icon } from '../icons.js';
-import { badge, money, pageHeader, ui } from '../ui.js';
+import { store } from '../core/store.js';
+import { icon } from '../ui/icons.js';
+import { badge, money, pageHeader, ui } from '../ui/ui.js';
 import {
   buildMonthGrid,
   escapeAttr,
@@ -11,7 +11,7 @@ import {
   monthKey,
   todayISO,
   weekdayLabels,
-} from '../utils.js';
+} from '../core/utils.js';
 
 export function calendarView() {
   if (!ui.calendarMonth) ui.calendarMonth = monthKey();

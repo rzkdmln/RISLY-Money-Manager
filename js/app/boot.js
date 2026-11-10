@@ -13,29 +13,29 @@ import {
   navigate,
 } from './runtime.js';
 import { enterApplication, runRecurring, checkReminders } from './session.js';
-import { store } from '../store.js';
-import { Cloud } from '../cloud.js';
-import { ui, toast, savePrefs } from '../ui.js';
-import { isStandalone } from '../utils.js';
+import { store } from '../core/store.js';
+import { Cloud } from '../services/cloud.js';
+import { ui, toast, savePrefs } from '../ui/ui.js';
+import { isStandalone } from '../core/utils.js';
 import { bindEvents } from './events.js';
 import { setupInstallPrompt, registerServiceWorker } from './pwa.js';
-import { initPullToRefresh } from '../pull-to-refresh.js';
-import { warmUpGoogleAuth } from '../google-auth-relay.js';
-import { GoogleDrive } from '../gdrive.js';
+import { initPullToRefresh } from '../ui/pull-to-refresh.js';
+import { warmUpGoogleAuth } from '../services/google-auth-relay.js';
+import { GoogleDrive } from '../services/gdrive.js';
 import { updateSyncSlots } from '../views/shell.js';
 import {
   getSession,
   isSessionExpired,
   clearSession,
   createSession,
-} from '../auth.js';
-import { clearGoogleAuthRedirectPending } from '../google-auth-relay.js';
-import { ROUTES, APP } from '../config.js';
+} from '../core/auth.js';
+import { clearGoogleAuthRedirectPending } from '../services/google-auth-relay.js';
+import { ROUTES, APP } from '../core/config.js';
 import {
   hasPendingGoogleAuthRedirect,
   completeGoogleAuthLogin,
-} from '../google-auth-relay.js';
-import { isIos } from '../utils.js';
+} from '../services/google-auth-relay.js';
+import { isIos } from '../core/utils.js';
 import { transactionForm } from '../forms/transaction.js';
 
 function bindStore() {

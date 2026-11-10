@@ -1,8 +1,8 @@
-import { APP, BOTTOM_NAV, DESKTOP_NAV, MORE_NAV, ROUTES } from '../config.js';
-import { Cloud } from '../cloud.js';
-import { icon } from '../icons.js';
-import { avatar, prefs, syncPill } from '../ui.js';
-import { escapeAttr, escapeHTML, formatDate, parseLocalDate, todayISO, appContextLabel } from '../utils.js';
+import { APP, BOTTOM_NAV, DESKTOP_NAV, MORE_NAV, ROUTES } from '../core/config.js';
+import { Cloud } from '../services/cloud.js';
+import { icon } from '../ui/icons.js';
+import { avatar, prefs, syncPill } from '../ui/ui.js';
+import { escapeAttr, escapeHTML, formatDate, parseLocalDate, todayISO, appContextLabel } from '../core/utils.js';
 
 function cloudColorClass(status) {
   if (!status || status.provider === 'local') return 'text-slate-400';

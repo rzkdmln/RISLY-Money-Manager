@@ -1,6 +1,6 @@
-import { store } from '../store.js';
-import { icon } from '../icons.js';
-import { badge, money, pageHeader, progressBar, ui } from '../ui.js';
+import { store } from '../core/store.js';
+import { icon } from '../ui/icons.js';
+import { badge, money, pageHeader, progressBar, ui } from '../ui/ui.js';
 import {
   escapeAttr,
   escapeHTML,
@@ -10,7 +10,7 @@ import {
   monthKey,
   shiftMonthKey,
   todayISO,
-} from '../utils.js';
+} from '../core/utils.js';
 
 export function reportsView() {
   if (!ui.reportMonth) ui.reportMonth = monthKey();

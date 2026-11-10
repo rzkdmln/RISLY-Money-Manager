@@ -4,13 +4,13 @@
  */
 
 import { openNoteEditor } from '../modals.js';
-import { store } from '../../store.js';
+import { store } from '../../core/store.js';
 import {
   closeModal,
   confirmDialog,
   toast,
   savePrefs,
-} from '../../ui.js';
+} from '../../ui/ui.js';
 import { renderApplication } from '../runtime.js';
 
 export const noteActions = {

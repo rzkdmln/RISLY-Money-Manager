@@ -3,10 +3,10 @@
  * Domain: profile
  */
 
-import { showFormError } from '../../ui.js';
-import { stringValue, formValue, getInitials } from '../../utils.js';
-import { store } from '../../store.js';
-import { ui, toast } from '../../ui.js';
+import { showFormError } from '../../ui/ui.js';
+import { stringValue, formValue, getInitials } from '../../core/utils.js';
+import { store } from '../../core/store.js';
+import { ui, toast } from '../../ui/ui.js';
 import { renderApplication } from '../runtime.js';
 
 export const profileSubmissions = {

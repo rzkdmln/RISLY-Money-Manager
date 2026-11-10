@@ -1,7 +1,7 @@
-import { NOTE_COLORS, PRIORITIES } from '../config.js';
-import { icon } from '../icons.js';
-import { store } from '../store.js';
-import { escapeAttr, escapeHTML, sanitizeNoteHTML, toDateTimeLocal } from '../utils.js';
+import { NOTE_COLORS, PRIORITIES } from '../core/config.js';
+import { icon } from '../ui/icons.js';
+import { store } from '../core/store.js';
+import { escapeAttr, escapeHTML, sanitizeNoteHTML, toDateTimeLocal } from '../core/utils.js';
 
 function noteColorPicker(selected) {
   return `<div class="note-color-picker" role="group" aria-label="Warna catatan">

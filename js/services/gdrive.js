@@ -10,9 +10,9 @@
  * whenever Google still has an active session.
  */
 
-import { escapeAttr, escapeHTML } from './utils.js';
-import { icon } from './icons.js';
-import { APP } from './config.js';
+import { escapeAttr, escapeHTML } from '../core/utils.js';
+import { icon } from '../ui/icons.js';
+import { APP } from '../core/config.js';
 
 const GIS_SRC = 'https://accounts.google.com/gsi/client';
 const USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';

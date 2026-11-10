@@ -11,8 +11,8 @@ import {
 } from './runtime.js';
 import { rememberFocus } from './focus.js';
 import { checkAutoLock, runRecurring, checkReminders } from './session.js';
-import { showFormError } from '../ui.js';
-import { updateSessionActivity } from '../auth.js';
+import { showFormError } from '../ui/ui.js';
+import { updateSessionActivity } from '../core/auth.js';
 import {
   handleCalculatorKey,
   formatCalculatorInput,
@@ -20,7 +20,7 @@ import {
   maskDateInput,
   openNativeDatePicker,
 } from './calculator.js';
-import { setColorFieldBase } from '../colors.js';
+import { setColorFieldBase } from '../ui/colors.js';
 import {
   syncPaymentSplit,
   createPaymentRow,
@@ -37,21 +37,21 @@ import {
   debounce,
   escapeHTML,
   escapeAttr,
-} from '../utils.js';
+} from '../core/utils.js';
 import {
   ui,
   closeModal,
   toast,
-} from '../ui.js';
-import { store } from '../store.js';
-import { Cloud } from '../cloud.js';
-import { ROUTES } from '../config.js';
+} from '../ui/ui.js';
+import { store } from '../core/store.js';
+import { Cloud } from '../services/cloud.js';
+import { ROUTES } from '../core/config.js';
 import { subcategoryOptions, accountOptions } from '../forms/transaction.js';
 import { transactionFilterModal } from '../views/transactions.js';
 import { todoItemRow } from '../forms/note.js';
-import { icon } from '../icons.js';
-import { resizeCharts, destroyCharts, renderDashboardCharts } from '../charts.js';
-import { initPullToRefresh } from '../pull-to-refresh.js';
+import { icon } from '../ui/icons.js';
+import { resizeCharts, destroyCharts, renderDashboardCharts } from '../services/charts.js';
+import { initPullToRefresh } from '../ui/pull-to-refresh.js';
 import { handleAction } from './actions/index.js';
 import { submitForm } from './submissions/index.js';
 import { syncBudgetAllocHint } from './submissions/budget.js';

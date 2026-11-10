@@ -3,24 +3,24 @@ import {
   LOCK_OPTIONS,
   THEME_OPTIONS,
   WEEK_OPTIONS,
-} from '../config.js';
-import { GoogleDrive, googleAccountBadge, googleGlyph } from '../gdrive.js';
-import { store } from '../store.js';
-import { Cloud } from '../cloud.js';
-import { icon } from '../icons.js';
+} from '../core/config.js';
+import { GoogleDrive, googleAccountBadge, googleGlyph } from '../services/gdrive.js';
+import { store } from '../core/store.js';
+import { Cloud } from '../services/cloud.js';
+import { icon } from '../ui/icons.js';
 import {
   avatar,
   badge,
   pageHeader,
   prefs,
   syncPill,
-} from '../ui.js';
+} from '../ui/ui.js';
 import {
   escapeAttr,
   escapeHTML,
   formatBytes,
   formatDateTime,
-} from '../utils.js';
+} from '../core/utils.js';
 
 function notificationStatus() {
   if (!('Notification' in window)) return { label: 'Tidak didukung', tone: 'slate', canAsk: false };
