@@ -174,6 +174,7 @@ import {
   openAuthCloudModal,
 } from './app/modals.js';
 import { handleAction } from './app/actions/index.js';
+import { submitForm } from './app/submissions/index.js';
 import {
   openImportFilePicker,
   openImportFormModal,
@@ -206,7 +207,7 @@ import {
 
 const root = document.getElementById('app-root');
 let renderTimer = null;
-let noteSaveTimer = null;
+export let noteSaveTimer = null;
 let deferredInstallPrompt = null;
 let swRegistration = null;
 let lastActivityWrite = 0;
@@ -256,7 +257,7 @@ export function navigate(route, { replace = false } = {}) {
   }
 }
 
-function showFormError(form, message) {
+export function showFormError(form, message) {
   const node = form?.querySelector('[data-form-error]');
   if (!node) {
     toast(message, 'error');
@@ -267,7 +268,7 @@ function showFormError(form, message) {
   node.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
-function clearFormError(form) {
+export function clearFormError(form) {
   const node = form?.querySelector('[data-form-error]');
   if (node) {
     node.textContent = '';
@@ -316,11 +317,11 @@ function setColorFieldBase(field, color) {
   refreshColorField(field);
 }
 
-function formValue(form, name) {
+export function formValue(form, name) {
   return new FormData(form).get(name);
 }
 
-function stringValue(form, name) {
+export function stringValue(form, name) {
   return String(formValue(form, name) ?? '').trim();
 }
 
@@ -668,7 +669,7 @@ function checkReminders() {
 /*  Cloud config                                                             */
 /* -------------------------------------------------------------------------- */
 
-function parseCloudConfig(form) {
+export function parseCloudConfig(form) {
   const fd = new FormData(form);
   const provider = String(fd.get('provider') || 'local');
   if (provider === 'local') return { provider: 'local' };
@@ -743,7 +744,7 @@ export function openJoinWorkspaceModal() {
   });
 }
 
-async function submitJoinWorkspace(form) {
+export async function submitJoinWorkspace(form) {
   const code = stringValue(form, 'inviteCode').toUpperCase();
   if (!/^[A-Z0-9]{4,8}$/.test(code)) {
     showFormError(form, 'Kode undangan tidak valid.');
@@ -773,7 +774,7 @@ async function submitJoinWorkspace(form) {
 /*  Cloud actions                                                            */
 /* -------------------------------------------------------------------------- */
 
-async function connectCloudFromForm(form) {
+export async function connectCloudFromForm(form) {
   const config = parseCloudConfig(form);
   const submit = form.querySelector('[type="submit"]');
   if (submit) submit.disabled = true;
@@ -864,7 +865,7 @@ export function openNativeDatePicker(wrap) {
 /*  Form submissions                                                         */
 /* -------------------------------------------------------------------------- */
 
-async function submitLogin(form) {
+export async function submitLogin(form) {
   const userId = String(formValue(form, 'user') || ui.selectedUser || '');
   const pin = String(formValue(form, 'pin') || '');
   const user = store.getUser(userId);
@@ -909,7 +910,7 @@ async function submitLogin(form) {
   }
 }
 
-function submitTransaction(form) {
+export function submitTransaction(form) {
   const fd = new FormData(form);
   const editingId = form.dataset.id;
   const originalTransaction = editingId ? store.transactionById(editingId) : null;
@@ -1077,7 +1078,7 @@ function submitTransaction(form) {
   }
 }
 
-function submitRecurring(form) {
+export function submitRecurring(form) {
   const fd = new FormData(form);
   const type = String(fd.get('type') || 'expense');
   const title = String(fd.get('title') || '').trim();
@@ -1143,7 +1144,7 @@ function submitRecurring(form) {
   }
 }
 
-function submitGoal(form) {
+export function submitGoal(form) {
   const fd = new FormData(form);
   const editingId = form.dataset.id || null;
   const name = String(fd.get('name') || '').trim();
@@ -1164,7 +1165,7 @@ function submitGoal(form) {
   }
 }
 
-function submitAccount(form) {
+export function submitAccount(form) {
   const fd = new FormData(form);
   const editingId = form.dataset.id || null;
   const name = String(fd.get('name') || '').trim();
@@ -1214,7 +1215,7 @@ function submitAccount(form) {
   }
 }
 
-function submitCategory(form) {
+export function submitCategory(form) {
   const fd = new FormData(form);
   const name = String(fd.get('name') || '').trim();
   if (!name) {
@@ -1236,7 +1237,7 @@ function submitCategory(form) {
   }
 }
 
-function submitSubcategory(form) {
+export function submitSubcategory(form) {
   const name = stringValue(form, 'name');
   const categoryId = form.dataset.category;
   if (!name) {
@@ -1253,7 +1254,7 @@ function submitSubcategory(form) {
   }
 }
 
-async function submitChangePin(form) {
+export async function submitChangePin(form) {
   const user = store.getUser(form.dataset.user) || store.currentUser;
   if (!user) return;
   const currentPin = String(formValue(form, 'currentPin') || '');
@@ -1281,7 +1282,7 @@ async function submitChangePin(form) {
   }
 }
 
-function submitProfile(form) {
+export function submitProfile(form) {
   const user = store.getUser(form.dataset.user) || store.currentUser;
   if (!user) return;
   const name = stringValue(form, 'name');
@@ -1305,7 +1306,7 @@ function submitProfile(form) {
   }
 }
 
-async function submitNote(form) {
+export async function submitNote(form) {
   clearTimeout(noteSaveTimer);
   noteSaveTimer = null;
   const payload = collectNotePayload(form);
@@ -1326,14 +1327,14 @@ async function submitNote(form) {
   }
 }
 
-function submitBudgetTotal(form) {
+export function submitBudgetTotal(form) {
   const amount = Number(formValue(form, 'amount')) || 0;
   store.setBudget(ui.budgetMonth || monthKey(), '__total__', amount);
   toast('Total anggaran disimpan.', 'success');
   renderApplication();
 }
 
-function syncBudgetAllocHint(form) {
+export function syncBudgetAllocHint(form) {
   if (!form) return;
   const totalInput = form.querySelector('[name="total"]');
   if (!totalInput) return;
@@ -1343,7 +1344,7 @@ function syncBudgetAllocHint(form) {
   });
   totalInput.value = String(Math.round(allocated));
 }
-function submitBudgetCategories(form) {
+export function submitBudgetCategories(form) {
   const entries = {};
   new FormData(form).forEach((value, key) => {
     if (key.startsWith('budget_')) entries[key.slice(7)] = Number(value) || 0;
@@ -1365,7 +1366,7 @@ function submitBudgetCategories(form) {
   renderApplication();
 }
 
-function submitBudgetThresholds(form) {
+export function submitBudgetThresholds(form) {
   const warning = Number(formValue(form, 'warning'));
   const danger = Number(formValue(form, 'danger'));
   if (!Number.isFinite(warning) || !Number.isFinite(danger) || warning < 1 || danger > 100 || danger <= warning) {
@@ -1378,7 +1379,7 @@ function submitBudgetThresholds(form) {
   renderApplication();
 }
 
-function submitHousehold(form) {
+export function submitHousehold(form) {
   const householdName = stringValue(form, 'householdName');
   if (!householdName) {
     showFormError(form, 'Nama ruang wajib diisi.');
@@ -1396,87 +1397,6 @@ function submitHousehold(form) {
   Cloud.publishInviteCode().catch(() => {});
   toast('Identitas ruang disimpan.', 'success');
   renderApplication();
-}
-
-async function submitForm(form) {
-  clearFormError(form);
-  const type = form.dataset.form;
-  switch (type) {
-    case 'login':
-      await submitLogin(form);
-      break;
-    case 'auto-lock': {
-      const value = Number(form.querySelector('[name="autoLockMinutes"]')?.value || 0);
-      store.updateSettings({ autoLockMinutes: Number.isFinite(value) ? value : 0 });
-      closeModal();
-      renderApplication();
-      toast('Pengaturan sesi disimpan.', 'success');
-      break;
-    }
-    case 'week-start': {
-      const value = Number(form.querySelector('[name="weekStartsOn"]')?.value || 1);
-      store.updateSettings({ weekStartsOn: Number.isFinite(value) ? value : 1 });
-      closeModal();
-      renderApplication();
-      toast('Pengaturan kalender disimpan.', 'success');
-      break;
-    }
-    case 'join-workspace':
-      await submitJoinWorkspace(form);
-      break;
-    case 'transaction':
-      submitTransaction(form);
-      break;
-    case 'recurring':
-      submitRecurring(form);
-      break;
-    case 'account':
-      submitAccount(form);
-      break;
-    case 'goal':
-      submitGoal(form);
-      break;
-    case 'category':
-      submitCategory(form);
-      break;
-    case 'subcategory':
-      submitSubcategory(form);
-      break;
-    case 'change-pin':
-      await submitChangePin(form);
-      break;
-    case 'profile':
-      submitProfile(form);
-      break;
-    case 'note':
-      await submitNote(form);
-      break;
-    case 'budget-total':
-      submitBudgetTotal(form);
-      break;
-    case 'budget-categories':
-      submitBudgetCategories(form);
-      break;
-    case 'budget-thresholds':
-      submitBudgetThresholds(form);
-      break;
-    case 'import-transactions': {
-      const imported = await submitImport(form);
-      renderApplication();
-      break;
-    }
-    case 'settings-household':
-      submitHousehold(form);
-      break;
-    case 'cloud':
-      await connectCloudFromForm(form);
-      break;
-    case 'auth-cloud':
-      await connectCloudFromForm(form);
-      break;
-    default:
-      console.warn('Form belum ditangani:', type);
-  }
 }
 
 /* -------------------------------------------------------------------------- */

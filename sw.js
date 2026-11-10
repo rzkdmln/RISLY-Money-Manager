@@ -9,7 +9,7 @@
  *  - Cloud/API traffic is never cached.
  */
 
-const VERSION = 'risly-1.2.47';
+const VERSION = 'risly-1.2.48';
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 
@@ -41,6 +41,21 @@ const APP_SHELL = [
   './js/app/actions/colors.js',
   './js/app/actions/exports.js',
   './js/app/actions/cloud.js',
+  './js/app/submissions/auth.js',
+  './js/app/submissions/transaction.js',
+  './js/app/submissions/recurring.js',
+  './js/app/submissions/goal.js',
+  './js/app/submissions/account.js',
+  './js/app/submissions/category.js',
+  './js/app/submissions/profile.js',
+  './js/app/submissions/note.js',
+  './js/app/submissions/budget.js',
+  './js/app/submissions/household.js',
+  './js/app/submissions/settings.js',
+  './js/app/submissions/workspace.js',
+  './js/app/submissions/cloud.js',
+  './js/app/submissions/import.js',
+  './js/app/submissions/index.js',
   './js/colors.js',
   './js/auth.js',
   './js/charts.js',

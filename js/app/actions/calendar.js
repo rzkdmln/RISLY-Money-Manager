@@ -7,6 +7,7 @@ import { openModal } from '../../ui.js';
 import { ui } from '../../ui.js';
 import { renderApplication } from '../../app.js';
 import { shiftMonthKey, monthKey } from '../../utils.js';
+import { dayDetailView } from '../../views/transactions.js';
 
 export const calendarActions = {
   'calendar-prev': () => {
