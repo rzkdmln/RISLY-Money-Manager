@@ -1,4 +1,4 @@
-﻿/* ==========================================================================
+/* ==========================================================================
    Modals
    ========================================================================== */
 
@@ -61,8 +61,8 @@
   padding: 2px 0;
 }
 .tx-optional-details > summary::-webkit-details-marker { display: none; }
-.tx-optional-details > summary::before { content: 'â–¸ '; }
-.tx-optional-details[open] > summary::before { content: 'â–¾ '; }
+.tx-optional-details > summary::before { content: '▸ '; }
+.tx-optional-details[open] > summary::before { content: '▾ '; }
 .tx-optional-details[open] > summary { margin-bottom: 10px; }
 .modal-footer {
   position: sticky; bottom: 0; z-index: 3;
@@ -152,5 +152,4 @@
 .more-tile:hover { border-color: var(--border-strong); color: var(--text); }
 .more-tile > span { display: inline-flex; color: var(--brand); }
 .more-tile strong { font-size: 10.5px; }
-
 

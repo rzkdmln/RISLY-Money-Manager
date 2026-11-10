@@ -1,4 +1,4 @@
-﻿/* ==========================================================================
+/* ==========================================================================
    Auth
    ========================================================================== */
 
@@ -736,5 +736,4 @@ body.is-auth { background: var(--bg); }
 .install-step > span { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex: 0 0 auto; border-radius: 10px; background: var(--brand-soft); color: var(--brand); }
 .install-step strong { display: block; font-size: 11px; color: var(--text); }
 .install-step p { margin: 2px 0 0; font-size: 9.5px; line-height: 1.55; color: var(--muted); }
-
 

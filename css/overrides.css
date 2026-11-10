@@ -1,4 +1,4 @@
-﻿/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 /*  Design token overrides for Tailwind color utilities (step 1: colors)       */
 /* -------------------------------------------------------------------------- */
 .text-slate-900, .text-slate-800, .text-slate-700 { color: var(--text) !important; }
@@ -17,4 +17,3 @@
 .dark .dark\:text-emerald-600, .dark .dark\:text-emerald-500, .dark .dark\:text-emerald-400 { color: var(--green) !important; }
 .dark .dark\:text-rose-600, .dark .dark\:text-rose-700, .dark .dark\:text-rose-400, .dark .dark\:text-red-500 { color: var(--red) !important; }
 .dark .dark\:text-amber-200, .dark .dark\:text-amber-300 { color: var(--amber) !important; }
-

@@ -1,5 +1,5 @@
-﻿/* ==========================================================================
-   RISLY Money Manager â€” application styles
+/* ==========================================================================
+   RISLY Money Manager — application styles
    Design tokens are CSS variables so light/dark stay consistent.
    ========================================================================== */
 
@@ -65,5 +65,4 @@
   --shadow-md: 0 2px 6px rgba(0, 0, 0, .22), 0 24px 50px -28px rgba(0, 0, 0, .7);
   --shadow-lg: 0 30px 80px -30px rgba(0, 0, 0, .8);
 }
-
 
