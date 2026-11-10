@@ -3934,7 +3934,7 @@ function bindEvents() {
         switchNode.classList.toggle('is-on', target.checked);
       }
       if (target.matches('[data-toggle-recurring]')) {
-        const extra = target.closest('.recurring-box')?.querySelector('.recurring-extra');
+        const extra = target.closest('.option-box')?.querySelector('.recurring-extra');
         if (extra) extra.hidden = !target.checked;
       }
       if (target.matches('[data-toggle-payment-split]')) {

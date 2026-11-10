@@ -159,7 +159,7 @@ export function transactionForm(tx = null, defaults = {}) {
   const remainingTotal = (mainTotal || 0) - allocatedTotal;
 
   function paymentSplitSectionHtml() {
-    return `<div class="payment-split-section mt-2" ${paymentSplit ? '' : 'hidden'}>
+    return `<div class="option-box-extra payment-split-section" ${paymentSplit ? '' : 'hidden'}>
       <div data-payment-rows class="space-y-2">
         ${paymentRows.map((payment) => paymentRowHtml(payment)).join('')}
       </div>
@@ -351,23 +351,24 @@ export function transactionForm(tx = null, defaults = {}) {
           </label>
         </div>
 
-        ${!isTransfer ? `<label class="toggle-row compact-toggle mt-3">
-          <span><strong>${type === 'income' ? 'Split penerimaan' : 'Split pembayaran'}</strong><small>${type === 'income' ? 'Bagi penerimaan ke beberapa akun / anggota' : 'Bayar dari beberapa akun / anggota'}</small></span>
-          <input type="checkbox" name="makePaymentSplit" value="1" class="sr-only" ${paymentSplit ? 'checked' : ''} data-toggle-payment-split>
-          <span class="switch ${paymentSplit ? 'is-on' : ''}"></span>
-        </label>
-        ${paymentSplitSectionHtml()}` : ''}
+        ${!isTransfer ? `<div class="option-box mt-3">
+          <label class="toggle-row">
+            <span><strong>${type === 'income' ? 'Split penerimaan' : 'Split pembayaran'}</strong><small>${type === 'income' ? 'Bagi penerimaan ke beberapa akun / anggota' : 'Bayar dari beberapa akun / anggota'}</small></span>
+            <input type="checkbox" name="makePaymentSplit" value="1" class="sr-only" ${paymentSplit ? 'checked' : ''} data-toggle-payment-split>
+            <span class="switch ${paymentSplit ? 'is-on' : ''}"></span>
+          </label>
+          ${paymentSplitSectionHtml()}
+        </div>` : ''}
 
-        ${!editing ? `<div class="recurring-box mt-3">
+        ${!editing ? `<div class="option-box mt-3">
           <label class="toggle-row">
             <span>
               <strong>Jadikan transaksi berulang</strong>
-              <small>Buat jadwal otomatis setelah transaksi ini.</small>
             </span>
             <input type="checkbox" name="makeRecurring" value="1" class="sr-only" ${recurring ? 'checked' : ''} data-toggle-recurring>
             <span class="switch ${recurring ? 'is-on' : ''}"></span>
           </label>
-          <div class="recurring-extra" ${recurring ? '' : 'hidden'}>
+          <div class="option-box-extra recurring-extra" ${recurring ? '' : 'hidden'}>
             <label class="field-label">Nama jadwal
               <input class="field mt-1.5" name="recurringTitle" value="${escapeAttr(recurringTitle)}" maxlength="80">
             </label>
