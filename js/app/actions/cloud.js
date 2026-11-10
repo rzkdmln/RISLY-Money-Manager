@@ -6,7 +6,7 @@
 import { signInWithGoogleFlow } from '../auth-flow.js';
 import { enterApplication } from '../session.js';
 import { renderApplication, renderAuth } from '../runtime.js';
-import { navigate } from '../runtime.js';
+import { navigate } from '../router.js';
 import { openJoinWorkspaceModal } from '../modals.js';
 import { openAuthCloudModal } from '../modals.js';
 import { Cloud } from '../../cloud.js';

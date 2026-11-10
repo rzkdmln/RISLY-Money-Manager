@@ -9,23 +9,13 @@
 import { store } from '../store.js';
 import { Cloud } from '../cloud.js';
 import { APP, ROUTES } from '../config.js';
-import { dashboardView } from '../views/dashboard.js';
-import { transactionsView } from '../views/transactions.js';
-import { calendarView } from '../views/calendar.js';
-import { notesView } from '../views/notes.js';
-import { accountsView } from '../views/accounts.js';
-import { budgetsView } from '../views/budgets.js';
-import { recurringView } from '../views/recurring.js';
-import { categoriesView } from '../views/categories.js';
-import { goalsView } from '../views/goals.js';
-import { reportsView } from '../views/reports.js';
-import { settingsView } from '../views/settings.js';
-import { loginView } from '../views/auth.js';
 import { shellView, updateChrome, updateSyncSlots } from '../views/shell.js';
 import { destroyCharts, renderDashboardCharts } from '../charts.js';
 import { emptyState, closeModal, ui } from '../ui.js';
 import { monthKey, debounce } from '../utils.js';
 import { updateSessionActivity } from '../auth.js';
+import { ROUTE_VIEWS, routeFromHash } from './router.js';
+import { rememberFocus, restoreFocus } from './focus.js';
 
 export const root = document.getElementById('app-root');
 let renderTimer = null;
@@ -58,76 +48,6 @@ export function scheduleRender(delay = 60) {
     if (store.currentUser && !ui.locked) renderApplication();
     else renderAuth();
   }, delay);
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Routing                                                                   */
-/* -------------------------------------------------------------------------- */
-
-const ROUTE_VIEWS = {
-  dashboard: () => dashboardView(store.currentUser),
-  transactions: () => transactionsView(),
-  calendar: () => calendarView(),
-  notes: () => notesView(),
-  accounts: () => accountsView(),
-  budgets: () => budgetsView(),
-  recurring: () => recurringView(),
-  categories: () => categoriesView(),
-  goals: () => goalsView(),
-  reports: () => reportsView(),
-  settings: () => settingsView(store.currentUser),
-};
-
-export function routeFromHash() {
-  const raw = String(location.hash || '')
-    .replace(/^#\/?/, '')
-    .split('?')[0]
-    .trim()
-    .toLowerCase();
-  return ROUTES[raw] ? raw : 'dashboard';
-}
-
-export function navigate(route, { replace = false } = {}) {
-  if (!ROUTES[route]) return;
-  if (route === 'accounts') ui.accountsMember = null;
-  closeModal({ silent: true });
-  const target = `#/${route}`;
-  if (location.hash === target) {
-    renderApplication();
-    return;
-  }
-  if (replace) {
-    history.replaceState(null, '', target);
-    renderApplication();
-  } else {
-    location.hash = target;
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Focus snapshot / restore                                                  */
-/* -------------------------------------------------------------------------- */
-
-export function rememberFocus() {
-  const active = document.activeElement;
-  if (!active?.id) return null;
-  return {
-    id: active.id,
-    start: typeof active.selectionStart === 'number' ? active.selectionStart : null,
-    end: typeof active.selectionEnd === 'number' ? active.selectionEnd : null,
-  };
-}
-
-function restoreFocus(snapshot) {
-  if (!snapshot?.id) return;
-  const node = document.getElementById(snapshot.id);
-  if (!node) return;
-  node.focus({ preventScroll: true });
-  if (snapshot.start !== null && typeof node.setSelectionRange === 'function') {
-    try {
-      node.setSelectionRange(snapshot.start, snapshot.end ?? snapshot.start);
-    } catch { /* not a text field */ }
-  }
 }
 
 /* -------------------------------------------------------------------------- */

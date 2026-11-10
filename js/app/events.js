@@ -5,11 +5,11 @@
 
 import {
   renderApplication,
-  rememberFocus,
   debounceSearch,
   noteActivity,
   lastActivityWrite,
 } from './runtime.js';
+import { rememberFocus } from './focus.js';
 import { checkAutoLock, runRecurring, checkReminders } from './session.js';
 import { showFormError } from '../ui.js';
 import { updateSessionActivity } from '../auth.js';

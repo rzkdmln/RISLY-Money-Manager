@@ -10,8 +10,8 @@ import {
   scheduleRender,
   renderApplication,
   renderAuth,
-  navigate,
 } from './runtime.js';
+import { navigate } from './router.js';
 import { enterApplication, runRecurring, checkReminders } from './session.js';
 import { store } from '../store.js';
 import { Cloud } from '../cloud.js';
