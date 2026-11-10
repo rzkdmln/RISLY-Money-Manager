@@ -3,13 +3,11 @@
  * Domain: categories
  */
 
-import {
-  showFormError,
-  stringValue,
-} from '../../app.js';
+import { showFormError } from '../../ui.js';
+import { stringValue } from '../../utils.js';
 import { store } from '../../store.js';
 import { ui, closeModal, toast } from '../../ui.js';
-import { renderApplication } from '../../app.js';
+import { renderApplication } from '../runtime.js';
 
 export const categorySubmissions = {
   category: (form) => {

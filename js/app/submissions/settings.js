@@ -7,7 +7,7 @@ import {
   closeModal,
   toast,
 } from '../../ui.js';
-import { renderApplication } from '../../app.js';
+import { renderApplication } from '../runtime.js';
 import { store } from '../../store.js';
 
 export const settingsSubmissions = {

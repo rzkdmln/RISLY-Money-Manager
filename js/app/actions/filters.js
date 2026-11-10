@@ -7,7 +7,7 @@ import { openModal } from '../../ui.js';
 import { transactionFilterModal } from '../../views/transactions.js';
 import { ui } from '../../ui.js';
 import { closeModal } from '../../ui.js';
-import { renderApplication } from '../../app.js';
+import { renderApplication } from '../runtime.js';
 
 export const filterActions = {
   'tx-open-filter': () => {

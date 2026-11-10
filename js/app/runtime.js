@@ -24,10 +24,12 @@ import { loginView } from '../views/auth.js';
 import { shellView, updateChrome, updateSyncSlots } from '../views/shell.js';
 import { destroyCharts, renderDashboardCharts } from '../charts.js';
 import { emptyState, closeModal, ui } from '../ui.js';
-import { monthKey } from '../utils.js';
+import { monthKey, debounce } from '../utils.js';
+import { updateSessionActivity } from '../auth.js';
 
 export const root = document.getElementById('app-root');
 let renderTimer = null;
+export let lastActivityWrite = 0;
 
 /* -------------------------------------------------------------------------- */
 /*  Splash                                                                    */
@@ -200,6 +202,38 @@ export function renderApplication({ focus = null } = {}) {
 export function renderRouteWithFocus() {
   const snapshot = rememberFocus();
   renderApplication({ focus: snapshot });
+}
+
+export function rememberFocus() {
+  const active = document.activeElement;
+  if (!active?.id) return null;
+  return {
+    id: active.id,
+    start: typeof active.selectionStart === 'number' ? active.selectionStart : null,
+    end: typeof active.selectionEnd === 'number' ? active.selectionEnd : null,
+  };
+}
+
+function restoreFocus(snapshot) {
+  if (!snapshot?.id) return;
+  const node = document.getElementById(snapshot.id);
+  if (!node) return;
+  node.focus({ preventScroll: true });
+  if (snapshot.start !== null && typeof node.setSelectionRange === 'function') {
+    try {
+      node.setSelectionRange(snapshot.start, snapshot.end ?? snapshot.start);
+    } catch { /* not a text field */ }
+  }
+}
+
+export const debounceSearch = debounce((callback) => callback(), 280);
+
+export function noteActivity() {
+  if (!store.currentUser) return;
+  const now = Date.now();
+  if (now - lastActivityWrite < 30_000) return;
+  lastActivityWrite = now;
+  updateSessionActivity();
 }
 
 export function renderAuth() {

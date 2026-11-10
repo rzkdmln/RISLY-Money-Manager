@@ -20,14 +20,9 @@ import {
   openForgotPinModal,
   openAuthCloudModal,
 } from '../modals.js';
-import {
-  navigate,
-  lockApplication,
-  leaveApplication,
-  renderApplication,
-  requestNotifications,
-  checkForUpdate,
-} from '../../app.js';
+import { navigate, renderApplication } from '../runtime.js';
+import { lockApplication, leaveApplication } from '../session.js';
+import { requestNotifications, checkForUpdate } from '../pwa.js';
 import { store } from '../../store.js';
 import { Cloud } from '../../cloud.js';
 import {

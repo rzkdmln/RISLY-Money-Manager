@@ -3,13 +3,11 @@
  * Domain: workspace
  */
 
-import {
-  showFormError,
-  stringValue,
-  enterApplication,
-} from '../../app.js';
+import { showFormError } from '../../ui.js';
+import { stringValue } from '../../utils.js';
+import { enterApplication } from '../session.js';
 import { store } from '../../store.js';
-import { signInWithGoogleFlow } from '../../app.js';
+import { signInWithGoogleFlow } from '../auth-flow.js';
 import { ui, toast, closeModal } from '../../ui.js';
 
 export const workspaceSubmissions = {

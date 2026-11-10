@@ -5,7 +5,7 @@
 
 import { openModal } from '../../ui.js';
 import { ui } from '../../ui.js';
-import { renderApplication } from '../../app.js';
+import { renderApplication } from '../runtime.js';
 import { shiftMonthKey, monthKey } from '../../utils.js';
 import { dayDetailView } from '../../views/transactions.js';
 

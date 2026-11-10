@@ -157,6 +157,29 @@ export function toneForPercent(percent, warning = 75, danger = 90) {
   return 'safe';
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Form error helpers                                                        */
+/* -------------------------------------------------------------------------- */
+
+export function showFormError(form, message) {
+  const node = form?.querySelector('[data-form-error]');
+  if (!node) {
+    toast(message, 'error');
+    return;
+  }
+  node.textContent = message;
+  node.classList.remove('hidden');
+  node.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+export function clearFormError(form) {
+  const node = form?.querySelector('[data-form-error]');
+  if (node) {
+    node.textContent = '';
+    node.classList.add('hidden');
+  }
+}
+
 export function sectionHeading(title, action = '') {
   return `<div class="flex items-center justify-between gap-3 mb-3">
     <h2 class="section-title">${escapeHTML(title)}</h2>

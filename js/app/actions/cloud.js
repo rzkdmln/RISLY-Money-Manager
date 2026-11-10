@@ -3,14 +3,11 @@
  * Domain: cloud
  */
 
-import {
-  signInWithGoogleFlow,
-  enterApplication,
-  renderApplication,
-  renderAuth,
-  navigate,
-  openJoinWorkspaceModal,
-} from '../../app.js';
+import { signInWithGoogleFlow } from '../auth-flow.js';
+import { enterApplication } from '../session.js';
+import { renderApplication, renderAuth } from '../runtime.js';
+import { navigate } from '../runtime.js';
+import { openJoinWorkspaceModal } from '../modals.js';
 import { openAuthCloudModal } from '../modals.js';
 import { Cloud } from '../../cloud.js';
 import { GoogleDrive } from '../../gdrive.js';
@@ -31,7 +28,7 @@ import {
   driveRestoreFile,
   refreshDriveUi,
 } from '../../backup.js';
-import { testCloudFromForm, createJsonBinFromForm } from '../../app.js';
+import { testCloudFromForm, createJsonBinFromForm } from '../submissions/cloud.js';
 import { CLOUD_PROVIDERS } from '../../config.js';
 
 export const cloudActions = {

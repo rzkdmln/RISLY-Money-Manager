@@ -9,7 +9,8 @@ import {
 } from '../modals.js';
 import { store } from '../../store.js';
 import { toggleCalculator } from '../calculator.js';
-import { openNativeDatePicker, renderApplication } from '../../app.js';
+import { openNativeDatePicker } from '../calculator.js';
+import { renderApplication } from '../runtime.js';
 import {
   expressionResult,
   formatMonth,

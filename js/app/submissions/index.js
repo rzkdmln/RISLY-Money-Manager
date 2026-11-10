@@ -10,7 +10,7 @@
  * men-delegasikan ke handler yang sesuai.
  */
 
-import { clearFormError } from '../../app.js';
+import { clearFormError } from '../../ui.js';
 import { authSubmissions } from './auth.js';
 import { transactionSubmissions } from './transaction.js';
 import { recurringSubmissions } from './recurring.js';

@@ -5,7 +5,8 @@
 
 import { openRecurringModal } from '../modals.js';
 import { store } from '../../store.js';
-import { runRecurring, renderApplication } from '../../app.js';
+import { runRecurring } from '../session.js';
+import { renderApplication } from '../runtime.js';
 import { closeModal, toast } from '../../ui.js';
 import { todayISO } from '../../utils.js';
 

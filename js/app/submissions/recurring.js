@@ -3,15 +3,11 @@
  * Domain: recurring
  */
 
-import {
-  showFormError,
-  formValue,
-  stringValue,
-} from '../../app.js';
+import { showFormError } from '../../ui.js';
+import { formValue, stringValue, todayISO } from '../../utils.js';
 import { store } from '../../store.js';
-import { todayISO } from '../../utils.js';
 import { ui, closeModal, toast } from '../../ui.js';
-import { renderApplication } from '../../app.js';
+import { renderApplication } from '../runtime.js';
 
 export const recurringSubmissions = {
   recurring: (form) => {

@@ -157,7 +157,50 @@ export function quickSwatchMarkup(colors, selectedHex) {
   const selected = normalizeHex(selectedHex);
   return [...new Set(colors.filter(Boolean))].map((raw) => {
     const color = normalizeHex(raw) || raw;
-    const active = selected && String(color).toLowerCase() === selected.toLowerCase() ? ' is-active' : '';
-    return `<button type="button" class="color-dot${active}" style="--pick-color:${escapeAttr(color)}" data-action="pick-color" data-color="${escapeAttr(color)}" aria-label="Warna ${escapeAttr(color)}"></button>`;
   }).join('');
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Color field helpers                                                       */
+/* -------------------------------------------------------------------------- */
+
+function sameColor(first, second) {
+  return String(first || '').toLowerCase() === String(second || '').toLowerCase();
+}
+
+export function applyColorFieldValue(field, color) {
+  if (!field || !color) return;
+  const hidden = field.querySelector('input[name="color"]');
+  if (hidden) hidden.value = color;
+  const chip = field.querySelector('.color-trigger-chip');
+  if (chip) chip.style.setProperty('--pick-color', color);
+  const label = field.querySelector('[data-color-label]');
+  if (label) label.textContent = color;
+  field.querySelectorAll('.color-swatch, .color-dot').forEach((dot) => {
+    dot.classList.toggle('is-active', sameColor(dot.dataset.color, color));
+  });
+  const preview = field.closest('form')?.querySelector('.category-preview');
+  if (preview) preview.style.setProperty('--preview-color', color);
+}
+
+export function refreshColorField(field) {
+  if (!field) return;
+  const custom = field.querySelector('[data-color-custom]');
+  const hidden = field.querySelector('input[name="color"]');
+  const base = field.dataset.colorBase || custom?.value || hidden?.value || '#3B82F6';
+  const selected = hidden?.value || base;
+  const mode = field.dataset.colorHarmony || 'analogous';
+  const swatches = field.querySelector('[data-color-swatches]');
+  if (swatches) swatches.innerHTML = harmonySwatchMarkup(base, mode, selected);
+  applyColorFieldValue(field, selected);
+}
+
+export function setColorFieldBase(field, color) {
+  if (!field || !color) return;
+  field.dataset.colorBase = color;
+  const custom = field.querySelector('[data-color-custom]');
+  if (custom && !sameColor(custom.value, color)) custom.value = color;
+  const hidden = field.querySelector('input[name="color"]');
+  if (hidden) hidden.value = color;
+  refreshColorField(field);
 }

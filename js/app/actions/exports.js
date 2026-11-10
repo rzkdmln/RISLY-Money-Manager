@@ -26,7 +26,7 @@ import { monthKey, shiftMonthKey, formatMonth, escapeHTML } from '../../utils.js
 import { ui } from '../../ui.js';
 import { store } from '../../store.js';
 import { closeModal, confirmDialog, toast } from '../../ui.js';
-import { renderApplication } from '../../app.js';
+import { renderApplication } from '../runtime.js';
 
 export const exportActions = {
   'open-export-modal': () => {

@@ -9,6 +9,18 @@ export { renderApplication, renderAuth } from './runtime.js';
 export { enterApplication } from './session.js';
 export { signInWithGoogleFlow } from './auth-flow.js';
 
+import { appHooks } from './hooks.js';
+import { renderApplication, renderAuth } from './runtime.js';
+import { enterApplication } from './session.js';
+import { signInWithGoogleFlow } from './auth-flow.js';
+
+Object.assign(appHooks, {
+  enterApplication,
+  renderApplication,
+  renderAuth,
+  signInWithGoogleFlow,
+});
+
 /**
  * Boot the application.
  */

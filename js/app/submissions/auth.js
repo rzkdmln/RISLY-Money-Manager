@@ -3,13 +3,10 @@
  * Domain: auth
  */
 
-import {
-  showFormError,
-  formValue,
-  stringValue,
-  renderAuth,
-  enterApplication,
-} from '../../app.js';
+import { showFormError } from '../../ui.js';
+import { formValue, stringValue } from '../../utils.js';
+import { renderAuth } from '../runtime.js';
+import { enterApplication } from '../session.js';
 import { store } from '../../store.js';
 import {
   verifyPin,

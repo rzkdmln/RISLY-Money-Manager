@@ -10,11 +10,9 @@ import {
   scheduleRender,
   renderApplication,
   renderAuth,
-  enterApplication,
   navigate,
-  runRecurring,
-  checkReminders,
-} from '../app.js';
+} from './runtime.js';
+import { enterApplication, runRecurring, checkReminders } from './session.js';
 import { store } from '../store.js';
 import { Cloud } from '../cloud.js';
 import { ui, toast, savePrefs } from '../ui.js';

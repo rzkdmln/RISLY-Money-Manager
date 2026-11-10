@@ -4,7 +4,7 @@
  */
 
 import { submitImport } from '../../import.js';
-import { renderApplication } from '../../app.js';
+import { renderApplication } from '../runtime.js';
 
 export const importSubmissions = {
   'import-transactions': async (form) => {

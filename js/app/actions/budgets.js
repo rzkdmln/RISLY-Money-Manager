@@ -9,7 +9,7 @@ import {
   confirmDialog,
   toast,
 } from '../../ui.js';
-import { renderApplication } from '../../app.js';
+import { renderApplication } from '../runtime.js';
 import { shiftMonthKey, monthKey, escapeHTML, formatMonth } from '../../utils.js';
 
 export const budgetActions = {

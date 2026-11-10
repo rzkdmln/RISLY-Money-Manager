@@ -2,7 +2,7 @@
  * RISLY Money Manager — Calculator & date input helpers.
  */
 
-import { expressionResult, formatAmountExpression, formatCurrency, parseDateDMY } from '../utils.js';
+import { expressionResult, formatAmountExpression, formatCurrency, parseDateDMY, todayISO } from '../utils.js';
 import { toast, ui } from '../ui.js';
 import { syncPaymentSplit } from './payment-split.js';
 
@@ -104,4 +104,28 @@ function handleCalculatorKey(button) {
   try { input.setSelectionRange(input.value.length, input.value.length); } catch { /* noop */ }
 }
 
-export { updateCalculator, formatCalculatorInput, maskDateInput, toggleCalculator, handleCalculatorKey };
+export function openNativeDatePicker(wrap) {
+  if (!wrap) return false;
+  const display = wrap.querySelector('[name="dateDisplay"]');
+  const native = wrap.querySelector('input[type="date"]');
+  if (!native) return false;
+  native.value = parseDateDMY(display?.value || '') || native.value || todayISO();
+  try {
+    if (typeof native.showPicker === 'function') {
+      native.showPicker();
+      return true;
+    }
+  } catch { /* fall through to a regular click for older browsers */ }
+  try {
+    native.style.pointerEvents = 'auto';
+    native.focus();
+    native.click();
+    setTimeout(() => { native.style.pointerEvents = 'none'; }, 500);
+    return true;
+  } catch {
+    native.style.pointerEvents = 'none';
+    return false;
+  }
+}
+
+export { updateCalculator, formatCalculatorInput, maskDateInput, toggleCalculator, handleCalculatorKey, openNativeDatePicker };

@@ -12,7 +12,7 @@ import {
   confirmDialog,
   toast,
 } from '../../ui.js';
-import { renderApplication } from '../../app.js';
+import { renderApplication } from '../runtime.js';
 import { subcategoryForm } from '../../forms/account.js';
 
 export const categoryActions = {

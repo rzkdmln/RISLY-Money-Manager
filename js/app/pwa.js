@@ -5,11 +5,10 @@
 
 import {
   renderApplication,
-  checkReminders,
-  swRegistration,
   setSplashStatus,
   hideSplash,
-} from '../app.js';
+} from './runtime.js';
+import { checkReminders } from './session.js';
 import { store } from '../store.js';
 import { Cloud } from '../cloud.js';
 import {
@@ -20,6 +19,8 @@ import {
   ui,
 } from '../ui.js';
 import { isStandalone } from '../utils.js';
+
+let swRegistration = null;
 
 export async function requestNotifications() {
   if (!('Notification' in window)) {

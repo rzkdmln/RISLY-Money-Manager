@@ -4,25 +4,23 @@
  */
 
 import {
-  openNativeDatePicker,
   renderApplication,
-  showFormError,
   rememberFocus,
   debounceSearch,
   noteActivity,
   lastActivityWrite,
-  setColorFieldBase,
-  checkAutoLock,
-  runRecurring,
-  checkReminders,
-} from '../app.js';
+} from './runtime.js';
+import { checkAutoLock, runRecurring, checkReminders } from './session.js';
+import { showFormError } from '../ui.js';
 import { updateSessionActivity } from '../auth.js';
 import {
   handleCalculatorKey,
   formatCalculatorInput,
   updateCalculator,
   maskDateInput,
+  openNativeDatePicker,
 } from './calculator.js';
+import { setColorFieldBase } from '../colors.js';
 import {
   syncPaymentSplit,
   createPaymentRow,

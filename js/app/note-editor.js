@@ -7,7 +7,7 @@ import { store } from '../store.js';
 import { sanitizeNoteHTML, parseDateTimeLocal } from '../utils.js';
 import { noteEditorForm } from '../forms/note.js';
 
-let noteSaveTimer = null;
+export let noteSaveTimer = null;
 
 function setNoteSaveStatus(text) {
   const node = document.getElementById('note-save-status');

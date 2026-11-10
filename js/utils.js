@@ -776,3 +776,15 @@ export function includesSearch(haystack, needle) {
 export function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Form value helpers                                                        */
+/* -------------------------------------------------------------------------- */
+
+export function formValue(form, name) {
+  return new FormData(form).get(name);
+}
+
+export function stringValue(form, name) {
+  return String(formValue(form, name) ?? '').trim();
+}

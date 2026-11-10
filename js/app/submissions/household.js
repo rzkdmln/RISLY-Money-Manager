@@ -3,15 +3,12 @@
  * Domain: household
  */
 
-import {
-  showFormError,
-  stringValue,
-  formValue,
-} from '../../app.js';
+import { showFormError } from '../../ui.js';
+import { stringValue, formValue } from '../../utils.js';
 import { store } from '../../store.js';
 import { Cloud } from '../../cloud.js';
 import { ui, toast } from '../../ui.js';
-import { renderApplication } from '../../app.js';
+import { renderApplication } from '../runtime.js';
 
 export const householdSubmissions = {
   'settings-household': (form) => {

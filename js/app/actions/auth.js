@@ -13,7 +13,7 @@ import {
   confirmDialog,
   toast,
 } from '../../ui.js';
-import { renderAuth } from '../../app.js';
+import { renderAuth } from '../runtime.js';
 
 export const authActions = {
   'select-user': (element) => {

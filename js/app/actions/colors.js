@@ -3,7 +3,7 @@
  * Domain: colors
  */
 
-import { applyColorFieldValue, refreshColorField } from '../../app.js';
+import { applyColorFieldValue, refreshColorField } from '../../colors.js';
 
 export const colorActions = {
   'toggle-color-picker': (element) => {

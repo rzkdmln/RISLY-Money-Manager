@@ -3,14 +3,11 @@
  * Domain: notes
  */
 
-import {
-  showFormError,
-  noteSaveTimer,
-} from '../../app.js';
+import { showFormError } from '../../ui.js';
+import { noteSaveTimer, collectNotePayload } from '../note-editor.js';
 import { store } from '../../store.js';
-import { collectNotePayload } from '../note-editor.js';
 import { ui, closeModal, toast } from '../../ui.js';
-import { renderApplication } from '../../app.js';
+import { renderApplication } from '../runtime.js';
 
 export const noteSubmissions = {
   note: async (form) => {

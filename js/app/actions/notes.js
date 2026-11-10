@@ -11,7 +11,7 @@ import {
   toast,
   savePrefs,
 } from '../../ui.js';
-import { renderApplication } from '../../app.js';
+import { renderApplication } from '../runtime.js';
 
 export const noteActions = {
   'add-note': () => {
