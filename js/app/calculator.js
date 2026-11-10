@@ -128,4 +128,4 @@ export function openNativeDatePicker(wrap) {
   }
 }
 
-export { updateCalculator, formatCalculatorInput, maskDateInput, toggleCalculator, handleCalculatorKey, openNativeDatePicker };
+export { updateCalculator, formatCalculatorInput, maskDateInput, toggleCalculator, handleCalculatorKey };
