@@ -491,6 +491,11 @@ export function migrateData(raw) {
       amount: Math.max(0, Number(s?.amount) || 0),
       note: String(s?.note || '').trim(),
     })).filter((s) => s.amount > 0) : [],
+    payments: Array.isArray(tx.payments) ? tx.payments.map((payment) => ({
+      accountId: payment?.accountId || null,
+      memberId: payment?.memberId || null,
+      amount: Math.max(0, Number(payment?.amount) || 0),
+    })).filter((payment) => payment.accountId && payment.amount > 0) : [],
     receipt: typeof tx.receipt === 'string' ? tx.receipt : null,
     createdBy: tx.createdBy || data.users[0]?.id || 'owner',
     createdByName: tx.createdByName || data.users.find((user) => user.id === tx.createdBy)?.name || data.users[0]?.name || 'Pengguna',

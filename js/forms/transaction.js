@@ -30,6 +30,62 @@ export function accountOptions(selectedId, includeId = null, ownerId = null, pla
       .join('');
 }
 
+/**
+ * Account picker for split payments. Options are grouped by family member so
+ * the user can see which account belongs to whom, including its live balance.
+ */
+export function paymentAccountOptions(selectedId = '') {
+  const accounts = store.data.accounts
+    .filter((account) => !account.deletedAt)
+    .filter((account) => !account.archived || account.id === selectedId);
+  const groups = new Map();
+  accounts.forEach((account) => {
+    const owner = store.getUser(account.owner);
+    const key = owner?.id || '__unassigned__';
+    if (!groups.has(key)) {
+      groups.set(key, {
+        label: owner ? `${owner.name}${owner.id === store.currentUserId ? ' (Anda)' : ''}` : 'Tanpa pemilik',
+        accounts: [],
+      });
+    }
+    groups.get(key).accounts.push(account);
+  });
+  const options = [...groups.values()].map((group) => `<optgroup label="${escapeAttr(group.label)}">${group.accounts
+    .map((account) => {
+      const balance = formatCurrency(store.accountBalance(account.id), { compact: true, hide: false });
+      return `<option value="${escapeAttr(account.id)}" ${selectedId === account.id ? 'selected' : ''}>${escapeHTML(account.name)} · ${balance}${account.archived ? ' (arsip)' : ''}</option>`;
+    })
+    .join('')}</optgroup>`).join('');
+  return `<option value="" ${selectedId ? '' : 'selected'}>Pilih akun</option>${options}`;
+}
+
+export function paymentRowHint(accountId = '') {
+  const account = store.accountById(accountId);
+  if (!account) return 'Pilih akun sumber dana.';
+  const owner = store.getUser(account.owner);
+  const ownerLabel = owner?.name ? `${owner.name} · ` : '';
+  return `${ownerLabel}Saldo saat ini ${formatCurrency(store.accountBalance(account.id), { hide: false })}`;
+}
+
+export function paymentRowHtml(payment = {}) {
+  const accountId = payment.accountId || '';
+  const amount = payment.amount || '';
+  return `<div class="payment-row" data-payment-row>
+    <div class="payment-row-grid">
+      <label class="field-label text-[11px] min-w-0">Akun sumber
+        <select class="field mt-1" name="paymentAccount" required>
+          ${paymentAccountOptions(accountId)}
+        </select>
+      </label>
+      <label class="field-label text-[11px] min-w-0">Nominal
+        <input class="field mt-1" type="number" name="paymentAmount" min="0" step="1" inputmode="numeric" value="${escapeAttr(amount)}" placeholder="0" required>
+      </label>
+      <button type="button" class="icon-btn text-red-500 payment-row-remove" data-action="remove-payment" aria-label="Hapus sumber pembayaran">${icon('x', 'w-3.5 h-3.5')}</button>
+    </div>
+    <p class="payment-row-hint" data-payment-hint>${escapeHTML(paymentRowHint(accountId))}</p>
+  </div>`;
+}
+
 function categoryOptions(type, selectedId = null) {
   const categories = store.data.categories
     .filter((category) => !category.deletedAt || category.id === selectedId)
@@ -85,47 +141,46 @@ export function transactionForm(tx = null, defaults = {}) {
   const payee = tx?.payee || defaults.payee || '';
   const tagsValue = Array.isArray(tx?.tags) ? tx.tags.join(', ') : (defaults.tags || '');
   const tagsArray = Array.isArray(tx?.tags) ? tx.tags : (String(defaults.tags || '').split(',').map(t => t.trim()).filter(Boolean));
-  const splits = Array.isArray(tx?.splits) ? tx.splits : [];
+  const payments = Array.isArray(tx?.payments) && tx.payments.length
+    ? tx.payments
+    : (Array.isArray(defaults.payments) ? defaults.payments : []);
+  const paymentSplit = payments.length > 0 || Boolean(defaults.paymentSplit);
+  const paymentRows = payments.length ? payments : [{}, {}];
   const receipt = typeof tx?.receipt === 'string' ? tx.receipt : '';
   const editing = Boolean(tx?.id);
   const result = expressionResult(displayAmount);
   const currentUser = store.currentUser;
   const recurring = Boolean(defaults.recurring) || Boolean(tx?.makeRecurring);
   const defaultFrequency = defaults.frequency || 'monthly';
-  const optionalOpen = Boolean(payee || tagsValue || (Array.isArray(splits) && splits.length) || recurring);
+  const optionalOpen = Boolean(payee || tagsValue || paymentSplit || recurring);
   const recurringTitle = defaults.recurringTitle || note || (store.categoryById(categoryId)?.name || 'Transaksi berulang');
+  const mainTotal = result === null ? null : Math.round(result);
+  const allocatedTotal = paymentRows.reduce((sum, payment) => sum + (Number(payment?.amount) || 0), 0);
+  const remainingTotal = (mainTotal || 0) - allocatedTotal;
 
-  function splitRowHtml(split = {}) {
-    const catId = split.categoryId || '';
-    const subId = split.subcategoryId || '';
-    const amt = split.amount || '';
-    const n = split.note || '';
-    return `<div class="split-row grid grid-cols-12 gap-2 items-end" data-split-row>
-      <div class="col-span-12 sm:col-span-4">
-        <label class="field-label text-[11px]">Kategori
-          <select class="field mt-1" name="splitCategory" required>
-            ${categoryOptions(type === 'income' ? 'income' : 'expense', catId)}
-          </select>
-        </label>
+  function paymentSplitSectionHtml() {
+    return `<div class="payment-split-section mt-2" ${paymentSplit ? '' : 'hidden'}>
+      <div data-payment-rows class="space-y-2">
+        ${paymentRows.map((payment) => paymentRowHtml(payment)).join('')}
       </div>
-      <div class="col-span-12 sm:col-span-3">
-        <label class="field-label text-[11px]">Subkategori
-          <select class="field mt-1" name="splitSubcategory" ${!catId || !store.categoryById(catId)?.subcategories?.length ? 'disabled' : ''}>
-            ${subcategoryOptions(catId, subId)}
-          </select>
-        </label>
+      <div class="split-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-action="add-payment">${icon('plus', 'w-3.5 h-3.5')} Tambah akun</button>
       </div>
-      <div class="col-span-7 sm:col-span-3">
-        <label class="field-label text-[11px]">Nominal
-          <input class="field mt-1" type="number" name="splitAmount" min="0" step="1" inputmode="numeric" value="${escapeAttr(amt)}" required>
-        </label>
+      <div class="payment-summary" data-payment-summary>
+        <div class="payment-summary-item">
+          <span>Total transaksi</span>
+          <strong data-payment-total>${mainTotal === null ? '—' : formatCurrency(mainTotal, { hide: false })}</strong>
+        </div>
+        <div class="payment-summary-item">
+          <span>Dialokasikan</span>
+          <strong data-payment-allocated>${formatCurrency(allocatedTotal, { hide: false })}</strong>
+        </div>
+        <div class="payment-summary-item">
+          <span>Sisa</span>
+          <strong data-payment-remaining class="${remainingTotal < 0 ? 'is-negative' : remainingTotal > 0 ? 'is-positive' : ''}">${formatCurrency(remainingTotal, { hide: false })}</strong>
+        </div>
       </div>
-      <div class="col-span-5 sm:col-span-2 flex items-end justify-end sm:justify-start">
-        <button type="button" class="icon-btn text-red-500" data-action="remove-split" aria-label="Hapus baris">${icon('x', 'w-3.5 h-3.5')}</button>
-      </div>
-      <div class="col-span-12">
-        <input class="field mt-1 text-[11px]" name="splitNote" maxlength="120" placeholder="Catatan baris (opsional)" value="${escapeAttr(n)}">
-      </div>
+      <p class="payment-status" data-payment-status role="status" aria-live="polite"></p>
     </div>`;
   }
 
@@ -155,7 +210,7 @@ export function transactionForm(tx = null, defaults = {}) {
           <label class="field-label" for="tx-amount-expression">Nominal</label>
           <button type="button" class="calc-toggle ${calcOpen ? 'is-open' : ''}" data-action="toggle-calc" aria-expanded="${calcOpen}" aria-controls="tx-calc-keypad" aria-label="${calcOpen ? 'Sembunyikan kalkulator' : 'Tampilkan kalkulator'}">${icon('calculator', 'w-4 h-4')}</button>
         </div>
-        <input id="tx-amount-expression" class="calc-display" name="amountExpression" inputmode="decimal" autocomplete="off" value="${escapeAttr(displayAmount)}" placeholder="0" aria-label="Nominal atau ekspresi matematika" ${splits.length ? 'readonly' : ''}>
+        <input id="tx-amount-expression" class="calc-display" name="amountExpression" inputmode="decimal" autocomplete="off" value="${escapeAttr(displayAmount)}" placeholder="0" aria-label="Nominal atau ekspresi matematika">
         <div class="calc-result">
           <span>${icon('calculator', 'w-3.5 h-3.5')} Hasil</span>
           <strong id="tx-amount-result" class="${result === null ? 'text-slate-400' : ''}">${result === null ? 'Masukkan nominal' : formatCurrency(result, { hide: false })}</strong>
@@ -182,33 +237,35 @@ export function transactionForm(tx = null, defaults = {}) {
           <input class="field mt-1.5 w-full min-w-0 text-center appearance-none" type="time" name="time" value="${escapeAttr(time)}" required>
         </label>
       </div>
-      <label class="field-label">Pemilik akun
-        <select class="field mt-1.5" name="accountOwner">
-          <option value="all" ${accountOwner === 'all' ? 'selected' : ''}>Semua anggota</option>
-          ${store.activeUsers().map((u) => `<option value="${escapeAttr(u.id)}" ${accountOwner === u.id ? 'selected' : ''}>${escapeHTML(u.name)}</option>`).join('')}
-        </select>
-      </label>
-      <label class="field-label">${isTransfer ? 'Dari akun' : 'Akun'}
-        <select class="field mt-1.5" name="accountId" required>
-          ${accountOptions(accountId, null, accountOwner === 'all' ? null : accountOwner)}
-        </select>
-      </label>
-      ${!isTransfer && selectedAccount?.type === 'credit' ? (() => {
-        const creditLimit = safeNumber(selectedAccount.creditLimit);
-        const spent = store.creditSpent(selectedAccount.id);
-        const remaining = Math.max(0, creditLimit - spent);
-        const hasLimit = creditLimit > 0;
-        const resultAmount = expressionResult(displayAmount);
-        const overLimit = hasLimit && resultAmount !== null && resultAmount > remaining;
-        return `<div class="tx-credit-box">
-          <p class="text-[12px] text-slate-500 dark:text-slate-400">
-            ${hasLimit
-              ? `Limit kredit ${formatCurrency(creditLimit)} · terpakai ${formatCurrency(spent)} · sisa ${formatCurrency(remaining)}`
-              : 'Belum diatur batas kredit untuk akun ini.'}
-          </p>
-          ${overLimit ? `<p class="text-[12px] text-red-500 dark:text-red-400 mt-1">Nominal melebihi sisa limit kredit. Kurangi nominal atau pilih akun lain.</p>` : ''}
-        </div>`;
-      })() : ''}
+      <div data-single-account class="${paymentSplit ? 'hidden' : ''}">
+        <label class="field-label">Pemilik akun
+          <select class="field mt-1.5" name="accountOwner">
+            <option value="all" ${accountOwner === 'all' ? 'selected' : ''}>Semua anggota</option>
+            ${store.activeUsers().map((u) => `<option value="${escapeAttr(u.id)}" ${accountOwner === u.id ? 'selected' : ''}>${escapeHTML(u.name)}</option>`).join('')}
+          </select>
+        </label>
+        <label class="field-label">${isTransfer ? 'Dari akun' : 'Akun'}
+          <select class="field mt-1.5" name="accountId" required>
+            ${accountOptions(accountId, null, accountOwner === 'all' ? null : accountOwner)}
+          </select>
+        </label>
+        ${!isTransfer && selectedAccount?.type === 'credit' ? (() => {
+          const creditLimit = safeNumber(selectedAccount.creditLimit);
+          const spent = store.creditSpent(selectedAccount.id);
+          const remaining = Math.max(0, creditLimit - spent);
+          const hasLimit = creditLimit > 0;
+          const resultAmount = expressionResult(displayAmount);
+          const overLimit = hasLimit && resultAmount !== null && resultAmount > remaining;
+          return `<div class="tx-credit-box">
+            <p class="text-[12px] text-slate-500 dark:text-slate-400">
+              ${hasLimit
+                ? `Limit kredit ${formatCurrency(creditLimit)} · terpakai ${formatCurrency(spent)} · sisa ${formatCurrency(remaining)}`
+                : 'Belum diatur batas kredit untuk akun ini.'}
+            </p>
+            ${overLimit ? `<p class="text-[12px] text-red-500 dark:text-red-400 mt-1">Nominal melebihi sisa limit kredit. Kurangi nominal atau pilih akun lain.</p>` : ''}
+          </div>`;
+        })() : ''}
+      </div>
 
       ${isTransfer ? `<label class="field-label">Ke akun
         <select class="field mt-1.5" name="toAccountId" required>
@@ -217,7 +274,7 @@ export function transactionForm(tx = null, defaults = {}) {
       </label>` : `
         <div class="form-grid">
           <label class="field-label">Kategori
-            <select class="field mt-1.5" name="categoryId" id="tx-category" ${splits.length ? '' : 'required'}>
+            <select class="field mt-1.5" name="categoryId" id="tx-category" required>
               ${categoryOptions(type === 'income' ? 'income' : 'expense', categoryId)}
             </select>
           </label>
@@ -295,20 +352,11 @@ export function transactionForm(tx = null, defaults = {}) {
         </div>
 
         ${!isTransfer ? `<label class="toggle-row compact-toggle mt-3">
-          <span><strong>Split transaksi</strong><small>Pecah nominal ke beberapa kategori</small></span>
-          <input type="checkbox" name="makeSplit" value="1" class="sr-only" ${splits.length ? 'checked' : ''} data-toggle-split>
-          <span class="switch ${splits.length ? 'is-on' : ''}"></span>
+          <span><strong>${type === 'income' ? 'Split penerimaan' : 'Split pembayaran'}</strong><small>${type === 'income' ? 'Bagi penerimaan ke beberapa akun / anggota' : 'Bayar dari beberapa akun / anggota'}</small></span>
+          <input type="checkbox" name="makePaymentSplit" value="1" class="sr-only" ${paymentSplit ? 'checked' : ''} data-toggle-payment-split>
+          <span class="switch ${paymentSplit ? 'is-on' : ''}"></span>
         </label>
-        <div class="split-section mt-2" ${splits.length ? '' : 'hidden'}>
-          <div data-split-rows class="space-y-2">
-            ${(splits.length ? splits : [{}]).map((s) => splitRowHtml(s)).join('')}
-          </div>
-          <div class="split-footer">
-            <button type="button" class="btn btn-secondary btn-sm" data-action="add-split">${icon('plus', 'w-3.5 h-3.5')} Tambah baris split</button>
-            <span class="split-total" data-split-total>${splits.length ? `Total ${formatCurrency(tx?.amount || 0)}` : 'Belum ada nominal'}</span>
-          </div>
-          <p class="text-[11px] text-slate-400 mt-1">Total nominal otomatis dijumlahkan dari baris split.</p>
-        </div>` : ''}
+        ${paymentSplitSectionHtml()}` : ''}
 
         ${!editing ? `<div class="recurring-box mt-3">
           <label class="toggle-row">

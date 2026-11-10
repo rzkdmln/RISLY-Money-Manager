@@ -123,6 +123,8 @@ import {
 } from './forms/account.js';
 import {
   accountOptions,
+  paymentRowHint,
+  paymentRowHtml,
   recurringForm,
   subcategoryOptions,
   transactionForm,
@@ -633,6 +635,7 @@ function openTransactionModal(tx = null, defaults = {}) {
     labelledBy: 'transaction-modal-title',
     html: transactionForm(tx, { ...defaults, type: defaults.type || tx?.type || 'expense' }),
   });
+  syncPaymentSplit(document.querySelector('#modal-root form[data-form="transaction"]'));
 }
 
 function openReceiptLightbox(src) {
@@ -1103,8 +1106,116 @@ function handleCalculatorKey(button) {
 
   input.value = formatAmountExpression(value);
   updateCalculator(form);
+  syncPaymentSplit(form);
   input.focus({ preventScroll: true });
   try { input.setSelectionRange(input.value.length, input.value.length); } catch { /* noop */ }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Split payment helpers                                                    */
+/* -------------------------------------------------------------------------- */
+
+function refreshPaymentRowHint(row) {
+  const hint = row?.querySelector('[data-payment-hint]');
+  if (!hint) return;
+  hint.textContent = paymentRowHint(row.querySelector('[name="paymentAccount"]')?.value || '');
+}
+
+function createPaymentRow(payment = {}) {
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = paymentRowHtml(payment).trim();
+  return wrapper.firstElementChild;
+}
+
+function addPaymentRow(trigger) {
+  const form = trigger?.closest('form[data-form="transaction"]');
+  const container = form?.querySelector('[data-payment-rows]');
+  if (!container) return;
+  const row = createPaymentRow({});
+  container.appendChild(row);
+  syncPaymentSplit(form);
+  row.querySelector('[name="paymentAccount"]')?.focus({ preventScroll: true });
+}
+
+function syncPaymentSplit(form) {
+  if (!form) return null;
+  const toggle = form.querySelector('[data-toggle-payment-split]');
+  const enabled = Boolean(toggle?.checked);
+  const section = form.querySelector('.payment-split-section');
+  if (section) section.hidden = !enabled;
+  const singleAccount = form.querySelector('[data-single-account]');
+  if (singleAccount) singleAccount.classList.toggle('hidden', enabled);
+
+  const rows = [...form.querySelectorAll('[data-payment-row]')];
+  const amountInput = form.querySelector('[name="amountExpression"]');
+  const totalRaw = expressionResult(amountInput?.value);
+  const total = totalRaw === null ? 0 : Math.round(totalRaw);
+  let allocated = 0;
+  let missingAccount = false;
+  let missingAmount = false;
+
+  rows.forEach((row) => {
+    refreshPaymentRowHint(row);
+    const accountValue = row.querySelector('[name="paymentAccount"]')?.value || '';
+    const amount = Math.round(Number(row.querySelector('[name="paymentAmount"]')?.value || 0));
+    if (!accountValue) missingAccount = true;
+    if (!(amount > 0)) missingAmount = true;
+    if (Number.isFinite(amount) && amount > 0) allocated += amount;
+    const removeButton = row.querySelector('[data-action="remove-payment"]');
+    if (removeButton) removeButton.disabled = rows.length <= 2;
+  });
+
+  const remaining = total - allocated;
+  const totalNode = form.querySelector('[data-payment-total]');
+  const allocatedNode = form.querySelector('[data-payment-allocated]');
+  const remainingNode = form.querySelector('[data-payment-remaining]');
+  const statusNode = form.querySelector('[data-payment-status]');
+  if (totalNode) totalNode.textContent = total > 0 ? formatCurrency(total, { hide: false }) : '—';
+  if (allocatedNode) allocatedNode.textContent = formatCurrency(allocated, { hide: false });
+  if (remainingNode) {
+    remainingNode.textContent = formatCurrency(remaining, { hide: false });
+    remainingNode.classList.toggle('is-negative', remaining < 0);
+    remainingNode.classList.toggle('is-positive', remaining > 0);
+  }
+
+  const valid = enabled && total > 0 && allocated === total && !missingAccount && !missingAmount;
+  if (statusNode) {
+    if (!enabled) {
+      statusNode.textContent = '';
+    } else if (total <= 0) {
+      statusNode.textContent = 'Isi nominal transaksi terlebih dahulu.';
+    } else if (missingAccount) {
+      statusNode.textContent = 'Pilih akun untuk setiap baris pembayaran.';
+    } else if (missingAmount) {
+      statusNode.textContent = 'Isi nominal lebih dari nol untuk setiap akun.';
+    } else if (remaining > 0) {
+      statusNode.textContent = `Kurang ${formatCurrency(remaining, { hide: false })} dari total transaksi.`;
+    } else if (remaining < 0) {
+      statusNode.textContent = `Kelebihan ${formatCurrency(Math.abs(remaining), { hide: false })} dari total transaksi.`;
+    } else {
+      statusNode.textContent = 'Total pembayaran sudah sesuai.';
+    }
+    statusNode.classList.toggle('is-valid', valid);
+    statusNode.classList.toggle('is-invalid', enabled && total > 0 && !valid);
+  }
+
+  const firstAccount = rows
+    .map((row) => row.querySelector('[name="paymentAccount"]')?.value || '')
+    .find(Boolean) || '';
+  const accountSelect = form.querySelector('select[name="accountId"]');
+  if (enabled && accountSelect && firstAccount) accountSelect.value = firstAccount;
+
+  const submit = form.querySelector('button[type="submit"]');
+  if (submit) {
+    if (enabled) {
+      submit.disabled = !valid;
+      submit.classList.toggle('is-disabled', !valid);
+    } else {
+      submit.disabled = false;
+      submit.classList.remove('is-disabled');
+    }
+  }
+  return { total, allocated, remaining, valid };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1760,6 +1871,15 @@ async function handleAction(action, element) {
       const editingId = form.dataset.id;
       const original = editingId ? store.transactionById(editingId) : null;
       const amount = expressionResult(fd.get('amountExpression'));
+      const paymentSplit = Boolean(form.querySelector('[data-toggle-payment-split]')?.checked);
+      const payments = paymentSplit
+        ? Array.from(form.querySelectorAll('[data-payment-row]'))
+          .map((row) => ({
+            accountId: String(row.querySelector('[name="paymentAccount"]')?.value || ''),
+            amount: Math.round(Number(row.querySelector('[name="paymentAmount"]')?.value || 0)),
+          }))
+          .filter((payment) => payment.accountId || payment.amount > 0)
+        : [];
       const values = {
         type: element.dataset.type,
         date: fd.get('date') || parseDateDMY(fd.get('dateDisplay')) || todayISO(),
@@ -1771,6 +1891,8 @@ async function handleAction(action, element) {
         categoryId: fd.get('categoryId') || '',
         subcategoryId: fd.get('subcategoryId') || '',
         note: fd.get('note') || '',
+        payments,
+        paymentSplit,
         recurring: Boolean(fd.get('makeRecurring')),
         recurringTitle: fd.get('recurringTitle') || '',
         frequency: fd.get('recurringFrequency') || 'monthly',
@@ -1783,6 +1905,7 @@ async function handleAction(action, element) {
       if (panel) {
         panel.innerHTML = nextHtml;
         panel.classList.add('modal-in');
+        syncPaymentSplit(panel.querySelector('form[data-form="transaction"]'));
       } else {
         closeModal({ silent: true });
         openTransactionModal(nextTx, values);
@@ -2394,13 +2517,18 @@ async function handleAction(action, element) {
     case 'open-export-modal':
       openExportModal();
       break;
-    case 'add-split':
-      addSplitRow(element);
+    case 'add-payment':
+      addPaymentRow(element);
       break;
-    case 'remove-split': {
+    case 'remove-payment': {
       const form = element.closest('form');
-      element.closest('[data-split-row]')?.remove();
-      syncSplitTotal(form);
+      const rows = form?.querySelectorAll('[data-payment-row]') || [];
+      if (rows.length <= 2) {
+        toast('Split pembayaran membutuhkan minimal dua akun.', 'info');
+        break;
+      }
+      element.closest('[data-payment-row]')?.remove();
+      syncPaymentSplit(form);
       break;
     }
     case 'choose-receipt': {
@@ -2805,22 +2933,44 @@ function submitTransaction(form) {
   const categoryId = String(fd.get('categoryId') || '');
   const subcategoryId = String(fd.get('subcategoryId') || '');
 
-  const makeSplit = fd.get('makeSplit') === '1';
-  const splitRows = makeSplit ? Array.from(form.querySelectorAll('[data-split-row]')) : [];
-  const splits = splitRows.map((row) => ({
-    categoryId: String(row.querySelector('[name="splitCategory"]')?.value || '') || null,
-    subcategoryId: String(row.querySelector('[name="splitSubcategory"]')?.value || '') || null,
-    amount: Math.round(Number(row.querySelector('[name="splitAmount"]')?.value || 0)),
-    note: String(row.querySelector('[name="splitNote"]')?.value || '').trim(),
-  })).filter((split) => split.amount > 0);
+  const makePaymentSplit = fd.get('makePaymentSplit') === '1';
+  const paymentRows = makePaymentSplit ? Array.from(form.querySelectorAll('[data-payment-row]')) : [];
+  const payments = paymentRows.map((row) => {
+    const paymentAccountId = String(row.querySelector('[name="paymentAccount"]')?.value || '');
+    const account = store.accountById(paymentAccountId);
+    return {
+      accountId: paymentAccountId,
+      memberId: account?.owner || null,
+      amount: Math.round(Number(row.querySelector('[name="paymentAmount"]')?.value || 0)),
+    };
+  }).filter((payment) => payment.accountId || payment.amount > 0);
 
-  if (makeSplit) {
-    if (!splits.length) {
-      showFormError(form, 'Isi minimal satu baris split dengan nominal lebih dari nol.');
+  let paymentTotal = 0;
+  if (makePaymentSplit) {
+    if (payments.length < 2) {
+      showFormError(form, 'Split pembayaran membutuhkan minimal dua akun.');
       return;
     }
-    if (splits.some((split) => !split.categoryId)) {
-      showFormError(form, 'Pilih kategori untuk setiap baris split.');
+    if (payments.some((payment) => !payment.accountId)) {
+      showFormError(form, 'Pilih akun untuk setiap baris pembayaran.');
+      return;
+    }
+    if (payments.some((payment) => payment.amount <= 0)) {
+      showFormError(form, 'Isi nominal lebih dari nol untuk setiap akun.');
+      return;
+    }
+    const uniqueAccounts = new Set(payments.map((payment) => payment.accountId));
+    if (uniqueAccounts.size !== payments.length) {
+      showFormError(form, 'Setiap akun hanya boleh dipakai satu kali dalam split pembayaran.');
+      return;
+    }
+    if (amount === null || amount <= 0) {
+      showFormError(form, 'Nominal transaksi harus lebih dari nol.');
+      return;
+    }
+    paymentTotal = payments.reduce((sum, payment) => sum + payment.amount, 0);
+    if (paymentTotal !== Math.round(amount)) {
+      showFormError(form, `Total split (${formatCurrency(paymentTotal, { hide: false })}) belum sesuai dengan nominal transaksi (${formatCurrency(Math.round(amount), { hide: false })}).`);
       return;
     }
   } else if (amount === null || amount <= 0) {
@@ -2840,7 +2990,7 @@ function submitTransaction(form) {
     showFormError(form, 'Jam transaksi wajib diisi.');
     return;
   }
-  if (!accountId) {
+  if (!makePaymentSplit && !accountId) {
     showFormError(form, 'Pilih akun sumber dana.');
     return;
   }
@@ -2848,28 +2998,34 @@ function submitTransaction(form) {
     showFormError(form, 'Pilih akun tujuan yang berbeda dari akun sumber.');
     return;
   }
-  if (type !== 'transfer' && !categoryId && !makeSplit && !originalTransaction?.adjustment) {
+  if (type !== 'transfer' && !categoryId && !originalTransaction?.adjustment) {
     showFormError(form, 'Pilih kategori transaksi.');
     return;
   }
-  const selectedAccountForCheck = store.accountById(accountId);
-  if (type === 'expense' && selectedAccountForCheck?.type === 'credit') {
-    const creditLimit = safeNumber(selectedAccountForCheck.creditLimit);
-    const spentSoFar = store.creditSpent(accountId);
-    const remainingLimit = Math.max(0, creditLimit - spentSoFar);
-    const checkAmount = makeSplit
-      ? splits.reduce((sum, split) => sum + split.amount, 0)
-      : amount;
-    if (checkAmount > remainingLimit) {
-      showFormError(form, `Nominal melebihi sisa limit kredit (sisa ${formatCurrency(remainingLimit)}).`);
-      return;
+  if (type === 'expense') {
+    const checkParts = makePaymentSplit ? payments : [{ accountId, amount }];
+    for (const part of checkParts) {
+      const account = store.accountById(part.accountId);
+      if (account?.type !== 'credit') continue;
+      const creditLimit = safeNumber(account.creditLimit);
+      if (!(creditLimit > 0)) continue;
+      const spentSoFar = store.creditSpent(account.id);
+      const remainingLimit = Math.max(0, creditLimit - spentSoFar);
+      if (part.amount > remainingLimit) {
+        showFormError(form, `Nominal dari akun ${account.name} melebihi sisa limit kredit (sisa ${formatCurrency(remainingLimit)}).`);
+        return;
+      }
     }
   }
 
-  let finalAmount = amount;
-  if (makeSplit && splits.length) {
-    finalAmount = splits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
-  }
+  const finalAmount = Math.round(makePaymentSplit ? paymentTotal : amount);
+  const originalSplits = Array.isArray(originalTransaction?.splits) ? originalTransaction.splits : [];
+  const originalSplitTotal = originalSplits.reduce((sum, split) => sum + (Number(split.amount) || 0), 0);
+  const keepLegacySplits = type !== 'transfer'
+    && !makePaymentSplit
+    && originalSplits.length > 0
+    && originalSplitTotal === finalAmount
+    && (originalTransaction?.categoryId || null) === (categoryId || null);
 
   const receiptValue = String(fd.get('receipt') || '').trim();
 
@@ -2877,11 +3033,11 @@ function submitTransaction(form) {
     date,
     time,
     type,
-    amount: Math.round(finalAmount || amount || 0),
-    accountId,
+    amount: finalAmount,
+    accountId: makePaymentSplit ? payments[0].accountId : accountId,
     toAccountId: type === 'transfer' ? toAccountId : null,
-    categoryId: type === 'transfer' ? null : (makeSplit && splits.length ? (splits[0].categoryId || null) : (categoryId || null)),
-    subcategoryId: type === 'transfer' ? null : (makeSplit && splits.length ? (splits[0].subcategoryId || null) : (subcategoryId || null)),
+    categoryId: type === 'transfer' ? null : (categoryId || null),
+    subcategoryId: type === 'transfer' ? null : (subcategoryId || null),
     note: String(fd.get('note') || '').trim(),
     payee: String(fd.get('payee') || '').trim(),
     tags: String(fd.get('tags') || '')
@@ -2889,7 +3045,8 @@ function submitTransaction(form) {
       .map((t) => t.trim().replace(/^#/, ''))
       .filter(Boolean)
       .slice(0, 20),
-    splits: makeSplit ? splits : [],
+    payments: makePaymentSplit ? payments : [],
+    splits: keepLegacySplits ? originalSplits : [],
     receipt: receiptValue || null,
   };
 
@@ -3523,10 +3680,11 @@ function bindEvents() {
     if (target.matches('[name="amountExpression"]')) {
       formatCalculatorInput(target);
       updateCalculator(target.closest('form'));
+      syncPaymentSplit(target.closest('form'));
       return;
     }
-    if (target.matches('[data-split-row] [name="splitAmount"]')) {
-      syncSplitTotal(target.closest('form'));
+    if (target.matches('[data-payment-row] [name="paymentAmount"]')) {
+      syncPaymentSplit(target.closest('form'));
       return;
     }
     if (target.matches('[name="dateDisplay"]')) {
@@ -3603,16 +3761,10 @@ function bindEvents() {
       if (display) display.value = target.value ? formatDateDMY(target.value) : '';
       return;
     }
-    if (target.matches('select[name="splitCategory"]')) {
-      const row = target.closest('[data-split-row]');
-      const subSelect = row?.querySelector('select[name="splitSubcategory"]');
-      if (subSelect) {
-        const cat = store.categoryById(target.value);
-        const subs = cat?.subcategories?.filter((s) => !s.deletedAt) || [];
-        subSelect.innerHTML = '<option value="">' + (subs.length ? 'Pilih Subkategori' : 'Tanpa subkategori') + '</option>' +
-          subs.map((s) => '<option value="' + escapeAttr(s.id) + '">' + escapeHTML(s.name) + '</option>').join('');
-        subSelect.disabled = !target.value || !subs.length;
-      }
+    if (target.matches('select[name="paymentAccount"]')) {
+      const row = target.closest('[data-payment-row]');
+      refreshPaymentRowHint(row);
+      syncPaymentSplit(target.closest('form'));
       return;
     }
     if (target.matches('input[data-receipt-file]')) {
@@ -3785,23 +3937,31 @@ function bindEvents() {
         const extra = target.closest('.recurring-box')?.querySelector('.recurring-extra');
         if (extra) extra.hidden = !target.checked;
       }
-      if (target.matches('[data-toggle-split]')) {
+      if (target.matches('[data-toggle-payment-split]')) {
         const form = target.closest('form');
-        const section = form?.querySelector('.split-section');
+        const section = form?.querySelector('.payment-split-section');
         if (section) section.hidden = !target.checked;
-        const catSelect = form?.querySelector('select[name="categoryId"]');
-        if (catSelect) {
-          if (target.checked) catSelect.removeAttribute('required');
-          else catSelect.setAttribute('required', '');
-        }
+        const singleAccount = form?.querySelector('[data-single-account]');
+        if (singleAccount) singleAccount.classList.toggle('hidden', target.checked);
         if (target.checked) {
-          const firstAmount = form?.querySelector('[data-split-row] [name="splitAmount"]');
-          if (firstAmount && !firstAmount.value) {
-            const current = expressionResult(form.querySelector('[name="amountExpression"]')?.value);
-            if (current && current > 0) firstAmount.value = String(Math.round(current));
+          const container = form?.querySelector('[data-payment-rows]');
+          while (container && container.querySelectorAll('[data-payment-row]').length < 2) {
+            container.appendChild(createPaymentRow({}));
+          }
+          const rows = [...(container?.querySelectorAll('[data-payment-row]') || [])];
+          const hasAmount = rows.some((row) => Number(row.querySelector('[name="paymentAmount"]')?.value || 0) > 0);
+          const current = expressionResult(form.querySelector('[name="amountExpression"]')?.value);
+          if (!hasAmount && current && current > 0 && rows[0]) {
+            const amountInput = rows[0].querySelector('[name="paymentAmount"]');
+            if (amountInput) amountInput.value = String(Math.round(current));
+          }
+          const accountId = form.querySelector('select[name="accountId"]')?.value;
+          if (accountId && rows[0]) {
+            const accountSelect = rows[0].querySelector('[name="paymentAccount"]');
+            if (accountSelect && !accountSelect.value) accountSelect.value = accountId;
           }
         }
-        syncSplitTotal(form);
+        syncPaymentSplit(form);
       }
       const noteForm = target.closest('form[data-form="note"][data-id]');
       if (noteForm) scheduleNoteAutosave(noteForm);

@@ -35,6 +35,17 @@ export function txSubtitle(tx) {
   if (tx.type === 'transfer') {
     return `${store.accountName(tx.accountId)} → ${store.accountName(tx.toAccountId)}`;
   }
+  if (Array.isArray(tx.payments) && tx.payments.length) {
+    const names = [...new Set(tx.payments.map((payment) => {
+      const account = store.accountById(payment.accountId);
+      const owner = store.getUser(payment.memberId || account?.owner);
+      const accountName = account?.name || '';
+      const ownerName = owner?.name || '';
+      if (ownerName && accountName) return `${ownerName} · ${accountName}`;
+      return accountName || ownerName;
+    }).filter(Boolean))];
+    return names.length ? `Split bayar · ${names.join(', ')}` : 'Split pembayaran';
+  }
   if (Array.isArray(tx.splits) && tx.splits.length) {
     const names = [...new Set(tx.splits.map((split) => store.categoryById(split.categoryId)?.name).filter(Boolean))];
     return names.length ? `Split · ${names.join(', ')}` : 'Split transaksi';
@@ -63,6 +74,10 @@ export function txRow(tx, { showDate = false, showCreator = true, compact = fals
   const type = TX_TYPES[tx.type] || TX_TYPES.expense;
   const category = categoryOf(tx);
   const account = store.accountById(tx.accountId);
+  const paymentAccounts = Array.isArray(tx.payments)
+    ? tx.payments.map((payment) => store.accountById(payment.accountId)).filter(Boolean)
+    : [];
+  const primaryAccount = paymentAccounts[0] || account;
   const creator = store.getUser(tx.createdBy);
   const color = tx.type === 'transfer' ? 'var(--brand)' : category?.color || type.color;
   const iconName = tx.type === 'transfer' ? 'arrow-left-right' : category?.icon || type.icon;
@@ -82,7 +97,7 @@ export function txRow(tx, { showDate = false, showCreator = true, compact = fals
         ${tx.payee ? `<span class="tx-payee">${escapeHTML(tx.payee)}</span>` : ''}
         <span>${escapeHTML(txSubtitle(tx))}</span>
         ${Array.isArray(tx.tags) && tx.tags.length ? `<span class="tx-tags">${tx.tags.map((tag) => `<span class="tx-tag">#${escapeHTML(tag)}</span>`).join('')}</span>` : ''}
-        ${Array.isArray(tx.splits) && tx.splits.length ? `<span class="tx-split">Split ${tx.splits.length}</span>` : ''}
+        ${Array.isArray(tx.payments) && tx.payments.length ? `<span class="tx-split">Split bayar ${tx.payments.length}</span>` : Array.isArray(tx.splits) && tx.splits.length ? `<span class="tx-split">Split ${tx.splits.length}</span>` : ''}
         ${tx.receipt ? `<span class="tx-receipt" title="Ada struk">${icon('file-text', 'w-3 h-3')}</span>` : ''}
         ${store.isMonthLocked(tx.date.slice(0, 7)) ? `<span class="tx-lock" title="Bulan terkunci">${icon('lock', 'w-3 h-3')}</span>` : ''}
         ${showCreator ? `<span class="tx-creator" style="--creator-color:${escapeAttr(creator?.color || 'var(--muted)')}">${escapeHTML(tx.createdByName || creator?.name || '—')}</span>` : ''}
@@ -90,7 +105,7 @@ export function txRow(tx, { showDate = false, showCreator = true, compact = fals
     </span>
     <span class="tx-side">
       <span class="tx-amount ${amountClass}">${sign}${money(tx.amount)}</span>
-      ${!compact && account ? `<span class="tx-account-dot" style="--dot-color:${escapeAttr(account.color || 'var(--muted)')}">${escapeHTML(account.name)}</span>` : ''}
+      ${!compact && primaryAccount ? `<span class="tx-account-dot" style="--dot-color:${escapeAttr(primaryAccount.color || 'var(--muted)')}">${escapeHTML(primaryAccount.name)}${paymentAccounts.length > 1 ? ` +${paymentAccounts.length - 1}` : ''}</span>` : ''}
     </span>
   </button>`;
 }

@@ -27,6 +27,9 @@ function accountPair(tx) {
   if (tx.type === 'transfer') {
     return `${store.accountName(tx.accountId)} → ${store.accountName(tx.toAccountId)}`;
   }
+  if (Array.isArray(tx.payments) && tx.payments.length) {
+    return tx.payments.map((payment) => store.accountName(payment.accountId)).join(' + ');
+  }
   return store.accountName(tx.accountId);
 }
 

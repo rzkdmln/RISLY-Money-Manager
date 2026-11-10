@@ -52,6 +52,18 @@ function normalizedMemberName(value) {
   return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
+function normalizePayments(payments) {
+  return Array.isArray(payments)
+    ? payments
+      .map((payment) => ({
+        accountId: payment?.accountId || null,
+        memberId: payment?.memberId || null,
+        amount: Math.max(0, Math.round(safeNumber(payment?.amount))),
+      }))
+      .filter((payment) => payment.accountId && payment.amount > 0)
+    : [];
+}
+
 function mergeCollection(localItems, remoteItems) {
   const map = new Map();
   (remoteItems || []).forEach((item) => {
@@ -519,6 +531,7 @@ class Store {
           amount: Math.max(0, Math.round(safeNumber(s?.amount))),
           note: String(s?.note || '').trim(),
         })).filter((s) => s.amount > 0) : [],
+        payments: normalizePayments(payload.payments),
         receipt: typeof payload.receipt === 'string' ? payload.receipt : null,
         createdBy: user?.id || this.currentUserId || this.data.users[0]?.id || 'owner',
         createdByName: user?.name || this.data.users[0]?.name || 'Pengguna',
@@ -560,6 +573,9 @@ class Store {
               amount: Math.max(0, Math.round(safeNumber(s?.amount))),
               note: String(s?.note || '').trim(),
             })).filter((s) => s.amount > 0) : []),
+        payments: payload.payments === undefined
+          ? (Array.isArray(tx.payments) ? tx.payments : [])
+          : normalizePayments(payload.payments),
         receipt: payload.receipt === undefined ? tx.receipt : (typeof payload.receipt === 'string' ? payload.receipt : null),
         updatedAt: now,
         updatedBy: this.currentUserId || tx.updatedBy || null,
@@ -620,12 +636,25 @@ class Store {
     return this.transactions().filter((tx) => tx.date === date);
   }
 
-  summaryForTransactions(list) {
+  summaryForTransactions(list, { accountIds = null } = {}) {
+    const scopedAccountIds = accountIds ? new Set(accountIds) : null;
     let income = 0;
     let expense = 0;
     let transfers = 0;
     list.forEach((tx) => {
-      const amount = safeNumber(tx.amount);
+      let amount = safeNumber(tx.amount);
+      if (scopedAccountIds) {
+        const payments = Array.isArray(tx.payments)
+          ? tx.payments.filter((payment) => safeNumber(payment?.amount) > 0)
+          : [];
+        if (payments.length) {
+          amount = payments
+            .filter((payment) => scopedAccountIds.has(payment.accountId))
+            .reduce((sum, payment) => sum + safeNumber(payment.amount), 0);
+        } else if (!scopedAccountIds.has(tx.accountId) && !scopedAccountIds.has(tx.toAccountId)) {
+          amount = 0;
+        }
+      }
       if (tx.type === 'income') income += amount;
       else if (tx.type === 'expense') expense += amount;
       else if (tx.type === 'transfer') transfers += amount;
@@ -878,6 +907,22 @@ class Store {
       map.set('__unassigned__', { userId: '__unassigned__', name: 'Tanpa pemilik', color: 'var(--muted)', count: 0, income: 0, expense: 0 });
     }
     this.transactionsForMonth(month).forEach((tx) => {
+      const payments = Array.isArray(tx.payments)
+        ? tx.payments.filter((payment) => safeNumber(payment?.amount) > 0)
+        : [];
+      if (payments.length) {
+        payments.forEach((payment) => {
+          const paymentAccount = this.accountById(payment.accountId);
+          const memberId = payment.memberId || paymentAccount?.owner;
+          const targetId = memberId && map.has(memberId) ? memberId : '__unassigned__';
+          const paymentEntry = map.get(targetId);
+          if (!paymentEntry) return;
+          paymentEntry.count += 1;
+          if (tx.type === 'income') paymentEntry.income += safeNumber(payment.amount);
+          if (tx.type === 'expense') paymentEntry.expense += safeNumber(payment.amount);
+        });
+        return;
+      }
       const account = this.accountById(tx.accountId);
       const ownerId = account?.owner && map.has(account.owner) ? account.owner : '__unassigned__';
       const entry = map.get(ownerId);
@@ -951,19 +996,32 @@ class Store {
     let balance = safeNumber(account.openingBalance);
     this.transactions({ includeDeleted: false }).forEach((tx) => {
       const amount = safeNumber(tx.amount);
-      if (tx.type === 'income' && tx.accountId === accountId) balance += amount;
-      if (tx.type === 'expense' && tx.accountId === accountId) balance -= amount;
+      const payments = Array.isArray(tx.payments) ? tx.payments.filter((payment) => safeNumber(payment?.amount) > 0) : [];
       if (tx.type === 'transfer') {
         if (tx.accountId === accountId) balance -= amount;
         if (tx.toAccountId === accountId) balance += amount;
+        return;
       }
+      if (payments.length) {
+        payments.forEach((payment) => {
+          if (payment.accountId !== accountId) return;
+          const paid = safeNumber(payment.amount);
+          if (tx.type === 'income') balance += paid;
+          if (tx.type === 'expense') balance -= paid;
+        });
+        return;
+      }
+      if (tx.type === 'income' && tx.accountId === accountId) balance += amount;
+      if (tx.type === 'expense' && tx.accountId === accountId) balance -= amount;
     });
     return balance;
   }
 
   accountTransactions(accountId) {
     return this.transactions().filter(
-      (tx) => tx.accountId === accountId || tx.toAccountId === accountId,
+      (tx) => tx.accountId === accountId
+        || tx.toAccountId === accountId
+        || (Array.isArray(tx.payments) && tx.payments.some((payment) => payment.accountId === accountId)),
     );
   }
 
@@ -1005,8 +1063,19 @@ class Store {
     const account = this.accountById(accountId);
     if (!account || account.type !== 'credit') return 0;
     const spent = this.transactions()
-      .filter((tx) => tx.type === 'expense' && !tx.adjustment && (tx.accountId === accountId || tx.toAccountId === accountId))
-      .reduce((total, tx) => total + safeNumber(tx.amount), 0);
+      .filter((tx) => tx.type === 'expense' && !tx.adjustment)
+      .reduce((total, tx) => {
+        const payments = Array.isArray(tx.payments) ? tx.payments : [];
+        if (payments.length) {
+          return total + payments
+            .filter((payment) => payment.accountId === accountId)
+            .reduce((sum, payment) => sum + safeNumber(payment.amount), 0);
+        }
+        if (tx.accountId === accountId || tx.toAccountId === accountId) {
+          return total + safeNumber(tx.amount);
+        }
+        return total;
+      }, 0);
     const opening = safeNumber(account.openingBalance) || 0;
     return Math.max(0, spent + opening);
   }

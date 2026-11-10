@@ -49,7 +49,9 @@ function filterTransactions() {
 
   if (ui.txType !== 'all') list = list.filter((tx) => tx.type === ui.txType);
   if (ui.txAccount !== 'all') {
-    list = list.filter((tx) => tx.accountId === ui.txAccount || tx.toAccountId === ui.txAccount);
+    list = list.filter((tx) => tx.accountId === ui.txAccount
+      || tx.toAccountId === ui.txAccount
+      || (Array.isArray(tx.payments) && tx.payments.some((payment) => payment.accountId === ui.txAccount)));
   }
   if (ui.txCategory !== 'all') list = list.filter((tx) => tx.categoryId === ui.txCategory);
   if (ui.txUser !== 'all') list = list.filter((tx) => tx.createdBy === ui.txUser);
@@ -61,6 +63,12 @@ function filterTransactions() {
       const sub = tx.subcategoryId ? store.subcategoryById(tx.categoryId, tx.subcategoryId) : null;
       const account = store.accountById(tx.accountId);
       const toAccount = store.accountById(tx.toAccountId);
+      const paymentAccountNames = Array.isArray(tx.payments)
+        ? tx.payments.map((payment) => store.accountById(payment.accountId)?.name)
+        : [];
+      const paymentMemberNames = Array.isArray(tx.payments)
+        ? tx.payments.map((payment) => store.getUser(payment.memberId)?.name)
+        : [];
       const haystack = normalizeSearch([
         tx.note,
         tx.payee,
@@ -69,6 +77,8 @@ function filterTransactions() {
         sub?.name,
         account?.name,
         toAccount?.name,
+        ...paymentAccountNames,
+        ...paymentMemberNames,
         tx.createdByName,
         tx.amount,
         tx.date,

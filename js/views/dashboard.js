@@ -34,11 +34,15 @@ export function dashboardView(user) {
   const personalScope = ui.networthFilter === 'mine';
   const personalAccountIds = new Set(store.accountsByOwner().map((account) => account.id));
   const cloudStatus = Cloud.getStatus();
-  const isPersonalTx = (tx) => personalAccountIds.has(tx.accountId) || personalAccountIds.has(tx.toAccountId);
+  const isPersonalTx = (tx) => personalAccountIds.has(tx.accountId)
+    || personalAccountIds.has(tx.toAccountId)
+    || (Array.isArray(tx.payments) && tx.payments.some((payment) => personalAccountIds.has(payment.accountId)));
   const scopedTransactions = personalScope
     ? store.transactionsForMonth(month).filter(isPersonalTx)
     : store.transactionsForMonth(month);
-  const scopedSummary = store.summaryForTransactions(scopedTransactions);
+  const scopedSummary = personalScope
+    ? store.summaryForTransactions(scopedTransactions, { accountIds: personalAccountIds })
+    : store.summaryForTransactions(scopedTransactions);
 
   const income = scopedSummary.income || 0;
   const expense = scopedSummary.expense || 0;

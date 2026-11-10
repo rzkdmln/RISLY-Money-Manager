@@ -956,6 +956,66 @@ body.is-auth { background: var(--bg); }
 .split-row { padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: color-mix(in srgb, var(--surface-2, #f8fafc) 70%, transparent); }
 .split-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
 .split-total { font-size: 11px; font-weight: 700; color: var(--text); }
+.payment-row {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-2, #f8fafc) 70%, transparent);
+}
+.payment-row-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px auto;
+  gap: 8px;
+  align-items: end;
+}
+.payment-row-remove { margin-bottom: 1px; }
+.payment-row-remove[disabled] { opacity: .35; pointer-events: none; }
+.payment-row-hint {
+  margin: 6px 0 0;
+  font-size: 10.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.payment-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+.payment-summary-item { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.payment-summary-item span {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.payment-summary-item strong {
+  font-size: 12px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.payment-summary-item strong.is-negative { color: #dc2626; }
+.payment-summary-item strong.is-positive { color: #d97706; }
+.payment-status { margin: 8px 0 0; font-size: 11px; font-weight: 600; color: var(--muted); }
+.payment-status.is-valid { color: #059669; }
+.payment-status.is-invalid { color: #dc2626; }
+.dark .payment-status.is-valid { color: #34d399; }
+.dark .payment-status.is-invalid { color: #f87171; }
+.dark .payment-summary-item strong.is-negative { color: #f87171; }
+.dark .payment-summary-item strong.is-positive { color: #fbbf24; }
+@media (max-width: 640px) {
+  .payment-row-grid { grid-template-columns: minmax(0, 1fr) 96px auto; }
+  .payment-summary { grid-template-columns: 1fr; }
+}
 .receipt-field {
   padding: 12px;
   border: 1px solid var(--border);
