@@ -7,7 +7,7 @@ import {
   formatCurrency,
   getInitials,
   setPrivacyHidden,
-} from './utils.js';
+} from '../core/utils.js';
 
 const DEFAULT_PREFS = {
   theme: 'system',
