@@ -1155,10 +1155,14 @@ class CloudSync {
             method: 'GET',
             cache: 'no-store',
           });
-        } catch {
+        } catch (rawError) {
+          console.warn('Gagal membaca node household mentah:', rawError?.message || rawError);
           raw = remote || null;
         }
         const source = raw || remote || {};
+        // Pemilik household adalah householdUid (target). Pastikan kolom owner
+        // selalu disertakan agar rules mengizinkan penulisan oleh anggota.
+        if (!source.owner) source.owner = this.getHouseholdUid();
         if (source.owner) envelope.owner = source.owner;
         if (source.members) envelope.members = source.members;
         if (source.settings) envelope.settings = source.settings;
