@@ -24,6 +24,7 @@ import { navigate, renderApplication } from '../runtime.js';
 import { lockApplication, leaveApplication } from '../session.js';
 import { requestNotifications, checkForUpdate } from '../pwa.js';
 import { store } from '../../core/store.js';
+import { clearPinMetadata, clearLockSnapshot } from '../../core/auth.js';
 import { Cloud } from '../../services/cloud.js';
 import {
   ui,
@@ -118,7 +119,14 @@ export const navigationActions = {
       pinHash: '',
       pinSalt: '',
       pinIterations: 0,
+      pinVerifier: '',
     });
+    // Tanpa PIN, data harus kembali plaintext (bukan tetap terenkripsi tanpa
+    // kunci yang bisa diturunkan saat reload).
+    store.setEncryptionKey(null, '');
+    await store.persist();
+    await clearPinMetadata(user.id).catch(() => {});
+    clearLockSnapshot();
     ui.appMounted = false;
     renderApplication();
     toast('PIN dihapus.', 'success');

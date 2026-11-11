@@ -3,7 +3,7 @@
 ![PWA Ready](https://img.shields.io/badge/PWA-Ready-brightgreen.svg)
 ![Offline First](https://img.shields.io/badge/Offline--First-Yes-success.svg)
 ![Vanilla JS](https://img.shields.io/badge/Architecture-Vanilla_JS_SPA-blue.svg)
-![Version](https://img.shields.io/badge/Version-1.2.42-informational.svg)
+![Version](https://img.shields.io/badge/Version-1.2.43-informational.svg)
 ![License](https://img.shields.io/badge/License-MIT-orange.svg)
 
 **RISLY Money Manager** adalah aplikasi pengelolaan keuangan pribadi dan keluarga berbasis **Progressive Web App (PWA)**. Aplikasi ini berjalan sepenuhnya di browser, menyimpan data secara lokal (_offline-first_), dan tidak memerlukan server backend khusus.
@@ -498,6 +498,7 @@ Repo ini menggunakan devDependencies hanya untuk lint dan test (tidak ada depend
 | Perintah                | Keterangan                                          |
 | ----------------------- | --------------------------------------------------- |
 | `npm test`              | Jalankan unit test (Vitest)                         |
+| `npm run test:ui`       | Jalankan E2E Playwright (butuh browser Chromium)    |
 | `npm run lint`          | Jalankan ESLint pada `js/`, `sw.js`, `tests/`       |
 | `npm run lint:fix`      | Auto-fix masalah ESLint yang bisa diperbaiki        |
 | `npm run format`        | Format kode dengan Prettier                         |
@@ -505,12 +506,14 @@ Repo ini menggunakan devDependencies hanya untuk lint dan test (tidak ada depend
 | `npm run check:version` | Verifikasi versi `config.js` sinkron dengan `sw.js` |
 | `npm run build:css`     | Build Tailwind CSS (produksi)                       |
 
+E2E smoke test utama dapat dijalankan dengan `npm run test:ui -- tests/e2e/smoke.test.js`. Test sinkronisasi (`tests/e2e/sync/`) memerlukan Firebase Database Emulator dan dijalankan terpisah.
+
 ### 📋 Langkah kontribusi
 
 1. Fork repository.
 2. Buat branch fitur: `git checkout -b fitur/nama-fitur`.
 3. Commit perubahan dengan pesan yang jelas.
-4. Pastikan `npm test` dan `npm run lint` lolos.
+4. Pastikan `npm test`, `npm run lint`, dan `npm run test:ui -- tests/e2e/smoke.test.js` lolos.
 5. Push dan buka Pull Request.
 6. Jelaskan perubahan, langkah pengujian, dan screenshot bila relevan.
 

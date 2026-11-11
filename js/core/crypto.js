@@ -86,9 +86,16 @@ export async function deriveEncryptionKey(pin, salt, iterations = ENC_ITERATIONS
   );
 }
 
+const VERIFIER_DOMAIN = 'risly.mm.pin.verifier.v1';
+
 /**
  * Turunkan verifier (hash terpisah) dari PIN untuk validasi tanpa membuka kunci.
- * Verifier disimpan bersama profil pengguna.
+ * Verifier disimpan bersama profil pengguna / meta IndexedDB.
+ *
+ * Output PBKDF2 di-hash lagi dengan domain separator agar verifier TIDAK sama
+ * dengan kunci AES-GCM. Tanpa pemisahan ini, verifier yang tersimpan plaintext
+ * dapat dipakai langsung untuk mendekripsi workspace.
+ *
  * @returns {Promise<string>} Base64 hash.
  */
 async function deriveVerifier(pin, salt, iterations = ENC_ITERATIONS) {
@@ -106,7 +113,37 @@ async function deriveVerifier(pin, salt, iterations = ENC_ITERATIONS) {
     keyMaterial,
     256,
   );
-  return arrayBufferToBase64(bits);
+  const domain = new TextEncoder().encode(VERIFIER_DOMAIN);
+  const raw = new Uint8Array(bits);
+  const combined = new Uint8Array(raw.byteLength + domain.byteLength);
+  combined.set(raw, 0);
+  combined.set(domain, raw.byteLength);
+  const digest = await crypto.subtle.digest('SHA-256', combined);
+  return arrayBufferToBase64(digest);
+}
+
+/**
+ * Turunkan verifier PIN dengan salt/iterasi tertentu (untuk migrasi verifier).
+ */
+export async function derivePinVerifier(pin, salt, iterations = ENC_ITERATIONS) {
+  return deriveVerifier(pin, salt, iterations);
+}
+
+/**
+ * Impor byte mentah (base64) sebagai kunci AES-GCM.
+ * Dipakai hanya untuk memulihkan data lama yang terenkripsi dengan verifier
+ * versi 1.2.42 (verifier lama = output PBKDF2 mentah).
+ * @returns {Promise<CryptoKey|null>}
+ */
+export async function importAesKeyFromBase64(value) {
+  if (!value) return null;
+  try {
+    const bytes = base64ToBytes(String(value));
+    if (bytes.byteLength !== 32) return null;
+    return await crypto.subtle.importKey('raw', bytes, ENC_ALG, false, ['encrypt', 'decrypt']);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -146,15 +183,23 @@ async function decryptString({ iv, ciphertext }, key) {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Buat kredensial enkripsi dari PIN: salt acak, kunci AES-GCM, dan verifier.
+ * Buat kredensial enkripsi dari PIN: salt, kunci AES-GCM, dan verifier.
  * Kunci dikembalikan untuk disimpan di memori; verifier untuk disimpan di disk.
+ *
+ * `salt` boleh diberikan agar kunci enkripsi dan verifier memakai salt yang
+ * sama dengan `pinHash`. Ini wajib supaya kunci yang diturunkan saat unlock
+ * cocok dengan kunci yang dipakai saat mengenkripsi workspace.
+ *
+ * @param {string} pin
+ * @param {string|null} salt — base64 salt; dibuat acak jika null
+ * @param {number} iterations
  * @returns {Promise<{salt: string, iterations: number, verifier: string, key: CryptoKey}>}
  */
-export async function createEncryptionCredentials(pin) {
-  const salt = bytesToBase64(randomBytes(16));
-  const key = await deriveEncryptionKey(pin, salt, ENC_ITERATIONS);
-  const verifier = await deriveVerifier(pin, salt, ENC_ITERATIONS);
-  return { salt, iterations: ENC_ITERATIONS, verifier, key };
+export async function createEncryptionCredentials(pin, salt = null, iterations = ENC_ITERATIONS) {
+  const actualSalt = salt || bytesToBase64(randomBytes(16));
+  const key = await deriveEncryptionKey(pin, actualSalt, iterations);
+  const verifier = await deriveVerifier(pin, actualSalt, iterations);
+  return { salt: actualSalt, iterations, verifier, key };
 }
 
 /**

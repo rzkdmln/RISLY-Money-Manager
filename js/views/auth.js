@@ -121,11 +121,13 @@ function lockView(user) {
 }
 
 export function loginView() {
-  if (ui.locked && store.currentUserId) {
-    const user = store.getUser(store.currentUserId);
+  if (ui.locked) {
+    // Saat workspace terenkripsi belum dibuka, store.data masih null sehingga
+    // pengguna diambil dari snapshot layar kunci (ui.currentUser).
+    const user = store.getUser(store.currentUserId) || ui.currentUser;
     if (user?.pinHash || user?.pinVerifier) return lockView(user);
     // User sudah login tapi belum punya PIN → tampilkan setup PIN.
-    return setupPinView(user);
+    if (user) return setupPinView(user);
   }
   return welcomeView();
 }

@@ -16,14 +16,19 @@ import {
   getLockRemaining,
   createPinAndEncryption,
   changePin,
+  saveLockSnapshot,
 } from '../../core/auth.js';
-import { ui, toast } from '../../ui/ui.js';
+import { ui, toast, closeModal } from '../../ui/ui.js';
 
 export const authSubmissions = {
   login: async (form) => {
-    const userId = String(formValue(form, 'user') || ui.selectedUser || '');
+    const userId = String(
+      formValue(form, 'user') || ui.selectedUser || ui.currentUser?.id || ''
+    );
     const pin = String(formValue(form, 'pin') || '');
-    const user = store.getUser(userId);
+    // Snapshot layar kunci dipakai saat workspace terenkripsi belum didekripsi.
+    const user =
+      store.getUser(userId) || (ui.currentUser?.id === userId ? ui.currentUser : null);
     if (!user?.pinHash && !user?.pinVerifier) {
       renderAuth();
       return;
@@ -53,16 +58,17 @@ export const authSubmissions = {
       }
       if (valid) {
         resetFailedAttempts(user.id);
-        // Jika workspace terenkripsi, unlock untuk mendekripsi data ke memori.
-        if (store.encryptionEnabled || (user.pinHash && store._encrypted === false && user.pinSalt)) {
+        // Jika pengguna punya PIN atau workspace terenkripsi, unlock untuk
+        // memverifikasi ulang dan mendekripsi data ke memori.
+        if (store.encryptionEnabled || user.pinHash || user.pinVerifier) {
           try {
-            await store.unlock(pin);
+            await store.unlock(pin, user);
           } catch (unlockError) {
             showFormError(form, unlockError.message || 'Gagal membuka enkripsi data.');
             return;
           }
         }
-        await enterApplication(user);
+        await enterApplication(store.getUser(user.id) || user);
         return;
       }
       const result = registerFailedAttempt(user.id);
@@ -125,6 +131,8 @@ export const authSubmissions = {
         store.setEncryptionKey(credentials.encryption.key, credentials.pinSalt);
         await store.persist();
       }
+      saveLockSnapshot(store.currentUser || user, store.workspaceId);
+      closeModal({ silent: true });
       toast('PIN berhasil diubah. Data telah di-re-enkripsi dengan PIN baru.', 'success');
     } catch (error) {
       showFormError(form, error.message || 'Gagal mengubah PIN.');
@@ -161,7 +169,7 @@ export const authSubmissions = {
       store.setEncryptionKey(encryption.key, pinCredentials.pinSalt);
       await store.persist();
       toast('PIN dibuat. Data lokal sekarang di-enkripsi at-rest.', 'success');
-      await enterApplication(user);
+      await enterApplication(store.currentUser || user);
     } catch (error) {
       showFormError(form, error.message || 'Gagal membuat PIN.');
     } finally {

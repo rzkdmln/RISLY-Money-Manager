@@ -37,8 +37,14 @@ Emulator akan berjalan di `http://localhost:9000` dan memuat aturan dari `fireba
 
 ```powershell
 npm install --save-dev @firebase/rules-unit-testing  # jika belum
-npx vitest run tests/rules/rules.test.js
+
+# Saat ini tersedia uji struktur statis rules:
+npx vitest run tests/rules/rules-structure.test.js
 ```
+
+> Catatan: skenario emulator 1–6 di bawah belum dibuat sebagai test otomatis
+> karena emulator Firebase memerlukan Java. Uji ini masih TODO sebelum publish
+> rules ke produksi.
 
 **6 skenario yang harus LULUS:**
 
@@ -109,7 +115,8 @@ npx playwright test tests/e2e/sync/sync.test.js
 | Dokumentasi `SECURITY.md` | `SECURITY.md` | ✅ Selesai |
 | Dokumentasi `README.md` (Firebase Security Rules) | `README.md` | ✅ Selesai |
 | Lint (ESLint) 0 error | Semua file JS | ✅ `npm run lint` |
-| Unit test 96 lolos | `tests/core/*.test.js` | ✅ `npm test` |
+| Unit test 123 lolos | `tests/core/*.test.js` | ✅ `npm test` |
+| E2E smoke 6 alur utama lolos | `tests/e2e/smoke.test.js` | ✅ Playwright + CI |
 
 ---
 
@@ -140,21 +147,27 @@ Jika rules baru menyebabkan masalah di produksi:
 
 | DOD | Status | Keterangan |
 |-----|--------|------------|
-| Rules lulus semua skenario emulator | ⏳ Belum | Jalankan langkah 2.2 |
+| Rules lulus semua skenario emulator | ⏳ Belum | Perlu Java + test emulator (TODO) |
 | Uji 2 akun / 3 perangkat: tidak ada kehilangan data | ⏳ Belum | Jalankan langkah 3 |
 | Perubahan dari perangkat lain terlihat di UI | ⏳ Belum | Skenario S1 & S2 |
+| E2E smoke 6 alur utama (termasuk PIN/kunci) | ✅ Selesai | `tests/e2e/smoke.test.js` + CI |
 | Tidak ada lagi pencocokan anggota berdasarkan nama | ✅ Selesai | `ensureMember` diperbaiki |
-| Lint 0 error + 96 unit test lolos | ✅ Selesai | Sudah diverifikasi |
+| Lint 0 error + 123 unit test lolos | ✅ Selesai | Sudah diverifikasi |
 
 ---
 
 ## 7. Langkah Selanjutnya Setelah Fase 6 Tuntas
 
-Setiap DOD di atas dicentang, Fase 6 selesai. Lanjut ke **Fase 7 — Enkripsi at-rest & hardening PIN/sesi**:
+Setiap DOD di atas dicentang, Fase 6 selesai. **Fase 7 — Enkripsi at-rest & hardening PIN/sesi sudah selesai** (implementasi di `js/core/crypto.js`, `js/core/store.js`, `js/core/auth.js`, `js/app/submissions/auth.js`):
 
-- Enkripsi data IndexedDB sebelum ditulis (Web Crypto API)
-- Hardening PIN (auto-lock, rate limit, lockout)
-- Firebase Storage untuk sinkronisasi struk (lihat catatan Fase 6 di README)
+- ✅ Enkripsi data IndexedDB sebelum ditulis (Web Crypto API, AES-GCM 256-bit, PBKDF2-SHA256 310k iterasi)
+- ✅ Hardening PIN (auto-lock, rate limit, lockout eksponensial, 6–8 digit)
+- ✅ Verifier PIN terpisah dari kunci enkripsi (domain separation, tidak sama dengan key)
+- ✅ Layar kunci tetap tersedia setelah reload workspace terenkripsi (lock snapshot + metadata PIN)
+- ✅ Migrasi verifier lama (1.2.42) ke format baru saat unlock
+- ✅ Firebase Storage untuk sinkronisasi struk (lihat catatan Fase 6 di README)
+
+Sisa lanjutan: uji emulator rules (butuh Java), refactor inline style untuk hapus `unsafe-inline` dari CSP, dan commit perubahan.
 
 ---
 
@@ -170,8 +183,8 @@ npm install --save-dev @firebase/rules-unit-testing
 # 3. Jalankan emulator
 firebase emulators:start --only database
 
-# 4. Uji rules
-npx vitest run tests/rules/rules.test.js
+# 4. Uji struktur rules (emulator rules test masih TODO)
+npx vitest run tests/rules/rules-structure.test.js
 
 # 5. Uji E2E sync
 npx playwright test tests/e2e/sync/sync.test.js

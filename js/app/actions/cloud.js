@@ -11,7 +11,7 @@ import { openJoinWorkspaceModal, openAuthCloudModal } from '../modals.js';
 import { Cloud } from '../../services/cloud.js';
 import { GoogleDrive } from '../../services/gdrive.js';
 import { store } from '../../core/store.js';
-import { clearSession } from '../../core/auth.js';
+import { clearSession, readLockSnapshot, clearLockSnapshot } from '../../core/auth.js';
 import { icon } from '../../ui/icons.js';
 import { ui, openModal, closeModal, confirmDialog, toast } from '../../ui/ui.js';
 import { escapeHTML, formatDateTime } from '../../core/utils.js';
@@ -25,7 +25,7 @@ import {
   refreshDriveUi,
 } from '../../services/backup.js';
 import { testCloudFromForm, createJsonBinFromForm } from '../submissions/cloud.js';
-import { CLOUD_PROVIDERS } from '../../core/config.js';
+import { APP, CLOUD_PROVIDERS } from '../../core/config.js';
 
 export const cloudActions = {
   'sync-now': async () => {
@@ -143,8 +143,23 @@ export const cloudActions = {
     }
   },
   'offline-open': async () => {
-    const opened = store.openLastWorkspace();
+    const opened = await store.openLastWorkspace();
     if (!opened) {
+      // Workspace terenkripsi tidak bisa dibuka tanpa PIN. Tampilkan layar
+      // kunci dari snapshot yang tersimpan, bukan pesan "data tidak ditemukan".
+      const snapshot = readLockSnapshot();
+      const last = JSON.parse(localStorage.getItem(APP.lastAccountKey) || 'null');
+      const matches =
+        snapshot &&
+        (!snapshot.workspaceId || !last?.workspaceId || snapshot.workspaceId === last.workspaceId);
+      if (matches) {
+        store.setCurrentUser(snapshot.id);
+        ui.currentUser = snapshot;
+        ui.selectedUser = snapshot.id;
+        ui.locked = true;
+        renderAuth();
+        return;
+      }
       toast('Data terakhir tidak ditemukan. Masuk dengan Google.', 'info');
       return;
     }
@@ -158,6 +173,7 @@ export const cloudActions = {
   },
   'switch-account': () => {
     clearSession();
+    clearLockSnapshot();
     store.setCurrentUser(null);
     ui.currentUser = null;
     ui.locked = false;

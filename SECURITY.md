@@ -38,7 +38,7 @@ Aturan baru (Fase 6):
 - Publikasikan `firebase-security-rules.json` baru ke Firebase Realtime Database Rules sebelum mengaktifkan sinkronisasi keluarga.
 - Rotasi JSONBin master key lama yang pernah bocor.
 - Hapus kunci lama dari riwayat Git (opsional, disarankan).
-- Deploy ulang PWA (service worker terbump `risly-1.2.42`; sinkronkan dengan `APP.version` di `js/core/config.js`).
+- Deploy ulang PWA (service worker terbump `risly-1.2.43`; sinkronkan dengan `APP.version` di `js/core/config.js`).
 - Cadangkan data lokal sebelum mengubah rules (ada rollback path via `localStorage` fallback).
 
 ## Catatan arsitektur

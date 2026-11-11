@@ -7,12 +7,20 @@ import {
   verifyPin,
   verifyPinByVerifier,
   savePinMetadata,
+  loadPinMetadata,
   clearEncryptionKey,
   getEncryptionKey,
   setEncryptionKey as storeEncryptionKey,
 } from './auth.js';
 import { repository, dataURLToBlob, blobToDataUrl } from './repository.js';
-import { encryptWorkspace, decryptWorkspace, deriveEncryptionKey, ENC_ITERATIONS } from './crypto.js';
+import {
+  encryptWorkspace,
+  decryptWorkspace,
+  deriveEncryptionKey,
+  derivePinVerifier,
+  importAesKeyFromBase64,
+  ENC_ITERATIONS,
+} from './crypto.js';
 
 const CONFLICT_LOG_KEY = 'risly.mm.conflicts.v1';
 import {
@@ -266,7 +274,20 @@ export class Store {
               if (!this._encryptionKey) {
                 throw new Error('Data terenkripsi tetapi kunci enkripsi tidak tersedia di memori. Unlock dulu.');
               }
-              workspaceData = await decryptWorkspace(workspaceData, this._encryptionKey);
+              try {
+                workspaceData = await decryptWorkspace(workspaceData, this._encryptionKey);
+              } catch (decryptError) {
+                // Migrasi 1.2.42: verifier lama adalah output PBKDF2 mentah yang
+                // (karena bug salt) dipakai sebagai kunci enkripsi sebenarnya.
+                const legacyKey = await importAesKeyFromBase64(this._legacyVerifier || '');
+                if (!legacyKey) throw decryptError;
+                try {
+                  workspaceData = await decryptWorkspace(workspaceData, legacyKey);
+                  this._legacyDecryptUsed = true;
+                } catch {
+                  throw decryptError;
+                }
+              }
             }
             if (workspaceData) {
               raw = JSON.stringify(workspaceData);
@@ -309,6 +330,17 @@ export class Store {
     }
   }
 
+  /**
+   * Siapkan workspace terkunci tanpa mendekripsi data. Dipakai saat boot
+   * menemukan workspace terenkripsi: layar kunci butuh workspaceId/account,
+   * tetapi data belum boleh dimuat.
+   */
+  setLockedWorkspace(workspaceId, account = null) {
+    if (!workspaceId) return;
+    this.workspaceId = workspaceId;
+    this.account = account || this.accountForWorkspace(workspaceId);
+  }
+
   accountForWorkspace(workspaceId) {
     const entry = Object.values(this.registry.accounts).find(
       (item) => item?.workspaceId === workspaceId
@@ -321,9 +353,11 @@ export class Store {
       .trim()
       .toLowerCase();
     if (!email) return;
+    const userId = this.currentUserId || account?.userId || null;
     this.registry.accounts[email] = {
       email,
       workspaceId,
+      userId,
       name: String(account.name || email),
       picture: String(account.picture || ''),
       lastLoginAt: nowISO(),
@@ -334,6 +368,7 @@ export class Store {
       JSON.stringify({
         email,
         workspaceId,
+        userId,
         name: String(account.name || email),
         picture: String(account.picture || ''),
       })
@@ -584,11 +619,11 @@ export class Store {
     this.data.settings.updatedAt = new Date(0).toISOString();
   }
 
-  openLastWorkspace() {
+  async openLastWorkspace() {
     try {
       const last = JSON.parse(localStorage.getItem(APP.lastAccountKey) || 'null');
       if (!last?.workspaceId) return null;
-      if (!this.openWorkspace(last.workspaceId, { account: last })) return null;
+      if (!(await this.openWorkspace(last.workspaceId, { account: last }))) return null;
       const user = this.data.users.find(
         (item) =>
           !item.deletedAt &&
@@ -711,35 +746,69 @@ export class Store {
    * @param {string} pin
    * @returns {Promise<boolean>}
    */
-  async unlock(pin) {
-    const user = this.currentUser;
+  async unlock(pin, lockedUser = null) {
+    // Saat workspace terenkripsi belum dibuka, this.data masih null sehingga
+    // this.currentUser tidak tersedia. Caller (layar kunci) dapat mengirim
+    // snapshot pengguna dari metadata PIN.
+    const user = lockedUser || this.currentUser;
     if (!user) throw new Error('Tidak ada pengguna saat ini.');
     if (!user.pinHash && !user.pinVerifier) {
       throw new Error('Pengguna ini tidak memiliki PIN.');
     }
+    if (!user.pinSalt) throw new Error('Salt PIN tidak tersedia.');
 
     // Verifikasi PIN via verifier (tidak membuka kunci enkripsi),
-    // fallback ke pinHash jika verifier belum tersedia (migrasi).
-    let valid = false;
-    if (user.pinVerifier && user.pinSalt) {
-      valid = await verifyPinByVerifier(user, pin);
+    // fallback ke pinHash jika verifier lama/tidak tersedia (migrasi).
+    let verifiedByVerifier = false;
+    if (user.pinVerifier) {
+      verifiedByVerifier = await verifyPinByVerifier(user, pin);
     }
+    let valid = verifiedByVerifier;
     if (!valid) {
       valid = await verifyPin(user, pin);
     }
     if (!valid) throw new Error('PIN salah.');
 
-    // Turunkan kunci AES-GCM dari PIN + salt.
     const salt = user.pinSalt;
     const iterations = Number(user.pinIterations) || ENC_ITERATIONS;
-    const key = await deriveEncryptionKey(pin, salt, iterations);
 
+    // Metadata PIN tersimpan terpisah dari workspace terenkripsi. Nilainya
+    // dipakai untuk memulihkan data lama sebelum verifier dimigrasikan.
+    const pinMeta = await loadPinMetadata(user.id).catch(() => null);
+    this._legacyVerifier = pinMeta?.pinVerifier || user.pinVerifier || '';
+    this._legacyDecryptUsed = false;
+
+    // Turunkan kunci AES-GCM dari PIN + salt.
+    const key = await deriveEncryptionKey(pin, salt, iterations);
     this.setEncryptionKey(key, salt);
 
     // Muat ulang workspace dari IndexedDB (akan didekripsi otomatis).
+    let opened = true;
     if (this.workspaceId) {
-      await this.openWorkspace(this.workspaceId, { account: this.account });
+      opened = await this.openWorkspace(this.workspaceId, { account: this.account });
     }
+    this._legacyVerifier = '';
+    if (!opened) {
+      throw new Error('Gagal membuka workspace. PIN benar, tetapi data tidak dapat didekripsi.');
+    }
+
+    this.currentUserId = user.id;
+
+    // Migrasi verifier lama (raw PBKDF2 atau salt berbeda) ke format ber-domain
+    // agar verifier tidak lagi sama dengan kunci enkripsi.
+    if (!verifiedByVerifier || this._legacyDecryptUsed) {
+      try {
+        const nextVerifier = await derivePinVerifier(pin, salt, iterations);
+        const liveUser = this.getUser(user.id) || user;
+        liveUser.pinVerifier = nextVerifier;
+        liveUser.updatedAt = nowISO();
+        await savePinMetadata(liveUser.id, salt, iterations, nextVerifier);
+        await this.persist();
+      } catch (error) {
+        console.warn('Gagal memigrasikan verifier PIN:', error);
+      }
+    }
+    this._legacyDecryptUsed = false;
 
     this.emit({ source: 'local', reason: 'auth:unlock', silent: false });
     return true;
@@ -750,6 +819,7 @@ export class Store {
   }
 
   getUser(userId) {
+    if (!this.data?.users) return null;
     return this.data.users.find((user) => user.id === userId) || null;
   }
 

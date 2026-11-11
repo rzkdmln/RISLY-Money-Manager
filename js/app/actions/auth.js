@@ -6,7 +6,7 @@
 import { openForgotPinModal, openAuthCloudModal } from '../modals.js';
 import { Cloud } from '../../services/cloud.js';
 import { store } from '../../core/store.js';
-import { clearSession } from '../../core/auth.js';
+import { clearSession, clearLockSnapshot } from '../../core/auth.js';
 import { enterApplication } from '../session.js';
 import {
   ui,
@@ -64,6 +64,7 @@ export const authActions = {
     }
     store.resetLocalData();
     clearSession();
+    clearLockSnapshot();
     ui.locked = false;
     ui.selectedUser = null;
     closeModal({ silent: true });

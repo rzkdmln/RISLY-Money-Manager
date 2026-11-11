@@ -22,7 +22,7 @@ import {
 } from '../core/utils.js';
 import { APP } from '../core/config.js';
 import { GoogleDrive, googleAccountBadge } from './gdrive.js';
-import { clearSession } from '../core/auth.js';
+import { clearSession, clearLockSnapshot, saveLockSnapshot } from '../core/auth.js';
 import { appHooks } from '../app/hooks.js';
 import { encryptBackup, decryptBackup } from '../core/crypto.js';
 
@@ -214,10 +214,12 @@ export function pickBackupFile() {
       const user = store.currentUser || store.activeUsers()[0];
       if (!user?.pinHash) {
         clearSession();
+        clearLockSnapshot();
         store.setCurrentUser(null);
         ui.appMounted = false;
         appHooks.renderAuth();
       } else {
+        saveLockSnapshot(user, store.workspaceId);
         ui.appMounted = false;
         appHooks.renderApplication();
       }
@@ -266,6 +268,7 @@ export async function resetApplication() {
   });
   if (!ok) return;
   clearSession();
+  clearLockSnapshot();
   store.resetLocalData();
   ui.currentUser = null;
   ui.selectedUser = null;

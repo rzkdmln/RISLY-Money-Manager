@@ -1,23 +1,12 @@
 // RISLY E2E — localStorage setup script (runs in browser before page load)
-// Creates a test workspace WITH PIN "1234" → halaman langsung menampilkan layar PIN.
+// Creates a test workspace WITH PIN "123456" → halaman langsung menampilkan layar PIN.
+//
+// Salt/hash di bawah adalah PBKDF2-SHA256 (310.000 iterasi) untuk PIN "123456".
+// Nilainya konstan dan skrip ini sinkron agar tidak kalah cepat dengan boot app.
 
-(async () => {
-  const encoder = new TextEncoder();
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode('1234'),
-    { name: 'PBKDF2' },
-    false,
-    ['deriveBits'],
-  );
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt, iterations: 150_000, hash: 'SHA-256' },
-    keyMaterial,
-    256,
-  );
-  const hash = btoa(String.fromCharCode(...new Uint8Array(bits)));
-  const saltB64 = btoa(String.fromCharCode(...salt));
+(() => {
+  const saltB64 = 'cmlzbHktZTJlLXNhbHQh';
+  const hash = 'WISVgPAUeMI9W0SiwMjr7a1gPQ7qmL/EBndJQInlYMc=';
 
   const now = new Date().toISOString();
   const workspaceId = 'test-ws-e2e-pin';
@@ -52,7 +41,8 @@
         picture: '',
         pinHash: hash,
         pinSalt: saltB64,
-        pinIterations: 150_000,
+        pinIterations: 310_000,
+        pinVerifier: hash,
         createdAt: now,
         updatedAt: now,
       },

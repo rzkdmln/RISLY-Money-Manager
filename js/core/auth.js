@@ -79,7 +79,9 @@ export async function createPinAndEncryption(pin, userId = null) {
     pinIterations: PBKDF2_ITERATIONS,
     updatedAt: nowISO(),
   };
-  const encryption = await createEncryptionCredentials(value);
+  // Gunakan salt yang sama dengan pinHash agar kunci enkripsi/verifier
+  // konsisten dengan salt yang disimpan di profil pengguna.
+  const encryption = await createEncryptionCredentials(value, salt, PBKDF2_ITERATIONS);
   // Simpan verifier + salt ke IndexedDB meta agar PIN dapat diverifikasi
   // sebelum kunci enkripsi tersedia (untuk unlock layar kunci).
   if (userId) {
@@ -352,6 +354,7 @@ export async function loadPinMetadata(userId) {
       pinSalt: parsed.pinSalt,
       pinIterations: Number(parsed.pinIterations) || 0,
       pinVerifier: parsed.pinVerifier,
+      updatedAt: parsed.updatedAt || '',
     };
   } catch {
     return null;
@@ -369,6 +372,60 @@ export async function clearPinMetadata(userId) {
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
+  } catch {
+    /* noop */
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Snapshot layar kunci                                                      */
+/* -------------------------------------------------------------------------- */
+
+const LOCK_SNAPSHOT_KEY = 'risly.mm.lockscreen.v1';
+
+/**
+ * Simpan snapshot non-sensitif untuk menampilkan layar kunci saat workspace
+ * terenkripsi belum bisa didekripsi. Verifier adalah password hash, bukan
+ * kunci enkripsi, sehingga aman disimpan untuk verifikasi PIN.
+ */
+export function saveLockSnapshot(user, workspaceId = null) {
+  try {
+    if (!user?.id || !user.pinVerifier || !user.pinSalt) {
+      localStorage.removeItem(LOCK_SNAPSHOT_KEY);
+      return;
+    }
+    localStorage.setItem(
+      LOCK_SNAPSHOT_KEY,
+      JSON.stringify({
+        id: user.id,
+        name: user.name || '',
+        pinSalt: user.pinSalt,
+        pinIterations: Number(user.pinIterations) || 0,
+        pinVerifier: user.pinVerifier,
+        workspaceId: workspaceId || null,
+        updatedAt: nowISO(),
+      }),
+    );
+  } catch {
+    /* noop */
+  }
+}
+
+export function readLockSnapshot() {
+  try {
+    const raw = localStorage.getItem(LOCK_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.id || !parsed.pinVerifier || !parsed.pinSalt) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function clearLockSnapshot() {
+  try {
+    localStorage.removeItem(LOCK_SNAPSHOT_KEY);
   } catch {
     /* noop */
   }

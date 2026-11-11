@@ -28,15 +28,17 @@ async function setupPinViaSettings(page) {
   // Tunggu modal change-pin muncul
   await expect(page.locator('form[data-form="change-pin"]')).toBeVisible({ timeout: 5_000 });
 
-  // Isi PIN baru dan konfirmasi
-  await page.fill('input[name="newPin"]', '1234');
-  await page.fill('input[name="confirmPin"]', '1234');
+  // Isi PIN baru dan konfirmasi (kebijakan PIN 6–8 digit)
+  await page.fill('input[name="newPin"]', '123456');
+  await page.fill('input[name="confirmPin"]', '123456');
 
-  // Submit form change-pin (tekan Enter sebagai fallback jika klik tidak terdeteksi)
-  await page.press('form[data-form="change-pin"]', 'Enter');
+  // Submit form change-pin lewat tombol submit.
+  await page.click('form[data-form="change-pin"] button[type="submit"]');
 
-  // Tunggu modal change-pin benar-benar hilang dari DOM
-  await page.waitForFunction(() => !document.querySelector('form[data-form="change-pin"]'), { timeout: 5_000 });
+  // Tunggu modal change-pin benar-benar hilang dari DOM.
+  await expect(page.locator('form[data-form="change-pin"]')).toHaveCount(0, {
+    timeout: 10_000,
+  });
 
   // Kunci aplikasi
   await page.click('[data-action="lock-app"], button:has-text("Kunci")').catch(() => null);
@@ -44,13 +46,13 @@ async function setupPinViaSettings(page) {
 
   // Sekarang harus ada layar PIN
   await expect(page.locator('#pin-input')).toBeVisible({ timeout: 5_000 });
-  await page.fill('#pin-input', '1234');
+  await page.fill('#pin-input', '123456');
   await page.click('#login-form button[type="submit"]');
   await page.waitForTimeout(800);
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Helper: siapkan localStorage dengan workspace uji (DENGAN PIN "1234")     */
+/*  Helper: siapkan localStorage dengan workspace uji (DENGAN PIN "123456")   */
 /*  Langsung ke layar PIN saat halaman dimuat.                                */
 /* -------------------------------------------------------------------------- */
 
@@ -72,7 +74,7 @@ test('Login PIN → dashboard', async ({ page }) => {
   await expect(page.locator('#pin-input')).toBeVisible({ timeout: 10_000 });
 
   // Masukkan PIN
-  await page.fill('#pin-input', '1234');
+  await page.fill('#pin-input', '123456');
   await page.click('#login-form button[type="submit"]');
   await page.waitForTimeout(1000);
 
@@ -190,6 +192,9 @@ test('Backup JSON → impor kembali', async ({ page }) => {
   await expect(page.locator('#app-root')).toContainText(/selamat datang|masuk ke/i, { timeout: 5_000 });
   await page.click('[data-action="offline-open"], button:has-text("Buka data terakhir")');
   await page.waitForTimeout(1500);
+  // Route terakhir masih #/settings; buka dashboard untuk melihat transaksi.
+  await page.goto('/#/dashboard');
+  await page.waitForTimeout(1000);
 
   await expect(page.locator('text=E2E siklus backup')).toBeVisible({ timeout: 10_000 });
 });
@@ -203,6 +208,19 @@ test('Impor backup JSON → preview → impor', async ({ page }) => {
   await page.goto('/?nosw');
   await page.waitForTimeout(1000);
   await expect(page.locator('#app-root')).toContainText(/dashboard|beranda/i, { timeout: 10_000 });
+
+  // Tambah transaksi penanda agar hasil impor bisa diverifikasi.
+  await page.click('[data-action="add-tx"], [data-action="add-transaction"], [data-action="open-transaction"], button:has-text("Tambah"), button:has-text("Transaksi")').catch(() => null);
+  await expect(page.locator('form[data-form="transaction"]')).toBeVisible({ timeout: 5_000 });
+  await page.selectOption('select[name="accountId"]', { label: 'Dompet Tunai' });
+  await page.fill('input[name="amountExpression"]', '12345');
+  await page.fill('input[name="dateDisplay"]', '18/11/2026');
+  await page.fill('input[name="time"]', '12:00');
+  await page.selectOption('select[name="categoryId"]', { label: 'Makanan & Minuman' });
+  await page.fill('textarea[name="note"]', 'E2E impor backup');
+  await page.click('button[type="submit"]');
+  await expect(page.locator('form[data-form="transaction"]')).toBeHidden({ timeout: 5_000 });
+  await expect(page.locator('text=E2E impor backup')).toBeVisible({ timeout: 5_000 });
 
   // Buka Settings
   await page.click('[data-action="settings"], a:has-text("Pengaturan"), button:has-text("Pengaturan")').catch(() => null);
@@ -227,6 +245,32 @@ test('Impor backup JSON → preview → impor', async ({ page }) => {
   await expect(page.locator('#app-root')).toContainText(/selamat datang|masuk ke/i, { timeout: 5_000 });
   await page.click('[data-action="offline-open"], button:has-text("Buka data terakhir")');
   await page.waitForTimeout(1500);
+  await page.goto('/#/dashboard');
+  await page.waitForTimeout(1000);
 
-  await expect(page.locator('text=E2E test transaksi')).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('text=E2E impor backup')).toBeVisible({ timeout: 10_000 });
+});
+
+/* -------------------------------------------------------------------------- */
+/*  Test 6: Buat PIN → kunci → buka lagi → reload tetap terkunci              */
+/* -------------------------------------------------------------------------- */
+
+test('Buat PIN → kunci → buka lagi → reload tetap terkunci', async ({ page }) => {
+  await page.addInitScript({ content: SETUP_STORAGE_CONTENT });
+  await page.goto('/?nosw');
+  await page.waitForTimeout(1000);
+  await expect(page.locator('#app-root')).toContainText(/dashboard|beranda/i, { timeout: 10_000 });
+
+  // Buat PIN lewat Settings, kunci, lalu buka kembali (helper berakhir setelah unlock).
+  await setupPinViaSettings(page);
+  await expect(page.locator('#app-root')).toContainText(/dashboard|beranda/i, { timeout: 10_000 });
+
+  // Reload: workspace terenkripsi harus menampilkan layar PIN, bukan welcome.
+  await page.reload();
+  await page.waitForTimeout(1200);
+  await expect(page.locator('#pin-input')).toBeVisible({ timeout: 10_000 });
+  await page.fill('#pin-input', '123456');
+  await page.click('#login-form button[type="submit"]');
+  await page.waitForTimeout(1200);
+  await expect(page.locator('#app-root')).toContainText(/dashboard|beranda/i, { timeout: 10_000 });
 });

@@ -13,6 +13,8 @@ import {
   createSession,
   getSession,
   isSessionExpired,
+  saveLockSnapshot,
+  clearLockSnapshot,
 } from '../core/auth.js';
 import { ui, toast, closeModal, savePrefs } from '../ui/ui.js';
 import { GoogleDrive } from '../services/gdrive.js';
@@ -48,6 +50,7 @@ async function syncCloudAfterLogin() {
 
 export async function enterApplication(user, { fresh = false } = {}) {
   store.setCurrentUser(user.id);
+  saveLockSnapshot(user, store.workspaceId);
   ui.currentUser = user;
   ui.selectedUser = user.id;
   ui.locked = false;
@@ -75,11 +78,17 @@ export async function enterApplication(user, { fresh = false } = {}) {
 }
 
 export function lockApplication({ expired = false } = {}) {
+  // Simpan snapshot non-sensitif sebelum data terdekripsi dibuang, agar layar
+  // kunci tetap bisa ditampilkan setelah store.lock().
+  const lockedUser = store.currentUser || ui.currentUser;
+  if (lockedUser) saveLockSnapshot(lockedUser, store.workspaceId);
   // Hapus kunci enkripsi dan data terdekripsi dari memori (bukan hanya ubah UI).
   store.lock();
   clearSession();
-  ui.currentUser = store.currentUser; // tetap tampilkan nama di layar kunci
-  ui.locked = true;
+  const hasPin = Boolean(lockedUser?.pinHash || lockedUser?.pinVerifier);
+  ui.currentUser = hasPin ? lockedUser : null;
+  ui.selectedUser = hasPin ? lockedUser.id : null;
+  ui.locked = hasPin;
   ui.appMounted = false;
   closeModal({ silent: true });
   renderAuth();
@@ -88,6 +97,7 @@ export function lockApplication({ expired = false } = {}) {
 
 export async function leaveApplication() {
   clearSession();
+  clearLockSnapshot();
   clearPendingGoogleLogin();
   store.setCurrentUser(null);
   ui.currentUser = null;
