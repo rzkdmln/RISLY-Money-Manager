@@ -29,7 +29,7 @@ export const workspaceSubmissions = {
           : 'Bergabung ke ruang keluarga. Data akan disinkronkan.',
         result?.localOnly ? 'info' : 'success',
       );
-      enterApplication(result.user);
+      await enterApplication(result.user);
     } catch (error) {
       console.error(error);
       showFormError(form, error.message || 'Gagal bergabung ke ruang.');

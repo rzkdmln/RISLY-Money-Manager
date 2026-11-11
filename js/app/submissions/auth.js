@@ -61,7 +61,7 @@ export const authSubmissions = {
             return;
           }
         }
-        enterApplication(user);
+        await enterApplication(user);
         return;
       }
       const result = registerFailedAttempt(user.id);
@@ -166,7 +166,7 @@ export const authSubmissions = {
       store.setEncryptionKey(encryption.key, pinCredentials.pinSalt);
       store._encrypted = true;
       toast('PIN dibuat. Data lokal sekarang di-enkripsi at-rest.', 'success');
-      enterApplication(user);
+      await enterApplication(user);
     } catch (error) {
       showFormError(form, error.message || 'Gagal membuat PIN.');
     } finally {

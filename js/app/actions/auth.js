@@ -68,8 +68,8 @@ export const authActions = {
     closeModal({ silent: true });
     renderAuth();
   },
-  'skip-pin': () => {
+  'skip-pin': async () => {
     const user = store.currentUser;
-    if (user) enterApplication(user);
+    if (user) await enterApplication(user);
   },
 };

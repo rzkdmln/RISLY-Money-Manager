@@ -436,7 +436,7 @@ export async function driveRestoreFile(fileId) {
       toast('Backup dari Drive berhasil dipulihkan.', 'success');
       return;
     }
-    appHooks.enterApplication(user, { fresh: true });
+    await appHooks.enterApplication(user, { fresh: true });
     toast('Backup dari Drive berhasil dipulihkan.', 'success');
   } catch (error) {
     console.error(error);

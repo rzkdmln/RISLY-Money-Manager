@@ -46,7 +46,7 @@ async function syncCloudAfterLogin() {
 /*  Enter / lock / leave application                                          */
 /* -------------------------------------------------------------------------- */
 
-export function enterApplication(user, { fresh = false } = {}) {
+export async function enterApplication(user, { fresh = false } = {}) {
   store.setCurrentUser(user.id);
   ui.currentUser = user;
   ui.selectedUser = user.id;
@@ -61,14 +61,17 @@ export function enterApplication(user, { fresh = false } = {}) {
   if (!location.hash || !ROUTES[String(location.hash).replace(/^#\//, '')]) {
     try { history.replaceState(null, '', '#/dashboard'); } catch { /* noop */ }
   }
+  // Sinkronisasi cloud harus selesai sebelum render agar status sinkronisasi
+  // (mis. "Tersinkronisasi") sudah benar saat shell pertama kali ditampilkan,
+  // bukan hanya setelah refresh halaman.
+  if (store.workspaceId) {
+    await syncCloudAfterLogin();
+  }
   renderApplication();
   if (fresh) toast(`Selamat datang, ${user.name}.`, 'success');
   runRecurring({ notify: true });
   try { store.recordNetWorthSnapshot(); } catch { /* ignore */ }
   setTimeout(checkReminders, 1_200);
-  if (store.workspaceId) {
-    void syncCloudAfterLogin();
-  }
 }
 
 export function lockApplication({ expired = false } = {}) {

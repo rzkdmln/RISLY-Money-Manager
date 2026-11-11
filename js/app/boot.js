@@ -56,7 +56,7 @@ async function tryResumeRedirectLogin() {
     if (session?.account?.email) {
       GoogleDrive.adoptSession(session);
       const result = await store.signInWithGoogle(session.account);
-      enterApplication(result.user, { fresh: result.created });
+      await enterApplication(result.user, { fresh: result.created });
       toast(`Masuk sebagai ${result.user.name}.`, 'success');
       return true;
     }
@@ -90,7 +90,7 @@ async function tryResumeRedirectLogin() {
           picture: user.photoURL || '',
           clientId: APP.googleClientId,
         });
-        enterApplication(result.user, { fresh: result.created });
+        await enterApplication(result.user, { fresh: result.created });
         toast(`Masuk sebagai ${result.user.name}.`, 'success');
         return true;
       }

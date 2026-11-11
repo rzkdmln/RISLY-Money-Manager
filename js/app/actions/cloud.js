@@ -85,7 +85,7 @@ export const cloudActions = {
       const account = await signInWithGoogleFlow();
       const result = await store.signInWithGoogle(account);
       closeModal({ silent: true });
-      enterApplication(result.user);
+      await enterApplication(result.user);
       if (result.created) toast('Ruang baru dibuat.', 'success');
       else if (result.adopted) toast('Ruang keluarga dipulihkan.', 'success');
       else toast(`Masuk sebagai ${result.user.name}.`, 'success');
@@ -143,7 +143,7 @@ export const cloudActions = {
       // element disabled handling done in caller
     }
   },
-  'offline-open': () => {
+  'offline-open': async () => {
     const opened = store.openLastWorkspace();
     if (!opened) {
       toast('Data terakhir tidak ditemukan. Masuk dengan Google.', 'info');
@@ -154,7 +154,7 @@ export const cloudActions = {
       ui.currentUser = opened.user;
       renderAuth();
     } else {
-      enterApplication(opened.user);
+      await enterApplication(opened.user);
     }
   },
   'switch-account': () => {
