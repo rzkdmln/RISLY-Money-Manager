@@ -312,8 +312,8 @@ export async function changePin(user, currentPin, newPin) {
     const valid = await verifyPin(user, currentPin);
     if (!valid) throw new Error('PIN saat ini tidak cocok.');
   }
-  const { pinCredentials } = await createPinAndEncryption(newPin);
-  return pinCredentials;
+  const { pinCredentials, encryption } = await createPinAndEncryption(newPin);
+  return { ...pinCredentials, encryption };
 }
 
 /* -------------------------------------------------------------------------- */

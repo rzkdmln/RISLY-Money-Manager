@@ -6,6 +6,7 @@
 import { openNoteEditor } from '../modals.js';
 import { store } from '../../core/store.js';
 import {
+  ui,
   closeModal,
   confirmDialog,
   toast,

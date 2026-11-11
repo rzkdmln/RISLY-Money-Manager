@@ -6,7 +6,7 @@
 import { showFormError } from '../../ui/ui.js';
 import { stringValue, formValue, getInitials } from '../../core/utils.js';
 import { store } from '../../core/store.js';
-import { ui, toast } from '../../ui/ui.js';
+import { ui, toast, closeModal } from '../../ui/ui.js';
 import { renderApplication } from '../runtime.js';
 
 export const profileSubmissions = {

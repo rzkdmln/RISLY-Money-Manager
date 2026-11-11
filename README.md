@@ -3,7 +3,7 @@
 ![PWA Ready](https://img.shields.io/badge/PWA-Ready-brightgreen.svg)
 ![Offline First](https://img.shields.io/badge/Offline--First-Yes-success.svg)
 ![Vanilla JS](https://img.shields.io/badge/Architecture-Vanilla_JS_SPA-blue.svg)
-![Version](https://img.shields.io/badge/Version-1.2.41-informational.svg)
+![Version](https://img.shields.io/badge/Version-1.2.42-informational.svg)
 ![License](https://img.shields.io/badge/License-MIT-orange.svg)
 
 **RISLY Money Manager** adalah aplikasi pengelolaan keuangan pribadi dan keluarga berbasis **Progressive Web App (PWA)**. Aplikasi ini berjalan sepenuhnya di browser, menyimpan data secara lokal (_offline-first_), dan tidak memerlukan server backend khusus.
@@ -240,7 +240,7 @@ RISLY menggunakan pola **MVC / Pub-Sub hybrid** yang sederhana:
 - `risly.mm.reminders.v1` — status pengingat yang sudah ditampilkan.
 - `risly.mm.client.v1` — ID klien untuk sinkronisasi cloud.
 
-> Skema data saat ini: **v5** (`APP.schemaVersion` di `js/config.js`). Migrasi data lama dari `localStorage` ke IndexedDB ditangani otomatis saat boot oleh `js/core/repository.js` (idempoten, sekali saja).
+> Skema data saat ini: **v5** (`APP.schemaVersion` di `js/core/config.js`). Migrasi data lama dari `localStorage` ke IndexedDB ditangani otomatis saat boot oleh `js/core/repository.js` (idempoten, sekali saja).
 
 ### Service Worker (`sw.js`)
 
@@ -270,21 +270,24 @@ RISLY-Money-Manager/
 ├── icons/                      # Ikon PWA, favicon, Apple touch icon
 ├── js/
 │   ├── app/                    # Boot, runtime, router, event wiring, actions, submissions
-│   ├── core/                   # config, data, store, utils, auth
+│   ├── core/                   # config, data, store, repository, crypto, utils, auth
 │   ├── forms/                  # Formulir transaksi, akun, catatan, cloud
 │   ├── services/               # cloud, gdrive, google-auth-relay, backup, export, import, charts
-│   ├── ui/                     # colors, icons, pull-to-refresh, ui helpers
-│   └── sw.js                   # Service worker
+│   └── ui/                     # colors, icons, pull-to-refresh, ui helpers
+├── src/tailwind.css            # Sumber Tailwind (di-build ke css/tailwind.css)
+├── tests/                      # Unit test Vitest + smoke test Playwright
+├── tools/                      # Skrip bantu (sync-version, dll.)
+├── vendor/                     # Library & font self-hosted
 ├── firebase-security-rules.json # Rules Realtime Database
 ├── google1b0403dbd7b7bbff.html  # Verifikasi Google Search Console
 ├── index.html                  # Entry point aplikasi
 ├── manifest.json               # Manifest PWA
-├── netlify.toml                # Konfigurasi deploy Netlify
 ├── oauth-callback.html         # Callback OAuth (iOS/PWA)
 ├── privacy.html                # Kebijakan privasi
 ├── SECURITY.md                 # Catatan keamanan
 ├── start.cmd                   # Server lokal untuk Windows
 ├── start.sh                    # Server lokal untuk macOS/Linux
+├── sw.js                       # Service worker
 └── _headers                    # Header keamanan & cache (Netlify/Cloudflare)
 ```
 
@@ -348,7 +351,7 @@ http://127.0.0.1:8080
 
 ### Google OAuth & Drive
 
-Konfigurasi publik ada di `js/config.js` (`APP.googleClientId`). Untuk memakai project Google milik sendiri:
+Konfigurasi publik ada di `js/core/config.js` (`APP.googleClientId`). Untuk memakai project Google milik sendiri:
 
 1. Buat project di [Google Cloud Console](https://console.cloud.google.com/).
 2. Aktifkan **Google Drive API**.
@@ -359,13 +362,13 @@ Konfigurasi publik ada di `js/config.js` (`APP.googleClientId`). Untuk memakai p
    - `http://localhost:8080`
    - `https://<domain-produksi-anda>`
    - `https://<domain-produksi-anda>/oauth-callback.html`
-6. Ganti `APP.googleClientId` di `js/config.js`.
+6. Ganti `APP.googleClientId` di `js/core/config.js`.
 
 > **Client Secret tidak dipakai** dan tidak boleh disimpan di aplikasi browser. Cukup Client ID publik.
 
 ### Firebase
 
-Konfigurasi Firebase ada di `js/config.js` (`FIREBASE_CONFIG`). Agar login Google dan sinkronisasi real-time berfungsi:
+Konfigurasi Firebase ada di `js/core/config.js` (`FIREBASE_CONFIG`). Agar login Google dan sinkronisasi real-time berfungsi:
 
 1. Aktifkan **Authentication → Sign-in method → Google**.
 2. Aktifkan **Realtime Database**.

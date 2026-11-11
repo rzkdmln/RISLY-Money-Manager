@@ -4,11 +4,12 @@ import { Cloud } from '../services/cloud.js';
 import {
   createSession,
   getSession,
+  verifyPin,
   verifyPinByVerifier,
   savePinMetadata,
   clearEncryptionKey,
   getEncryptionKey,
-  setEncryptionKey,
+  setEncryptionKey as storeEncryptionKey,
 } from './auth.js';
 import { repository, dataURLToBlob, blobToDataUrl } from './repository.js';
 import { encryptWorkspace, decryptWorkspace, deriveEncryptionKey, ENC_ITERATIONS } from './crypto.js';
@@ -175,9 +176,9 @@ export class Store {
   }
 
   persist(data = null) {
-    if (!this.workspaceId) return;
+    if (!this.workspaceId) return Promise.resolve();
     const payload = data || this.data;
-    if (!payload) return;
+    if (!payload) return Promise.resolve();
 
     // Fallback localStorage (browser tanpa IndexedDB) — sinkron agar error kuota
     // dapat ditangkap oleh pemanggil (mis. commit).
@@ -197,11 +198,12 @@ export class Store {
             )
           : error;
       }
-      return;
+      return Promise.resolve();
     }
 
     // IndexedDB — asinkron karena enkripsi AES-GCM dan I/O IndexedDB.
-    // Fire-and-forget agar tidak blokir UI; error dicatat ke this.lastError.
+    // Promise dikembalikan agar pemanggil yang butuh kepastian (mis. re-enkripsi
+    // setelah ganti PIN) bisa menunggu; pemanggil lain tetap fire-and-forget.
     const clean = deepClone(payload);
     if (Array.isArray(clean.transactions)) {
       clean.transactions.forEach((tx) => {
@@ -209,13 +211,22 @@ export class Store {
       });
     }
 
-    (async () => {
+    return (async () => {
       try {
         let toStore = clean;
         if (this.encryptionEnabled) {
           toStore = await encryptWorkspace(clean, this._encryptionKey);
         }
         await repository.putWorkspace(this.workspaceId, toStore);
+        // Setelah data terenkripsi tersimpan di IndexedDB, hapus salinan
+        // plaintext lama dari localStorage agar tidak bisa dibaca tanpa PIN.
+        if (this.encryptionEnabled) {
+          try {
+            localStorage.removeItem(workspaceStorageKey(this.workspaceId));
+          } catch {
+            /* noop */
+          }
+        }
         this.updateWorkspaceMeta(payload);
         this.lastError = null;
       } catch (error) {
@@ -628,6 +639,18 @@ export class Store {
     return Boolean(this._encryptionKey);
   }
 
+  /**
+   * Pasang kunci AES-GCM di memori dan aktifkan enkripsi at-rest.
+   * Dipakai oleh alur setup/ganti PIN setelah kredensial pengguna disimpan.
+   * @param {CryptoKey|null} key
+   * @param {string} salt
+   */
+  setEncryptionKey(key, salt) {
+    this._encryptionKey = key || null;
+    this._encrypted = Boolean(key);
+    storeEncryptionKey(key, salt);
+  }
+
   subscribe(listener) {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -711,9 +734,7 @@ export class Store {
     const iterations = Number(user.pinIterations) || ENC_ITERATIONS;
     const key = await deriveEncryptionKey(pin, salt, iterations);
 
-    this._encryptionKey = key;
-    this._encrypted = true;
-    setEncryptionKey(key, salt);
+    this.setEncryptionKey(key, salt);
 
     // Muat ulang workspace dari IndexedDB (akan didekripsi otomatis).
     if (this.workspaceId) {

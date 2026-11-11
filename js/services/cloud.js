@@ -1369,7 +1369,15 @@ class CloudSync {
       throw new Error('Hanya pemilik ruang yang bisa mengeluarkan anggota.');
     // Jangan hapus node: penanda `removed` mencegah anggota mendaftar ulang
     // sendiri (rules hanya mengizinkan pendaftaran bila node belum ada).
+    // Pertahankan field wajib karena writeMember memakai PUT (replace).
+    const existing =
+      (await this.adapter.readMember(this.getHouseholdUid(), uid).catch(() => null)) || {};
     await this.adapter.writeMember(this.getHouseholdUid(), uid, {
+      name: existing.name || '',
+      email: existing.email || '',
+      role: existing.role || 'member',
+      joinedAt: existing.joinedAt || nowISO(),
+      ...existing,
       removed: true,
       removedAt: nowISO(),
     });

@@ -7,14 +7,13 @@ import { signInWithGoogleFlow } from '../auth-flow.js';
 import { enterApplication } from '../session.js';
 import { renderApplication, renderAuth } from '../runtime.js';
 import { navigate } from '../runtime.js';
-import { openJoinWorkspaceModal } from '../modals.js';
-import { openAuthCloudModal } from '../modals.js';
+import { openJoinWorkspaceModal, openAuthCloudModal } from '../modals.js';
 import { Cloud } from '../../services/cloud.js';
 import { GoogleDrive } from '../../services/gdrive.js';
 import { store } from '../../core/store.js';
 import { clearSession } from '../../core/auth.js';
 import { icon } from '../../ui/icons.js';
-import { ui, closeModal, confirmDialog, toast } from '../../ui/ui.js';
+import { ui, openModal, closeModal, confirmDialog, toast } from '../../ui/ui.js';
 import { escapeHTML, formatDateTime } from '../../core/utils.js';
 import {
   backupNow,

@@ -5,7 +5,7 @@
 
 import { openExportModal } from '../../services/export.js';
 import { addPaymentRow, syncPaymentSplit } from '../payment-split.js';
-import { openReceiptLightbox } from '../modals.js';
+import { openReceiptLightbox, openLoanScheduleModal } from '../modals.js';
 import {
   openImportFormModal,
   openImportFilePicker,
@@ -175,7 +175,7 @@ export const exportActions = {
     pickBackupFile();
   },
   'load-sample': async () => {
-    await loadSampleData();
+    await store.loadSampleData();
   },
   'reset-app': async () => {
     await resetApplication();

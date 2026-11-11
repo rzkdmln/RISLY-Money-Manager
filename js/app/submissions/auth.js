@@ -15,6 +15,7 @@ import {
   registerFailedAttempt,
   getLockRemaining,
   createPinAndEncryption,
+  changePin,
 } from '../../core/auth.js';
 import { ui, toast } from '../../ui/ui.js';
 
@@ -111,24 +112,18 @@ export const authSubmissions = {
     if (submit) submit.disabled = true;
     try {
       const credentials = await changePin(user, currentPin, newPin);
-      // Buat verifier baru untuk metadata PIN (untuk unlock sebelum dekripsi).
-      const { encryption } = await import('../../core/crypto.js').then((m) =>
-        m.createEncryptionCredentials(newPin)
-      );
-      // Simpan ke user profile + metadata terpisah.
+      // Simpan kredensial PIN + verifier (salt yang sama) ke profil pengguna.
       await store.updateUser(user.id, {
         pinHash: credentials.pinHash,
         pinSalt: credentials.pinSalt,
         pinIterations: credentials.pinIterations,
-        pinVerifier: encryption.verifier,
+        pinVerifier: credentials.encryption.verifier,
       });
-      // Ganti kunci enkripsi di memori dengan kunci baru (jika saat ini unlock).
-      if (store.isUnlocked) {
-        import('../../core/crypto.js').then(({ deriveEncryptionKey }) => {
-          return deriveEncryptionKey(newPin, credentials.pinSalt, credentials.pinIterations);
-        }).then((newKey) => {
-          store.setEncryptionKey(newKey, credentials.pinSalt);
-        }).catch(() => {});
+      // Aktifkan kunci enkripsi baru (berlaku untuk buat PIN maupun ganti PIN)
+      // lalu tulis ulang data agar terenkripsi dengan PIN baru.
+      if (credentials.encryption?.key) {
+        store.setEncryptionKey(credentials.encryption.key, credentials.pinSalt);
+        await store.persist();
       }
       toast('PIN berhasil diubah. Data telah di-re-enkripsi dengan PIN baru.', 'success');
     } catch (error) {
@@ -162,9 +157,9 @@ export const authSubmissions = {
         pinIterations: pinCredentials.pinIterations,
         pinVerifier: encryption.verifier,
       });
-      // Set kunci enkripsi di memori agar data segera di-enkripsi saat persist.
+      // Set kunci enkripsi di memori lalu tulis ulang data agar terenkripsi.
       store.setEncryptionKey(encryption.key, pinCredentials.pinSalt);
-      store._encrypted = true;
+      await store.persist();
       toast('PIN dibuat. Data lokal sekarang di-enkripsi at-rest.', 'success');
       await enterApplication(user);
     } catch (error) {

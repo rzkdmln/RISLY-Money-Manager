@@ -13,6 +13,16 @@
     <meta name="color-scheme" content="light dark" />
     <meta name="format-detection" content="telephone=no" />
 
+    <!--
+      CSP untuk GitHub Pages (yang mengabaikan file _headers).
+      Nilai harus tetap sinkron dengan _headers. frame-ancestors tidak didukung
+      lewat <meta>, jadi proteksi itu hanya berlaku di server yang membaca _headers.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' https://accounts.google.com https://apis.google.com https://www.gstatic.com https://ssl.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://accounts.google.com https://apis.google.com https://www.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://*.firebaseapp.com https://*.firebasedatabase.app wss://*.firebasedatabase.app https://*.firebaseio.com wss://*.firebaseio.com https://api.jsonbin.io https://*.supabase.co https://www.gstatic.com https://ssl.gstatic.com https://*.googleusercontent.com; frame-src 'self' https://accounts.google.com https://apis.google.com https://www.google.com https://www.gstatic.com https://content.googleapis.com https://*.firebaseapp.com https://*.firebasedatabase.app https://*.firebaseio.com; object-src 'none'; base-uri 'self'; form-action 'self';"
+    />
+
     <!-- iOS PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="RISLY" />

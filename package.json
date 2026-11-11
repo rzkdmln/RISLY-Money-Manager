@@ -2,7 +2,7 @@
   "name": "risly-money-manager",
   "private": true,
   "type": "module",
-  "version": "1.2.41",
+  "version": "1.2.42",
   "description": "RISLY Money Manager — PWA pengelolaan keuangan pribadi dan keluarga (offline-first, vanilla JS)",
   "scripts": {
     "build:css": "tailwindcss -i ./src/tailwind.css -o ./css/tailwind.css --minify",

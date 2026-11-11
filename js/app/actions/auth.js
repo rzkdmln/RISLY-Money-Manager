@@ -15,6 +15,7 @@ import {
   toast,
 } from '../../ui/ui.js';
 import { renderAuth } from '../runtime.js';
+import { icon } from '../../ui/icons.js';
 
 export const authActions = {
   'select-user': (element) => {
@@ -67,6 +68,14 @@ export const authActions = {
     ui.selectedUser = null;
     closeModal({ silent: true });
     renderAuth();
+  },
+  'encryption-status': () => {
+    toast(
+      store.encryptionEnabled
+        ? 'Enkripsi data aktif (AES-GCM 256-bit). Kunci hanya ada di memori dan dihapus saat auto-lock.'
+        : 'Enkripsi data nonaktif. Setel PIN untuk mengaktifkan enkripsi at-rest.',
+      'info'
+    );
   },
   'skip-pin': async () => {
     const user = store.currentUser;

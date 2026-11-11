@@ -15,8 +15,11 @@ export default [
         window: 'readonly',
         navigator: 'readonly',
         location: 'readonly',
+        history: 'readonly',
         localStorage: 'readonly',
         sessionStorage: 'readonly',
+        indexedDB: 'readonly',
+        getComputedStyle: 'readonly',
         crypto: 'readonly',
         btoa: 'readonly',
         atob: 'readonly',
@@ -49,6 +52,8 @@ export default [
         Image: 'readonly',
         process: 'readonly',
         require: 'readonly',
+        // Library global dari vendor/ (dimuat lewat <script> di index.html)
+        XLSX: 'readonly',
         // Service worker globals (sw.js)
         self: 'readonly',
         caches: 'readonly',
@@ -72,8 +77,9 @@ export default [
       eqeqeq: ['error', 'always', { null: 'ignore' }],
       'no-implicit-globals': 'error',
 
-      // Matikan rules yang terlalu bising pada kode exist (akan dibersihkan bertahap)
-      'no-undef': 'off',
+      // no-undef wajib aktif: ini yang menangkap import yang hilang.
+      'no-undef': 'error',
+      // Masih dimatikan sampai kode lama dibersihkan bertahap.
       'no-unused-vars': 'off',
 
       // Import rules. import/extensions dimatikan karena kode exist menggunakan

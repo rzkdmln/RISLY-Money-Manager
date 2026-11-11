@@ -61,6 +61,7 @@ jobs:
             css/
             js/
             icons/
+            vendor/
             manifest.json
             sw.js
             privacy.html

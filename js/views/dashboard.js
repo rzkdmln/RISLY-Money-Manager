@@ -130,9 +130,9 @@ export function dashboardView(user) {
     ${!cloudStatus.connected && cloudStatus.provider !== 'local' ? `<div class="rounded-2xl border border-amber-200 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 flex items-center justify-between gap-3">
       <div class="min-w-0">
         <p class="text-sm font-semibold text-amber-800 dark:text-amber-200">Sinkronisasi belum aktif</p>
-        <p class="text-xs text-amber-700 dark:text-amber-300/80">Hubungkan Google Drive/database di Pengaturan agar data tersinkron.</p>
+        <p class="text-xs text-amber-700 dark:text-amber-300/80">Klik tombol di bawah untuk mencoba menyinkronkan ulang dari sini.</p>
       </div>
-      <button type="button" class="btn btn-secondary btn-sm shrink-0" data-action="nav" data-route="settings">Hubungkan</button>
+      <button type="button" class="btn btn-secondary btn-sm shrink-0" data-action="sync-now">Sinkronkan</button>
     </div>` : ''}
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 min-w-0 w-full">

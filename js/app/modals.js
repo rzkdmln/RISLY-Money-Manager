@@ -521,6 +521,87 @@ function openAuthCloudModal() {
   });
 }
 
+function annuityPayment(principal, annualRate, months) {
+  const p = Math.max(0, Number(principal) || 0);
+  const n = Math.max(0, Math.round(Number(months) || 0));
+  if (p <= 0 || n <= 0) return 0;
+  const i = (Number(annualRate) || 0) / 100 / 12;
+  if (i === 0) return p / n;
+  return (p * i) / (1 - Math.pow(1 + i, -n));
+}
+
+function amortizationSchedule(account) {
+  const principal = Math.max(0, Number(account.loanPrincipal) || 0);
+  const rate = Math.max(0, Number(account.loanInterestRate) || 0);
+  const months = Math.max(0, Math.round(Number(account.loanTermMonths) || 0));
+  let payment = Math.max(0, Number(account.loanMonthlyPayment) || 0);
+  if (payment <= 0) payment = annuityPayment(principal, rate, months);
+  const rows = [];
+  let balance = principal;
+  const totalMonths = months > 0 ? months : 360;
+  for (let m = 1; m <= totalMonths && balance > 0.005; m += 1) {
+    const interest = balance * (rate / 100 / 12);
+    let principalPaid = payment - interest;
+    if (principalPaid > balance) principalPaid = balance;
+    if (principalPaid < 0) principalPaid = 0;
+    balance = Math.max(0, balance - principalPaid);
+    rows.push({ month: m, payment, interest, principal: principalPaid, balance });
+    if (balance <= 0.005) break;
+  }
+  return { payment, rows };
+}
+
+function openLoanScheduleModal(accountId) {
+  const account = store.accountById(accountId);
+  if (!account) return;
+  const { payment, rows } = amortizationSchedule(account);
+  const totalInterest = rows.reduce((sum, row) => sum + row.interest, 0);
+  const bodyRows = rows
+    .map(
+      (row) => `
+    <tr>
+      <td>${row.month}</td>
+      <td class="text-right">${money(Math.round(row.payment))}</td>
+      <td class="text-right">${money(Math.round(row.interest))}</td>
+      <td class="text-right">${money(Math.round(row.principal))}</td>
+      <td class="text-right">${money(Math.round(row.balance))}</td>
+    </tr>`
+    )
+    .join('');
+
+  openModal({
+    size: 'lg',
+    className: 'form-modal',
+    html: `<div class="modal-form">
+      <header class="modal-header">
+        <div>
+          <p class="modal-kicker">Jadwal anuitas</p>
+          <h2 class="modal-title">${escapeHTML(account.name)}</h2>
+        </div>
+        <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
+      </header>
+      <div class="modal-body">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mb-3">
+          <div class="stat-card stat-blue"><div class="stat-top"><span>Pokok</span></div><div class="stat-value text-base">${money(account.loanPrincipal)}</div></div>
+          <div class="stat-card stat-amber"><div class="stat-top"><span>Bunga</span></div><div class="stat-value text-base">${escapeHTML(String(account.loanInterestRate || 0))}%</div></div>
+          <div class="stat-card stat-green"><div class="stat-top"><span>Cicilan/bln</span></div><div class="stat-value text-base">${money(Math.round(payment))}</div></div>
+          <div class="stat-card stat-red"><div class="stat-top"><span>Total bunga</span></div><div class="stat-value text-base">${money(Math.round(totalInterest))}</div></div>
+        </div>
+        <div class="max-h-[50vh] overflow-auto border rounded">
+          <table class="report-table text-xs">
+            <thead><tr><th>Bulan</th><th class="text-right">Cicilan</th><th class="text-right">Bunga</th><th class="text-right">Pokok</th><th class="text-right">Sisa</th></tr></thead>
+            <tbody>${bodyRows || '<tr><td colspan="5" class="text-center text-slate-400">Tidak ada jadwal.</td></tr>'}</tbody>
+          </table>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-2">Jadwal dihitung dengan rumus anuitas. Pembayaran aktual dapat berbeda karena biaya/penalti.</p>
+      </div>
+      <footer class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-action="close-modal">Tutup</button>
+      </footer>
+    </div>`,
+  });
+}
+
 export {
   openTransactionModal,
   openReceiptLightbox,
@@ -541,6 +622,7 @@ export {
   openForgotPinModal,
   openInstallHelp,
   openJoinWorkspaceModal,
+  openLoanScheduleModal,
   authCloudFields,
   openAuthCloudModal,
 };

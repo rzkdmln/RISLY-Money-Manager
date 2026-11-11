@@ -34,7 +34,11 @@
         "members": {
           "$uid": {
             ".validate": "newData.isObject() && newData.hasChildren(['name', 'email', 'role', 'joinedAt'])",
-            ".write": "auth != null && (root.child('households').child($householdId).child('owner').val() === auth.uid || (auth.uid === $uid && !data.exists() && !newData.exists()))"
+            // Owner boleh menulis semua node anggota. Calon anggota boleh
+            // membuat node-nya sendiri hanya jika node belum ada, household
+            // sudah punya owner, dan perannya 'member'. Node yang sudah diberi
+            // penanda `removed` tidak bisa didaftarkan ulang (data.exists()).
+            ".write": "auth != null && (root.child('households').child($householdId).child('owner').val() === auth.uid || (auth.uid === $uid && !data.exists() && newData.exists() && root.child('households').child($householdId).child('owner').exists() && newData.child('role').val() === 'member'))"
           }
         },
 

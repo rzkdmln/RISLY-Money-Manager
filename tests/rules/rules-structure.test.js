@@ -87,4 +87,10 @@ describe('Firebase Security Rules — Struktur Teks (Fase 6)', () => {
     expect(rules).toContain('!data.exists()');
     expect(rules).toContain("newData.child('owner').val() === auth.uid");
   });
+
+  it('anggota baru boleh membuat node sendiri, tetapi tidak bisa mendaftar ulang', () => {
+    expect(rules).toContain('!data.exists() && newData.exists()');
+    expect(rules).toContain("newData.child('role').val() === 'member'");
+    expect(rules).toContain("child('owner').exists()");
+  });
 });
