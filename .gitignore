@@ -2,7 +2,7 @@
 
 # Dependencies & build (not part of the shipped PWA)
 node_modules/
-package-lock.json
+# package-lock.json: di-commit untuk CI `npm ci` yang konsisten
 dist/
 build/
 
