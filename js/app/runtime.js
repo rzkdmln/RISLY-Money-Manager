@@ -124,7 +124,7 @@ export function renderApplication({ focus = null } = {}) {
   page.classList.remove('page-enter');
   requestAnimationFrame(() => page.classList.add('page-enter'));
   document.title = route === 'dashboard'
-    ? `${APP.name} · ${APP.fullLabel || APP.fullName}`
+    ? `${APP.name} · ${APP.fullName}`
     : `${ROUTES[route]?.label || 'Beranda'} · ${APP.name}`;
 
   updateSyncSlots(Cloud.getStatus());

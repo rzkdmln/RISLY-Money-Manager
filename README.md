@@ -47,7 +47,7 @@ RISLY cocok untuk mencatat pemasukan, pengeluaran, transfer, anggaran, transaksi
 - Kalkulator nominal langsung di form transaksi.
 - Filter lengkap (tahun, bulan, jenis, akun, kategori, pencatat, pencarian) dalam modal.
 - Pagination dan pengelompokan transaksi per hari.
-- Edit, hapus, dan pulihkan transaksi (soft delete).
+- Edit dan hapus transaksi (soft delete). Pemulihan dilakukan melalui backup JSON.
 
 ### 💳 Akun & Aset
 - Berbagai tipe akun: uang tunai, rekening bank, dompet digital, tabungan, investasi, kartu kredit, dan pinjaman.
@@ -136,7 +136,7 @@ RISLY cocok untuk mencatat pemasukan, pengeluaran, transfer, anggaran, transaksi
 
 | Lapisan | Teknologi |
 |---|---|
-| UI | HTML, CSS custom (`css/app.css`), Tailwind CSS via CDN |
+| UI | HTML, CSS custom (`css/tokens.css`, `css/base.css`, `css/layout.css`, `css/components.css`, `css/modals.css`, `css/pages.css`, `css/responsive.css`, `css/overrides.css`), Tailwind CSS via CDN |
 | Logika aplikasi | Vanilla JavaScript (ES Modules), tanpa framework |
 | Grafik | Chart.js |
 | Excel | SheetJS (`xlsx`) |
@@ -212,46 +212,22 @@ RISLY-Money-Manager/
 │   └── workflows/
 │       └── static.yml          # Deploy otomatis ke GitHub Pages
 ├── css/
-│   └── app.css                 # Styling utama, variabel CSS, media queries
+│   ├── tokens.css              # Variabel desain (light/dark)
+│   ├── base.css                # Reset & elemen dasar
+│   ├── layout.css              # Layout utama & sidebar
+│   ├── components.css          # Komponen UI berulang
+│   ├── modals.css              # Modal & backdrop
+│   ├── pages.css               # Styling halaman
+│   ├── responsive.css          # Media queries
+│   └── overrides.css           # Override utilitas
 ├── icons/                      # Ikon PWA, favicon, Apple touch icon
 ├── js/
-│   ├── app.js                  # Controller utama, router, event handler
-│   ├── auth.js                 # PIN, hashing PBKDF2, sesi, lockout
-│   ├── backup.js               # Backup lokal & Google Drive
-│   ├── charts.js               # Konfigurasi Chart.js
-│   ├── cloud.js                # Sinkronisasi JSONBin/Supabase/Firebase
-│   ├── colors.js               # Helper warna & harmony
-│   ├── config.js               # Konstanta, route, provider, versi
-│   ├── data.js                 # Skema data, seed, migrasi
-│   ├── export.js               # Export laporan Excel & PDF
-│   ├── gdrive.js               # Google Identity Services & Drive REST
-│   ├── google-auth-relay.js    # Login Google via Firebase Auth
-│   ├── icons.js                # Library ikon SVG
-│   ├── import.js               # Import CSV/Excel, preview, template
-│   ├── pull-to-refresh.js      # Pull-to-refresh mobile
-│   ├── store.js                # State management & query data
-│   ├── ui.js                   # Modal, toast, badge, formatter
-│   ├── utils.js                # Helper tanggal, angka, string
-│   ├── forms/
-│   │   ├── account.js          # Form akun
-│   │   ├── cloud.js            # Form penyedia cloud
-│   │   ├── note.js             # Form catatan/tugas
-│   │   └── transaction.js      # Form transaksi
-│   └── views/
-│       ├── accounts.js         # Halaman akun
-│       ├── auth.js             # Halaman login & PIN
-│       ├── budgets.js          # Halaman anggaran
-│       ├── calendar.js         # Halaman kalender
-│       ├── categories.js       # Halaman kategori
-│       ├── common.js           # Komponen bersama (baris transaksi, dll.)
-│       ├── dashboard.js        # Halaman beranda
-│       ├── goals.js            # Halaman target keuangan
-│       ├── notes.js            # Halaman catatan & tugas
-│       ├── recurring.js        # Halaman transaksi berulang
-│       ├── reports.js          # Halaman laporan
-│       ├── settings.js         # Halaman pengaturan
-│       ├── shell.js            # Layout, sidebar, bottom nav
-│       └── transactions.js     # Halaman transaksi & modal filter
+│   ├── app/                    # Boot, runtime, router, event wiring, actions, submissions
+│   ├── core/                   # config, data, store, utils, auth
+│   ├── forms/                  # Formulir transaksi, akun, catatan, cloud
+│   ├── services/               # cloud, gdrive, google-auth-relay, backup, export, import, charts
+│   ├── ui/                     # colors, icons, pull-to-refresh, ui helpers
+│   └── sw.js                   # Service worker
 ├── firebase-security-rules.json # Rules Realtime Database
 ├── google1b0403dbd7b7bbff.html  # Verifikasi Google Search Console
 ├── index.html                  # Entry point aplikasi
@@ -262,7 +238,6 @@ RISLY-Money-Manager/
 ├── SECURITY.md                 # Catatan keamanan
 ├── start.cmd                   # Server lokal untuk Windows
 ├── start.sh                    # Server lokal untuk macOS/Linux
-├── sw.js                       # Service worker
 └── _headers                    # Header keamanan & cache (Netlify/Cloudflare)
 ```
 
@@ -427,6 +402,7 @@ Saat merilis perubahan:
 1. Naikkan versi di **dua tempat**:
    - `js/config.js` → `APP.version`
    - `sw.js` → `const VERSION`
+   Satu sumber kebenaran versi: kedua file di-naikkan bersama setiap rilis.
 2. Deploy ulang.
 3. Pengguna dapat memeriksa update lewat **Pengaturan → Periksa update**.
 

@@ -36,8 +36,17 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload entire repository
-          path: '.'
+          # Hanya file yang dipakai aplikasi; jangan ikut junk/, tools/, dan dokumen refactor
+          path: |
+            index.html
+            css/
+            js/
+            icons/
+            manifest.json
+            sw.js
+            privacy.html
+            oauth-callback.html
+            _headers
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5

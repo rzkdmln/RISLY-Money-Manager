@@ -1,0 +1,23 @@
+# RISLY Money Manager — gitignore
+
+# Dependencies & build (not part of the shipped PWA)
+node_modules/
+dist/
+build/
+
+# Test & lint artifacts
+coverage/
+playwright-report/
+
+# Logs & OS
+*.log
+*.local
+.DS_Store
+Thumbs.db
+
+# Obsolete (kept out of Pages deploy)
+junk/
+
+# Local dev only (not committed)
+.env
+.env.local

@@ -1,5 +1,7 @@
 # Keamanan RISLY
 
+Terakhir diperbarui: 11 November 2026
+
 ## Status saat ini
 - Firebase Auth (Google) terintegrasi via `Cloud.signInWithGoogle()` (credential dari login Google).
 - Firebase Auth redirect (`startGoogleAuthRedirect` / `completeGoogleAuthLogin`) sudah menjadi jalur login utama (termasuk iOS); relay custom tidak dipakai lagi.
@@ -18,7 +20,7 @@ Aturan ini mengizinkan baca/tulis hanya anggota (`members/<uid>` yang belum dita
 ## Langkah pasca-deploy
 - Rotasi JSONBin master key lama yang pernah bocor.
 - Hapus kunci lama dari riwayat Git (opsional, disarankan).
-- Deploy ulang PWA (service worker terbump `risly-1.2.24`).
+- Deploy ulang PWA (service worker terbump `risly-1.2.55`; sinkronkan dengan `APP.version` di `js/config.js`).
 
 ## Catatan arsitektur
 - Setiap akun Google dapat membuat household sendiri `households/<firebaseUid>`.

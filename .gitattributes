@@ -1,2 +1,7 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# RISLY Money Manager — enforce LF line endings for all text files
+* text=auto eol=lf
+
+# Binary assets — do not touch line endings
+*.png binary
+*.ico binary
+*.webp binary
