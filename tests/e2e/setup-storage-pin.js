@@ -1,5 +1,5 @@
 // RISLY E2E — localStorage setup script (runs in browser before page load)
-// Creates a test workspace with user "Tester" and PIN "1234".
+// Creates a test workspace WITH PIN "1234" → halaman langsung menampilkan layar PIN.
 
 (async () => {
   const encoder = new TextEncoder();
@@ -20,8 +20,8 @@
   const saltB64 = btoa(String.fromCharCode(...salt));
 
   const now = new Date().toISOString();
-  const workspaceId = 'test-ws-e2e';
-  const userId = 'test-user-e2e';
+  const workspaceId = 'test-ws-e2e-pin';
+  const userId = 'test-user-e2e-pin';
 
   const data = {
     app: 'risly-money-manager',
@@ -29,10 +29,10 @@
     revision: 1,
     updatedAt: now,
     settings: {
-      householdName: 'Ruang E2E',
-      workspaceName: 'Ruang E2E',
-      ownerEmail: '',
-      inviteCode: 'E2E1234',
+      householdName: 'Ruang E2E PIN',
+      workspaceName: 'Ruang E2E PIN',
+      ownerEmail: 'tester@e2e.test',
+      inviteCode: 'E2EPIN4',
       currency: 'IDR',
       locale: 'id-ID',
       defaultMonthlyBudget: 0,
@@ -48,7 +48,7 @@
         name: 'Tester',
         color: '#2563EB',
         initials: 'TE',
-        googleEmail: '',
+        googleEmail: 'tester@e2e.test',
         picture: '',
         pinHash: hash,
         pinSalt: saltB64,
@@ -122,9 +122,9 @@
       workspaces: {
         [workspaceId]: {
           id: workspaceId,
-          name: 'Ruang E2E',
-          inviteCode: 'E2E1234',
-          ownerEmail: '',
+          name: 'Ruang E2E PIN',
+          inviteCode: 'E2EPIN4',
+          ownerEmail: 'tester@e2e.test',
           updatedAt: now,
         },
       },

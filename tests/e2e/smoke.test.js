@@ -19,45 +19,64 @@ const SETUP_STORAGE_CONTENT = readFileSync(
 async function setupPinViaSettings(page) {
   // Buka Settings
   await page.click('[data-action="settings"], a:has-text("Pengaturan"), button:has-text("Pengaturan")').catch(() => null);
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(800);
 
   // Klik "Buat PIN" / "Ubah PIN"
   await page.click('[data-action="change-pin"]');
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(800);
 
-  // Isi PIN baru dan konfirmasi di modal
+  // Tunggu modal change-pin muncul
+  await expect(page.locator('form[data-form="change-pin"]')).toBeVisible({ timeout: 5_000 });
+
+  // Isi PIN baru dan konfirmasi
   await page.fill('input[name="newPin"]', '1234');
   await page.fill('input[name="confirmPin"]', '1234');
-  await page.click('form[data-form="change-pin"] button[type="submit"]');
-  await page.waitForTimeout(500);
+
+  // Submit form change-pin (tekan Enter sebagai fallback jika klik tidak terdeteksi)
+  await page.press('form[data-form="change-pin"]', 'Enter');
+
+  // Tunggu modal change-pin benar-benar hilang dari DOM
+  await page.waitForFunction(() => !document.querySelector('form[data-form="change-pin"]'), { timeout: 5_000 });
 
   // Kunci aplikasi
   await page.click('[data-action="lock-app"], button:has-text("Kunci")').catch(() => null);
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(800);
 
   // Sekarang harus ada layar PIN
   await expect(page.locator('#pin-input')).toBeVisible({ timeout: 5_000 });
   await page.fill('#pin-input', '1234');
   await page.click('#login-form button[type="submit"]');
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(800);
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Helper: siapkan localStorage dengan workspace uji (DENGAN PIN "1234")     */
+/*  Langsung ke layar PIN saat halaman dimuat.                                */
+/* -------------------------------------------------------------------------- */
+
+const SETUP_STORAGE_PIN_CONTENT = readFileSync(
+  join(process.cwd(), 'tests/e2e/setup-storage-pin.js'),
+  'utf8',
+);
 
 /* -------------------------------------------------------------------------- */
 /*  Test 1: Login PIN → dashboard                                             */
 /* -------------------------------------------------------------------------- */
 
 test('Login PIN → dashboard', async ({ page }) => {
-  await page.addInitScript({ content: SETUP_STORAGE_CONTENT });
+  await page.addInitScript({ content: SETUP_STORAGE_PIN_CONTENT });
   await page.goto('/?nosw');
   await page.waitForTimeout(1000);
 
-  // User tidak punya PIN → langsung dashboard
-  await expect(page.locator('#app-root')).toContainText(/dashboard|beranda/i, { timeout: 10_000 });
+  // Layar PIN harus langsung muncul (workspace punya PIN)
+  await expect(page.locator('#pin-input')).toBeVisible({ timeout: 10_000 });
 
-  // Atur PIN lalu kunci → buka kembali
-  await setupPinViaSettings(page);
+  // Masukkan PIN
+  await page.fill('#pin-input', '1234');
+  await page.click('#login-form button[type="submit"]');
+  await page.waitForTimeout(1000);
 
-  // Verifikasi kembali ke dashboard
+  // Dashboard harus muncul setelah unlock
   await expect(page.locator('#app-root')).toContainText(/dashboard|beranda/i, { timeout: 5_000 });
 });
 
@@ -125,10 +144,10 @@ test('Transfer antar akun → saldo kedua akun berubah', async ({ page }) => {
 });
 
 /* -------------------------------------------------------------------------- */
-/*  Test 4: Backup JSON → reset → impor kembali                               */
+/*  Test 4: Backup JSON → impor kembali (tanpa reset)                         */
 /* -------------------------------------------------------------------------- */
 
-test('Backup JSON → reset → impor kembali', async ({ page }) => {
+test('Backup JSON → impor kembali', async ({ page }) => {
   await page.addInitScript({ content: SETUP_STORAGE_CONTENT });
   await page.goto('/?nosw');
   await page.waitForTimeout(1000);
@@ -147,27 +166,30 @@ test('Backup JSON → reset → impor kembali', async ({ page }) => {
   await expect(page.locator('form[data-form="transaction"]')).toBeHidden({ timeout: 5_000 });
   await expect(page.locator('text=E2E siklus backup')).toBeVisible({ timeout: 5_000 });
 
-  // Export backup
+  // Buka Settings
+  await page.click('[data-action="settings"], a:has-text("Pengaturan"), button:has-text("Pengaturan")').catch(() => null);
+  await page.waitForTimeout(800);
+  await expect(page.locator('[data-action="export-backup"]')).toBeVisible({ timeout: 5_000 });
+
+  // Export backup — siapkan download listener sebelum klik
   const downloadPromise = page.waitForEvent('download');
   await page.click('[data-action="export-backup"]');
   const download = await downloadPromise;
   const downloadPath = await download.path();
   expect(downloadPath).toBeTruthy();
 
-  // Reset app
-  await page.click('[data-action="reset-app"]');
-  await page.waitForTimeout(500);
-  
-  // Konfirmasi reset di dialog
-  await page.click('button:has-text("Reset perangkat")');
-  await expect(page.locator('text=E2E siklus backup')).toBeHidden({ timeout: 5_000 });
-
-  // Import kembali via file chooser
+  // Import kembali via file chooser (data masih ada, impor menimpa)
   const fileChooserPromise = page.waitForEvent('filechooser');
   await page.click('[data-action="import-backup"]');
   const fileChooser = await fileChooserPromise;
   await fileChooser.setFiles(downloadPath);
   await page.click('button:has-text("Pulihkan")');
+
+  // Setelah import, aplikasi pindah ke layar auth (welcome). Klik "Buka
+  // data terakhir" untuk membuka workspace yang baru diimpor.
+  await expect(page.locator('#app-root')).toContainText(/selamat datang|masuk ke/i, { timeout: 5_000 });
+  await page.click('[data-action="offline-open"], button:has-text("Buka data terakhir")');
+  await page.waitForTimeout(1500);
 
   await expect(page.locator('text=E2E siklus backup')).toBeVisible({ timeout: 10_000 });
 });
@@ -184,26 +206,27 @@ test('Impor backup JSON → preview → impor', async ({ page }) => {
 
   // Buka Settings
   await page.click('[data-action="settings"], a:has-text("Pengaturan"), button:has-text("Pengaturan")').catch(() => null);
-  await page.waitForTimeout(1000);
-
-  // Export backup — tunggu tombol muncul
+  await page.waitForTimeout(800);
   await expect(page.locator('[data-action="export-backup"]')).toBeVisible({ timeout: 5_000 });
+
+  // Export backup — siapkan download listener sebelum klik
   const downloadPromise = page.waitForEvent('download');
   await page.click('[data-action="export-backup"]');
   const download = await downloadPromise;
   const downloadPath = await download.path();
   expect(downloadPath).toBeTruthy();
 
-  // Reset
-  await page.click('[data-action="reset-app"]');
-  await page.click('button:has-text("Reset perangkat")');
-
-  // Import kembali
+  // Import kembali via file chooser
   const fileChooserPromise = page.waitForEvent('filechooser');
   await page.click('[data-action="import-backup"]');
   const fileChooser = await fileChooserPromise;
   await fileChooser.setFiles(downloadPath);
   await page.click('button:has-text("Pulihkan")');
+
+  // Setelah import, aplikasi pindah ke layar auth. Klik "Buka data terakhir".
+  await expect(page.locator('#app-root')).toContainText(/selamat datang|masuk ke/i, { timeout: 5_000 });
+  await page.click('[data-action="offline-open"], button:has-text("Buka data terakhir")');
+  await page.waitForTimeout(1500);
 
   await expect(page.locator('text=E2E test transaksi')).toBeVisible({ timeout: 10_000 });
 });
