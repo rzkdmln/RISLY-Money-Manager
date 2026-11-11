@@ -101,9 +101,7 @@ const SETUP_STORAGE_CONTENT = `(function(){
 /*  Skenario 1: Perangkat A tambah transaksi → sinkron → perangkat B lihat   */
 /* -------------------------------------------------------------------------- */
 
-test('S1: Perangkat A tambah transaksi → sinkron → perangkat B lihat', async ({
-  browser,
-}) => {
+test('S1: Perangkat A tambah transaksi → sinkron → perangkat B lihat', async ({ browser }) => {
   // --- Perangkat A (owner) ---
   const contextA = await browser.newContext();
   const pageA = await contextA.newPage();
@@ -153,9 +151,7 @@ test('S1: Perangkat A tambah transaksi → sinkron → perangkat B lihat', async
 /*  Skenario 2: Conflict — dua perangkat edit transaksi yang sama            */
 /* -------------------------------------------------------------------------- */
 
-test('S2: Conflict — dua perangkat edit transaksi yang sama', async ({
-  browser,
-}) => {
+test('S2: Conflict — dua perangkat edit transaksi yang sama', async ({ browser }) => {
   const contextA = await browser.newContext();
   const pageA = await contextA.newPage();
   await pageA.addInitScript({ content: SETUP_STORAGE_CONTENT });
