@@ -12,7 +12,6 @@ import { renderApplication } from '../runtime.js';
 export const noteSubmissions = {
   note: async (form) => {
     clearTimeout(noteSaveTimer);
-    noteSaveTimer = null;
     const payload = collectNotePayload(form);
     if (!payload.title) {
       showFormError(form, 'Judul catatan atau tugas wajib diisi.');

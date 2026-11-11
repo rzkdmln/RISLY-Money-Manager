@@ -110,7 +110,7 @@ function writeWorkspaceRegistry(registry) {
   localStorage.setItem(APP.workspaceRegistryKey, JSON.stringify(registry));
 }
 
-class Store {
+export class Store {
   constructor() {
     this.data = null;
     this.currentUserId = null;

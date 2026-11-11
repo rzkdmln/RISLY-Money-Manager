@@ -1,15 +1,31 @@
 {
   "name": "risly-money-manager",
   "private": true,
+  "type": "module",
   "version": "1.2.41",
   "description": "RISLY Money Manager — PWA pengelolaan keuangan pribadi dan keluarga (offline-first, vanilla JS)",
   "scripts": {
     "build:css": "tailwindcss -i ./src/tailwind.css -o ./css/tailwind.css --minify",
-    "watch:css": "tailwindcss -i ./src/tailwind.css -o ./css/tailwind.css --watch"
+    "watch:css": "tailwindcss -i ./src/tailwind.css -o ./css/tailwind.css --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint js/ sw.js tests/ eslint.config.js",
+    "lint:fix": "eslint js/ sw.js tools/ tests/ eslint.config.js --fix",
+    "format": "prettier --write \"js/**/*.js\" \"sw.js\" \"tools/**/*.mjs\" \"tests/**/*.js\" \"{eslint.config.js,vitest.config.js,playwright.config.js,postcss.config.js,tailwind.config.js}\"",
+    "format:check": "prettier --check \"js/**/*.js\" \"sw.js\" \"tools/**/*.mjs\" \"tests/**/*.js\" \"{eslint.config.js,vitest.config.js,playwright.config.js,postcss.config.js,tailwind.config.js}\"",
+    "test:ui": "playwright test",
+    "check:version": "node --input-type=module -e \"import fs from 'node:fs'; const c=fs.readFileSync('js/core/config.js','utf8'); const s=fs.readFileSync('sw.js','utf8'); const cv=c.match(/version: '([^']+)'/)[1]; const sv=s.match(/VERSION = 'risly-([^']+)'/)[1]; if(cv!==sv){console.error('Versi tidak sinkron: config.js='+cv+', sw.js=risly-'+sv);process.exit(1)}console.log('Versi sinkron: '+cv);\""
   },
   "devDependencies": {
-    "tailwindcss": "^3.4.16",
+    "autoprefixer": "^10.4.16",
+    "@playwright/test": "^1.48.0",
+    "eslint": "^9.15.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.31.0",
+    "jsdom": "^25.0.0",
     "postcss": "^8.4.31",
-    "autoprefixer": "^10.4.16"
+    "prettier": "^3.3.3",
+    "tailwindcss": "^3.4.16",
+    "vitest": "^2.1.0"
   }
 }

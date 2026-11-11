@@ -432,11 +432,28 @@ Notifikasi PWA paling optimal saat aplikasi dipasang ke Home Screen dan diizinka
 
 Kontribusi terbuka untuk perbaikan bug, peningkatan UI/UX, atau fitur baru.
 
+### 🛠️ Perintah pengembangan
+
+Repo ini menggunakan devDependencies hanya untuk lint dan test (tidak ada dependency runtime baru):
+
+| Perintah | Keterangan |
+|----------|------------|
+| `npm test` | Jalankan unit test (Vitest) |
+| `npm run lint` | Jalankan ESLint pada `js/`, `sw.js`, `tests/` |
+| `npm run lint:fix` | Auto-fix masalah ESLint yang bisa diperbaiki |
+| `npm run format` | Format kode dengan Prettier |
+| `npm run format:check` | Periksa apakah kode sudah diformat Prettier |
+| `npm run check:version` | Verifikasi versi `config.js` sinkron dengan `sw.js` |
+| `npm run build:css` | Build Tailwind CSS (produksi) |
+
+### 📋 Langkah kontribusi
+
 1. Fork repository.
 2. Buat branch fitur: `git checkout -b fitur/nama-fitur`.
 3. Commit perubahan dengan pesan yang jelas.
-4. Push dan buka Pull Request.
-5. Jelaskan perubahan, langkah pengujian, dan screenshot bila relevan.
+4. Pastikan `npm test` dan `npm run lint` lolos.
+5. Push dan buka Pull Request.
+6. Jelaskan perubahan, langkah pengujian, dan screenshot bila relevan.
 
 Mohon menjaga gaya kode yang sudah ada (Vanilla JS, template string, tanpa build step) dan tidak menambahkan secret/API key pribadi ke repository.
 
