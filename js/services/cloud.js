@@ -1181,7 +1181,7 @@ class CloudSync {
       this.setStatus('synced', 'Tersinkronisasi.');
       return { ok: true, revision };
     } catch (error) {
-      console.error('Cloud push failed:', error);
+      console.warn('Cloud push failed:', error?.message || error);
       this.lastError = error.message;
       this.pendingPush = true;
       this.setStatus('error', error.message);
