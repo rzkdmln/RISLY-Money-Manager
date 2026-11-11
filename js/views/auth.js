@@ -95,7 +95,7 @@ function lockView(user) {
           <input type="hidden" name="user" value="${escapeAttr(user.id)}">
           <label class="field-label" for="pin-input">PIN</label>
           <div class="pin-input-wrap ${locked ? 'is-locked' : ''}">
-            <input id="pin-input" class="pin-input" name="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="current-password" aria-label="PIN" ${locked ? 'disabled' : 'autofocus'} placeholder="••••">
+            <input id="pin-input" class="pin-input" name="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="current-password" aria-label="PIN" ${locked ? 'disabled' : 'autofocus'} placeholder="••••••">
             <button type="button" class="pin-eye" data-action="toggle-pin" aria-label="Tampilkan PIN">${icon('eye', 'w-4.5 h-4.5')}</button>
           </div>
           <p id="auth-error" class="auth-error ${locked ? '' : 'hidden'}" data-form-error role="alert">${locked ? `Terlalu banyak percobaan. Coba lagi dalam ${Math.ceil(lockRemaining / 1000)} detik.` : ''}</p>
