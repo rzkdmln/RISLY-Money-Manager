@@ -295,7 +295,7 @@ export function transactionForm(tx = null, defaults = {}) {
           <p class="receipt-hint">JPG atau PNG · maksimal 450 KB</p>
         </div>
 
-        <div class="receipt-upload-wrap ${receipt ? 'hidden' : ''}" data-receipt-upload>
+        <div class="receipt-upload-wrap ${receiptId ? 'hidden' : ''}" data-receipt-upload>
           <label class="receipt-upload-btn" aria-label="Pilih foto struk">
             <span class="receipt-upload-icon" aria-hidden="true">${icon('upload', 'w-4.5 h-4.5')}</span>
             <span class="receipt-upload-text">
