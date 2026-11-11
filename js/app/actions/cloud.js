@@ -129,16 +129,24 @@ export const cloudActions = {
     try {
       let result = await Cloud.syncNow();
       if (result?.local) {
-        const connected = await Cloud.connect(Cloud.getConfig());
-        if (connected?.ok) result = await Cloud.syncNow();
+        // Coba aktifkan sinkronisasi Firebase bawaan jika memungkinkan.
+        const connected = await Cloud.connect({
+          provider: 'firebase',
+          firebase: { path: `households/${APP.householdId}` },
+        });
+        if (connected?.ok && !connected?.skipped) result = await Cloud.syncNow();
         else result = connected;
       }
       if (result?.ok) {
         ui.appMounted = false;
         renderApplication();
         toast('Sinkronisasi cloud selesai.', 'success');
-      } else if (result?.local) {
-        toast('Sinkronisasi cloud belum diaktifkan.', 'info');
+      } else if (result?.local || result?.skipped) {
+        if (!store.currentUser) {
+          openAuthCloudModal();
+        } else {
+          toast('Sinkronisasi cloud belum diaktifkan.', 'info');
+        }
       } else {
         toast(result?.error?.message || 'Gagal menyinkronkan ke cloud.', 'error');
       }

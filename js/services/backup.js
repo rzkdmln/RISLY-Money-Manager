@@ -307,12 +307,17 @@ export function refreshDriveUi() {
 export async function ensureDriveAccess() {
   if (!GoogleDrive.isConnected()) {
     await appHooks.signInWithGoogleFlow();
-    return;
   }
   try {
     await GoogleDrive.token();
   } catch {
     await appHooks.signInWithGoogleFlow();
+    // Coba ambil token sekali lagi setelah masuk ulang.
+    try {
+      await GoogleDrive.token();
+    } catch {
+      /* biarkan pemanggil menangani error */
+    }
   }
 }
 

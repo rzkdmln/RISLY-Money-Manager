@@ -433,9 +433,8 @@ class CloudSync {
     try {
       const parsed = JSON.parse(localStorage.getItem(APP.cloudKey) || 'null');
       if (parsed?.provider === 'gdrive') {
-        // Google Drive is backup-only now. Keep the Google account link but
-        // stop the old automatic sync engine.
-        const migrated = { provider: 'local' };
+        // Google Drive is backup-only now. Migrate old sync to Firebase.
+        const migrated = { provider: 'firebase', firebase: { path: `households/${APP.householdId}` } };
         localStorage.setItem(APP.cloudKey, JSON.stringify(migrated));
         return migrated;
       }
@@ -607,6 +606,17 @@ class CloudSync {
   }
 
   async signInWithGoogle(accessToken) {
+    // Masuk dengan Google juga harus mengaktifkan sinkronisasi cloud (Firebase)
+    // bila sebelumnya nonaktif, agar backup/sync bisa berjalan otomatis.
+    if (this.config.provider === 'local') {
+      const next = { provider: 'firebase', firebase: { path: `households/${APP.householdId}` } };
+      this.config = next;
+      try {
+        localStorage.setItem(APP.cloudKey, JSON.stringify(next));
+      } catch {
+        /* noop */
+      }
+    }
     if (this.config.provider !== 'firebase') return null;
     try {
       const auth = await getFirebaseAuth();
@@ -761,7 +771,15 @@ class CloudSync {
       return { ok: true, local: true };
     }
     if (this.config.provider === 'firebase') {
-      const uid = waitForAuth ? await this.waitForFirebaseUser() : await this.getFirebaseUid();
+      let uid = waitForAuth ? await this.waitForFirebaseUser() : await this.getFirebaseUid();
+      if (!uid) {
+        try {
+          const { GoogleDrive } = await import('./gdrive.js');
+          uid = await this.signInWithGoogle(GoogleDrive?.accessToken || '');
+        } catch {
+          /* noop */
+        }
+      }
       if (!uid) {
         // Belum ada pengguna Firebase yang terkonfirmasi. Jangan sentuh RTDB
         // sebelum onAuthStateChanged mengonfirmasi user, karena aturan keamanan
@@ -836,7 +854,15 @@ class CloudSync {
     this.setStatus('connecting', 'Menghubungkan…');
     try {
       if (this.config.provider === 'firebase') {
-        const uid = await this.getFirebaseUid();
+        let uid = await this.getFirebaseUid();
+        if (!uid) {
+          try {
+            const { GoogleDrive } = await import('./gdrive.js');
+            uid = await this.signInWithGoogle(GoogleDrive?.accessToken || '');
+          } catch {
+            /* noop */
+          }
+        }
         if (!uid) {
           // Belum ada pengguna Firebase yang terkonfirmasi. Jangan baca RTDB
           // (mis. households/risly-family) tanpa auth — aturan keamanan
@@ -1133,6 +1159,14 @@ class CloudSync {
         await this.getFirebaseUid();
       } catch {
         /* noop */
+      }
+      if (!this.firebaseUid) {
+        try {
+          const { GoogleDrive } = await import('./gdrive.js');
+          await this.signInWithGoogle(GoogleDrive?.accessToken || '');
+        } catch {
+          /* noop */
+        }
       }
       if (!this.firebaseUid) return { ok: false, skipped: true };
     }

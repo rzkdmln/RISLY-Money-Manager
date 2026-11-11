@@ -379,7 +379,25 @@ class GoogleDriveClient {
 
     if (this.accessToken && this.expiresAt - 60_000 > Date.now()) return this.accessToken;
 
-    // Jika token kadaluwarsa di iOS PWA, kosongkan token dan minta pengguna menekan tombol login Google lagi
+    // Coba refresh diam-diam (silent) selama Google masih memiliki sesi aktif.
+    // Ini mencegah 401 "Sesi Google berakhir" meskipun pengguna sudah masuk.
+    try {
+      await this.prepare();
+      if (this.tokenClient) {
+        const response = await this.openTokenClient(this.tokenClient, 'none');
+        if (response?.access_token) {
+          this.accessToken = response.access_token;
+          this.expiresAt = Date.now() + (Number(response.expires_in) || 3600) * 1000;
+          gdriveStore('risly_access_token', this.accessToken, 1);
+          gdriveStore('risly_token_expires_at', String(this.expiresAt), 1);
+          return this.accessToken;
+        }
+      }
+    } catch (error) {
+      console.warn('Refresh token Google secara diam-diam gagal:', error?.message || error);
+    }
+
+    // Refresh diam-diam gagal: kosongkan token dan minta masuk ulang.
     this.accessToken = '';
     this.expiresAt = 0;
     gdriveStore('risly_access_token', null);
@@ -407,16 +425,27 @@ class GoogleDriveClient {
   /*  Drive REST v3                                                          */
   /* ---------------------------------------------------------------------- */
 
-  async request(url, { method = 'GET', token, body, headers = {} } = {}) {
+  async request(url, { method = 'GET', token, body, headers = {} } = {}, retry = true) {
+    const authToken = token || this.accessToken || (await this.token().catch(() => ''));
     const response = await fetch(url, {
       method,
-      headers: { Authorization: `Bearer ${token}`, ...headers },
+      headers: { Authorization: `Bearer ${authToken}`, ...headers },
       body,
       cache: 'no-store',
     });
     if (response.status === 401) {
       this.accessToken = '';
       this.expiresAt = 0;
+      gdriveStore('risly_access_token', null);
+      gdriveStore('risly_token_expires_at', null);
+      if (retry) {
+        try {
+          const freshToken = await this.token();
+          return this.request(url, { method, token: freshToken, body, headers }, false);
+        } catch (error) {
+          throw new DriveAuthError('Sesi Google berakhir. Masuk dengan Google lagi.');
+        }
+      }
       throw new DriveAuthError('Sesi Google berakhir. Masuk dengan Google lagi.');
     }
     if (!response.ok) {
