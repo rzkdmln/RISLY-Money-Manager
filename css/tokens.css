@@ -3,6 +3,43 @@
    Design tokens are CSS variables so light/dark stay consistent.
    ========================================================================== */
 
+/* Plus Jakarta Sans — self-hosted (vendor/fonts/plus-jakarta-sans/) */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('../vendor/fonts/plus-jakarta-sans/PJS-300.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../vendor/fonts/plus-jakarta-sans/PJS-400.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../vendor/fonts/plus-jakarta-sans/PJS-500.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../vendor/fonts/plus-jakarta-sans/PJS-600.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../vendor/fonts/plus-jakarta-sans/PJS-700.ttf') format('truetype');
+}
+
 :root {
   --bg: #f5f7fb;
   --bg-soft: #eef2f9;
@@ -26,16 +63,18 @@
   --amber-soft: #fffbeb;
   --violet: #7c3aed;
   --cyan: #0891b2;
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px -18px rgba(15, 23, 42, .22);
-  --shadow-md: 0 2px 5px rgba(15, 23, 42, .04), 0 20px 45px -26px rgba(15, 23, 42, .3);
-  --shadow-lg: 0 28px 70px -30px rgba(15, 23, 42, .45);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -18px rgba(15, 23, 42, 0.22);
+  --shadow-md: 0 2px 5px rgba(15, 23, 42, 0.04), 0 20px 45px -26px rgba(15, 23, 42, 0.3);
+  --shadow-lg: 0 28px 70px -30px rgba(15, 23, 42, 0.45);
   --radius-sm: 10px;
   --radius: 16px;
   --radius-lg: 20px;
   --radius-xl: 26px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --font: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font:
+    'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
 }
 
 .dark {
@@ -52,17 +91,16 @@
   --muted-2: #64748b;
   --brand: #60a5fa;
   --brand-2: #818cf8;
-  --brand-soft: rgba(59, 130, 246, .12);
+  --brand-soft: rgba(59, 130, 246, 0.12);
   --green: #34d399;
-  --green-soft: rgba(16, 185, 129, .12);
+  --green-soft: rgba(16, 185, 129, 0.12);
   --red: #fb7185;
-  --red-soft: rgba(244, 63, 94, .12);
+  --red-soft: rgba(244, 63, 94, 0.12);
   --amber: #fbbf24;
-  --amber-soft: rgba(245, 158, 11, .12);
+  --amber-soft: rgba(245, 158, 11, 0.12);
   --violet: #a78bfa;
   --cyan: #22d3ee;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .18), 0 8px 24px -16px rgba(0, 0, 0, .5);
-  --shadow-md: 0 2px 6px rgba(0, 0, 0, .22), 0 24px 50px -28px rgba(0, 0, 0, .7);
-  --shadow-lg: 0 30px 80px -30px rgba(0, 0, 0, .8);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.18), 0 8px 24px -16px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.22), 0 24px 50px -28px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 30px 80px -30px rgba(0, 0, 0, 0.8);
 }
-
