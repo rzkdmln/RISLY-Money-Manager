@@ -329,6 +329,33 @@ class FirebaseAdapter {
     });
   }
 
+  /* --- Pemetaan akun Google -> household, agar melekat lintas perangkat --- */
+  async readUserHousehold(uid) {
+    const clean = String(uid || '').trim();
+    if (!clean) return null;
+    try {
+      const body = await requestJSON(await this.urlFor(`userHouseholds/${clean}`), {
+        method: 'GET',
+        cache: 'no-store',
+      });
+      const householdUid = body?.householdUid || body?.household || null;
+      return householdUid ? String(householdUid) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async writeUserHousehold(uid, householdUid) {
+    const clean = String(uid || '').trim();
+    const target = String(householdUid || '').trim();
+    if (!clean || !target) return null;
+    return requestJSON(await this.urlFor(`userHouseholds/${clean}`), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ householdUid: target, updatedAt: nowISO() }),
+    });
+  }
+
   async read() {
     const body = await requestJSON(await this.endpoint(), {
       method: 'GET',
@@ -463,6 +490,37 @@ class CloudSync {
       if (map[String(uid)] === String(householdUid)) return;
       map[String(uid)] = String(householdUid);
       localStorage.setItem(APP.cloudHouseholdsKey, JSON.stringify(map));
+    } catch {
+      /* noop */
+    }
+  }
+
+  /**
+   * Pulihkan pemetaan household dari cloud agar akun yang sama di perangkat
+   * baru langsung masuk ke household yang melekat, bukan membuat ruang baru.
+   */
+  async syncMembershipFromCloud(uid) {
+    if (!uid || this.config.provider !== 'firebase') return;
+    if (this.rememberedHousehold(uid)) return;
+    try {
+      const adapter =
+        this.adapter ||
+        new FirebaseAdapter(this.config.provider === 'firebase' ? this.config : { provider: 'firebase' });
+      const householdUid = await adapter.readUserHousehold(uid);
+      if (householdUid) this.rememberHousehold(uid, householdUid);
+    } catch {
+      /* noop */
+    }
+  }
+
+  /** Simpan pemetaan household ke cloud (best-effort). */
+  writeMembershipToCloud(uid, householdUid) {
+    if (!uid || !householdUid || this.config.provider !== 'firebase') return;
+    try {
+      const adapter =
+        this.adapter ||
+        new FirebaseAdapter(this.config.provider === 'firebase' ? this.config : { provider: 'firebase' });
+      void adapter.writeUserHousehold(uid, householdUid).catch(() => {});
     } catch {
       /* noop */
     }
@@ -681,6 +739,10 @@ class CloudSync {
     localStorage.setItem(APP.cloudKey, JSON.stringify(next));
     this.config = next;
     this.firebaseUid = uid;
+    // Simpan pemetaan household ke cloud agar akun yang sama di perangkat
+    // baru langsung masuk ke household ini.
+    const householdUid = this.getHouseholdUid();
+    if (householdUid) this.writeMembershipToCloud(uid, householdUid);
     if (changed) {
       this.connected = false;
       this.setStatus('idle', 'Menunggu sinkronisasi…');
@@ -790,6 +852,7 @@ class CloudSync {
         this.setStatus('idle', 'Menunggu autentikasi Firebase…');
         return { ok: true, skipped: true };
       }
+      await this.syncMembershipFromCloud(uid);
       this.firebaseUid = uid;
       const next = this.firebaseConfigFor(uid, this.config);
       const changed = JSON.stringify(this.config) !== JSON.stringify(next);
@@ -873,6 +936,7 @@ class CloudSync {
           this.setStatus('idle', 'Menunggu autentikasi Firebase…');
           return { ok: true, skipped: true };
         }
+        await this.syncMembershipFromCloud(uid);
         this.firebaseUid = uid;
         // Path per-rumah tangga. Untuk anggota yang sudah bergabung, path
         // mengarah ke household pemilik (disimpan di config), bukan ke UID
@@ -1236,6 +1300,7 @@ class CloudSync {
         firebase: { path: `households/${uid}`, householdUid: uid, uid },
       };
       this.rememberHousehold(uid, uid);
+      this.writeMembershipToCloud(uid, uid);
       this.stopEngine();
       if (this.adapter?.destroy) {
         try {
@@ -1348,6 +1413,7 @@ class CloudSync {
       firebase: { path: `households/${target}`, householdUid: target, uid },
     };
     this.rememberHousehold(uid, target);
+    this.writeMembershipToCloud(uid, target);
     this.stopEngine();
     if (this.adapter?.destroy) {
       try {

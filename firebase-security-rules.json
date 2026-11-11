@@ -87,5 +87,13 @@
         ".validate": "newData.isObject() && newData.hasChildren(['ownerUid', 'householdName', 'updatedAt', 'expiresAt'])"
       }
     }
+  },
+
+  "userHouseholds": {
+    "$uid": {
+      ".read": "auth != null && auth.uid === $uid",
+      ".write": "auth != null && auth.uid === $uid",
+      ".validate": "newData.isObject() && newData.hasChildren(['householdUid'])"
+    }
   }
 }

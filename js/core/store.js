@@ -151,6 +151,7 @@ export class Store {
     this._conflictLog = [];
     this._encryptionKey = null;
     this._encrypted = false;
+    this._preferRemoteSettings = false;
   }
 
   async init() {
@@ -600,6 +601,8 @@ export class Store {
       this.persist();
     }
 
+    this._preferRemoteSettings = false;
+
     return {
       user,
       workspaceId: this.workspaceId,
@@ -617,6 +620,9 @@ export class Store {
   prepareHouseholdJoin() {
     if (!this.data?.settings) return;
     this.data.settings.updatedAt = new Date(0).toISOString();
+    // Tandai agar mergeRemote memilih pengaturan remote (pemilik) meskipun
+    // timestamp-nya seri atau lebih awal dari lokal.
+    this._preferRemoteSettings = true;
   }
 
   async openLastWorkspace() {
@@ -2778,7 +2784,10 @@ export class Store {
     mergedClosed.sort((a, b) => String(b?.month || '').localeCompare(String(a?.month || '')));
     draft.closedMonths = mergedClosed;
 
-    if (recordStamp(remote.settings) > recordStamp(draft.settings)) {
+    if (this._preferRemoteSettings && remote.settings) {
+      draft.settings = remote.settings;
+      this._preferRemoteSettings = false;
+    } else if (recordStamp(remote.settings) > recordStamp(draft.settings)) {
       draft.settings = remote.settings;
     } else if (remote.settings) {
       draft.settings = {
