@@ -355,13 +355,7 @@ Workflow `.github/workflows/static.yml` otomatis men-deploy branch `main` ke Git
 3. Push ke `main`.
 4. Pastikan domain GitHub Pages ditambahkan ke Authorized origins/redirect URI Google OAuth.
 
-### Netlify
-
-`netlify.toml` sudah menyiapkan:
-
-- Publish directory: `.` (root repo).
-- Header keamanan: `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`.
-- Cache control untuk `sw.js`, `index.html`, CSS, JS, dan ikon.
+> **Catatan:** GitHub Pages **tidak memproses berkas `_headers`** untuk custom header keamanan (CSP, HSTS, X-Frame-Options, dll.). Berkas `_headers` di repo disimpan sebagai dokumentasi dan akan bekerja jika Anda pindah ke Cloudflare Pages (yang mendukung `_headers`). Untuk menempatkan header keamanan pada GitHub Pages, gunakan layanan di depan GitHub Pages (mis. Cloudflare) atau terima keterbatasan header bawaan.
 
 ### Hosting statis lain
 
@@ -369,7 +363,7 @@ Deploy seluruh isi repo ke hosting statis apa pun (Cloudflare Pages, Vercel, dsb
 
 - HTTPS aktif (wajib untuk service worker, Web Crypto, dan Google OAuth).
 - `sw.js` disajikan dari root domain.
-- Header keamanan dari `_headers` didukung atau direplikasi.
+- Header keamanan dari `_headers` didukung atau direplikasi (Cloudflare Pages mendukung `_headers` secara native).
 
 ---
 
