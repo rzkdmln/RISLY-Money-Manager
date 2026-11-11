@@ -16,8 +16,15 @@ import {
 const SEED_DATE = '2025-01-01T00:00:00.000Z';
 
 export function initialsFromName(name) {
-  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
-  const initials = parts.slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+  const parts = String(name || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  const initials = parts
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
   return initials || '?';
 }
 
@@ -26,7 +33,9 @@ export function generateInviteCode() {
   const bytes = new Uint8Array(6);
   crypto.getRandomValues(bytes);
   let code = '';
-  bytes.forEach((byte) => { code += alphabet[byte % alphabet.length]; });
+  bytes.forEach((byte) => {
+    code += alphabet[byte % alphabet.length];
+  });
   return code;
 }
 
@@ -182,7 +191,9 @@ export function defaultUsers(owner = null) {
       name,
       color: owner?.color || '#2563EB',
       initials: initialsFromName(name),
-      googleEmail: String(owner?.email || '').trim().toLowerCase(),
+      googleEmail: String(owner?.email || '')
+        .trim()
+        .toLowerCase(),
       picture: String(owner?.picture || ''),
       pinHash: '',
       pinSalt: '',
@@ -237,7 +248,10 @@ function pickDefined(target, source) {
 }
 
 function normalizedUserName(value) {
-  return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  return String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
 }
 
 function userReferenceCount(data, userId) {
@@ -274,8 +288,10 @@ function mergeDuplicateUser(data, duplicate, canonical, remap, now) {
   duplicate.deletedAt = now;
   duplicate.updatedAt = now;
   duplicate.mergedInto = canonical.id;
-  if (!canonical.googleEmail && duplicate.googleEmail) canonical.googleEmail = duplicate.googleEmail;
-  if (!canonical.firebaseUid && duplicate.firebaseUid) canonical.firebaseUid = duplicate.firebaseUid;
+  if (!canonical.googleEmail && duplicate.googleEmail)
+    canonical.googleEmail = duplicate.googleEmail;
+  if (!canonical.firebaseUid && duplicate.firebaseUid)
+    canonical.firebaseUid = duplicate.firebaseUid;
   if (!canonical.picture && duplicate.picture) canonical.picture = duplicate.picture;
   if (!canonical.pinHash && duplicate.pinHash) {
     canonical.pinHash = duplicate.pinHash;
@@ -318,7 +334,9 @@ export function dedupeUsers(data) {
   // 1. The same Google email always means the same person.
   const byEmail = new Map();
   activeUsers().forEach((user) => {
-    const email = String(user.googleEmail || '').trim().toLowerCase();
+    const email = String(user.googleEmail || '')
+      .trim()
+      .toLowerCase();
     if (!email) return;
     if (!byEmail.has(email)) byEmail.set(email, []);
     byEmail.get(email).push(user);
@@ -387,13 +405,18 @@ export function migrateData(raw) {
   const settings = { ...defaults.settings, ...(data.settings || {}) };
   settings.householdName = String(settings.householdName || defaults.settings.householdName);
   settings.workspaceName = String(settings.workspaceName || settings.householdName);
-  settings.ownerEmail = String(settings.ownerEmail || '').trim().toLowerCase();
+  settings.ownerEmail = String(settings.ownerEmail || '')
+    .trim()
+    .toLowerCase();
   settings.inviteCode = String(settings.inviteCode || defaults.settings.inviteCode).toUpperCase();
   settings.currency = 'IDR';
   settings.locale = 'id-ID';
   settings.defaultMonthlyBudget = Math.max(0, Number(settings.defaultMonthlyBudget) || 0);
   settings.budgetWarning = Math.min(99, Math.max(1, Number(settings.budgetWarning) || 75));
-  settings.budgetDanger = Math.min(100, Math.max(settings.budgetWarning + 1, Number(settings.budgetDanger) || 90));
+  settings.budgetDanger = Math.min(
+    100,
+    Math.max(settings.budgetWarning + 1, Number(settings.budgetDanger) || 90)
+  );
   settings.weekStartsOn = Number(settings.weekStartsOn) === 0 ? 0 : 1;
   settings.autoLockMinutes = Math.max(0, Number(settings.autoLockMinutes) || 0);
   settings.updatedAt = settings.updatedAt || data.updatedAt;
@@ -408,7 +431,9 @@ export function migrateData(raw) {
       name,
       color: user?.color || '#2563EB',
       initials: String(user?.initials || initialsFromName(name)),
-      googleEmail: String(user?.googleEmail || '').trim().toLowerCase(),
+      googleEmail: String(user?.googleEmail || '')
+        .trim()
+        .toLowerCase(),
       picture: String(user?.picture || ''),
       pinHash: String(user?.pinHash || ''),
       pinSalt: String(user?.pinSalt || ''),
@@ -442,16 +467,20 @@ export function migrateData(raw) {
     loanMonthlyPayment: Number(account.loanMonthlyPayment) || 0,
     loanStartDate: account.loanStartDate || null,
     loanNextDueDate: account.loanNextDueDate || null,
-    loanRemaining: account.loanRemaining === undefined ? Number(account.loanPrincipal) || 0 : Number(account.loanRemaining) || 0,
+    loanRemaining:
+      account.loanRemaining === undefined
+        ? Number(account.loanPrincipal) || 0
+        : Number(account.loanRemaining) || 0,
     archived: Boolean(account.archived),
     createdAt: account.createdAt || data.updatedAt,
     updatedAt: account.updatedAt || data.updatedAt,
     ...(account.deletedAt ? { deletedAt: account.deletedAt } : {}),
   }));
 
-  data.categories = Array.isArray(data.categories) && data.categories.length
-    ? data.categories
-    : defaultCategories();
+  data.categories =
+    Array.isArray(data.categories) && data.categories.length
+      ? data.categories
+      : defaultCategories();
   data.categories = data.categories.map((cat) => ({
     id: cat.id || uid('cat'),
     type: cat.type === 'income' ? 'income' : 'expense',
@@ -460,11 +489,11 @@ export function migrateData(raw) {
     color: cat.color || '#64748B',
     subcategories: Array.isArray(cat.subcategories)
       ? cat.subcategories.map((sub) => ({
-        id: sub.id || uid('sub'),
-        name: String(sub.name || 'Subkategori'),
-        updatedAt: sub.updatedAt || cat.updatedAt || data.updatedAt,
-        ...(sub.deletedAt ? { deletedAt: sub.deletedAt } : {}),
-      }))
+          id: sub.id || uid('sub'),
+          name: String(sub.name || 'Subkategori'),
+          updatedAt: sub.updatedAt || cat.updatedAt || data.updatedAt,
+          ...(sub.deletedAt ? { deletedAt: sub.deletedAt } : {}),
+        }))
       : [],
     createdAt: cat.createdAt || data.updatedAt,
     updatedAt: cat.updatedAt || data.updatedAt,
@@ -484,21 +513,43 @@ export function migrateData(raw) {
     subcategoryId: tx.subcategoryId || null,
     note: String(tx.note || ''),
     payee: String(tx.payee || '').trim(),
-    tags: Array.isArray(tx.tags) ? tx.tags.map(String).map((t) => t.trim()).filter(Boolean).slice(0, 20) : [],
-    splits: Array.isArray(tx.splits) ? tx.splits.map((s) => ({
-      categoryId: s?.categoryId || null,
-      subcategoryId: s?.subcategoryId || null,
-      amount: Math.max(0, Number(s?.amount) || 0),
-      note: String(s?.note || '').trim(),
-    })).filter((s) => s.amount > 0) : [],
-    payments: Array.isArray(tx.payments) ? tx.payments.map((payment) => ({
-      accountId: payment?.accountId || null,
-      memberId: payment?.memberId || null,
-      amount: Math.max(0, Number(payment?.amount) || 0),
-    })).filter((payment) => payment.accountId && payment.amount > 0) : [],
-    receipt: typeof tx.receipt === 'string' ? tx.receipt : null,
+    tags: Array.isArray(tx.tags)
+      ? tx.tags
+          .map(String)
+          .map((t) => t.trim())
+          .filter(Boolean)
+          .slice(0, 20)
+      : [],
+    splits: Array.isArray(tx.splits)
+      ? tx.splits
+          .map((s) => ({
+            categoryId: s?.categoryId || null,
+            subcategoryId: s?.subcategoryId || null,
+            amount: Math.max(0, Number(s?.amount) || 0),
+            note: String(s?.note || '').trim(),
+          }))
+          .filter((s) => s.amount > 0)
+      : [],
+    payments: Array.isArray(tx.payments)
+      ? tx.payments
+          .map((payment) => ({
+            accountId: payment?.accountId || null,
+            memberId: payment?.memberId || null,
+            amount: Math.max(0, Number(payment?.amount) || 0),
+          }))
+          .filter((payment) => payment.accountId && payment.amount > 0)
+      : [],
+    receiptId: typeof tx.receiptId === 'string' ? tx.receiptId : null,
+    receipt:
+      typeof tx.receipt === 'string' && tx.receipt.startsWith('data:') && !tx.receiptId
+        ? tx.receipt
+        : null,
     createdBy: tx.createdBy || data.users[0]?.id || 'owner',
-    createdByName: tx.createdByName || data.users.find((user) => user.id === tx.createdBy)?.name || data.users[0]?.name || 'Pengguna',
+    createdByName:
+      tx.createdByName ||
+      data.users.find((user) => user.id === tx.createdBy)?.name ||
+      data.users[0]?.name ||
+      'Pengguna',
     createdAt: tx.createdAt || data.updatedAt,
     updatedAt: tx.updatedAt || data.updatedAt,
     updatedBy: tx.updatedBy || tx.createdBy || null,
@@ -529,9 +580,14 @@ export function migrateData(raw) {
     categoryId: rule.categoryId || null,
     subcategoryId: rule.subcategoryId || null,
     note: String(rule.note || ''),
-    frequency: ['daily', 'weekly', 'monthly', 'yearly'].includes(rule.frequency) ? rule.frequency : 'monthly',
+    frequency: ['daily', 'weekly', 'monthly', 'yearly'].includes(rule.frequency)
+      ? rule.frequency
+      : 'monthly',
     interval: Math.max(1, Number(rule.interval) || 1),
-    anchorDay: Number(rule.anchorDay) || Number(String(rule.nextDate || rule.startDate || todayISO()).slice(8, 10)) || 1,
+    anchorDay:
+      Number(rule.anchorDay) ||
+      Number(String(rule.nextDate || rule.startDate || todayISO()).slice(8, 10)) ||
+      1,
     nextDate: rule.nextDate || rule.startDate || todayISO(),
     startDate: rule.startDate || rule.nextDate || todayISO(),
     endDate: rule.endDate || null,
@@ -539,7 +595,11 @@ export function migrateData(raw) {
     active: rule.active !== false,
     lastRunDate: rule.lastRunDate || null,
     createdBy: rule.createdBy || data.users[0]?.id || 'owner',
-    createdByName: rule.createdByName || data.users.find((user) => user.id === rule.createdBy)?.name || data.users[0]?.name || 'Pengguna',
+    createdByName:
+      rule.createdByName ||
+      data.users.find((user) => user.id === rule.createdBy)?.name ||
+      data.users[0]?.name ||
+      'Pengguna',
     createdAt: rule.createdAt || data.updatedAt,
     updatedAt: rule.updatedAt || data.updatedAt,
     ...(rule.deletedAt ? { deletedAt: rule.deletedAt } : {}),
@@ -557,20 +617,26 @@ export function migrateData(raw) {
     tags: Array.isArray(note.tags) ? note.tags.map(String).filter(Boolean).slice(0, 20) : [],
     items: Array.isArray(note.items)
       ? note.items.map((item) => ({
-        id: item.id || uid('item'),
-        text: String(item.text || ''),
-        done: Boolean(item.done),
-      }))
+          id: item.id || uid('item'),
+          text: String(item.text || ''),
+          done: Boolean(item.done),
+        }))
       : [],
     done: Boolean(note.done),
     dueDate: note.dueDate || null,
     reminderAt: note.reminderAt || null,
     lastNotifiedAt: note.lastNotifiedAt || null,
-    priority: ['low', 'normal', 'high', 'urgent'].includes(note.priority) ? note.priority : 'normal',
+    priority: ['low', 'normal', 'high', 'urgent'].includes(note.priority)
+      ? note.priority
+      : 'normal',
     status: ['active', 'archived', 'trashed'].includes(note.status) ? note.status : 'active',
     order: Number(note.order) || 0,
     createdBy: note.createdBy || data.users[0]?.id || 'owner',
-    createdByName: note.createdByName || data.users.find((user) => user.id === note.createdBy)?.name || data.users[0]?.name || 'Pengguna',
+    createdByName:
+      note.createdByName ||
+      data.users.find((user) => user.id === note.createdBy)?.name ||
+      data.users[0]?.name ||
+      'Pengguna',
     createdAt: note.createdAt || data.updatedAt,
     updatedAt: note.updatedAt || data.updatedAt,
     completedAt: note.completedAt || null,
@@ -592,15 +658,19 @@ export function migrateData(raw) {
   }));
 
   data.netWorthHistory = Array.isArray(data.netWorthHistory) ? data.netWorthHistory : [];
-  data.netWorthHistory = data.netWorthHistory.map((entry) => ({
-    month: String(entry.month || ''),
-    value: Number(entry.value) || 0,
-    recordedAt: entry.recordedAt || data.updatedAt,
-  })).filter((entry) => /^\d{4}-\d{2}$/.test(entry.month));
+  data.netWorthHistory = data.netWorthHistory
+    .map((entry) => ({
+      month: String(entry.month || ''),
+      value: Number(entry.value) || 0,
+      recordedAt: entry.recordedAt || data.updatedAt,
+    }))
+    .filter((entry) => /^\d{4}-\d{2}$/.test(entry.month));
 
   data.closedMonths = Array.isArray(data.closedMonths) ? data.closedMonths : [];
   data.closedMonths = data.closedMonths
-    .filter((entry) => entry && typeof entry.month === 'string' && /^\d{4}-\d{2}$/.test(entry.month))
+    .filter(
+      (entry) => entry && typeof entry.month === 'string' && /^\d{4}-\d{2}$/.test(entry.month)
+    )
     .map((entry) => ({
       month: String(entry.month || ''),
       closedAt: entry.closedAt || data.updatedAt,
@@ -616,12 +686,12 @@ export function migrateData(raw) {
       count: Number(entry.count) || 0,
     }));
 
-    data.budgets = Array.isArray(data.budgets) ? data.budgets : [];
-    data.budgets = data.budgets.map((budget) => ({
-      ...budget,
-      carriedFrom: typeof budget.carriedFrom === 'string' ? budget.carriedFrom : null,
-      carriedAt: typeof budget.carriedAt === 'string' ? budget.carriedAt : null,
-    }));
+  data.budgets = Array.isArray(data.budgets) ? data.budgets : [];
+  data.budgets = data.budgets.map((budget) => ({
+    ...budget,
+    carriedFrom: typeof budget.carriedFrom === 'string' ? budget.carriedFrom : null,
+    carriedAt: typeof budget.carriedAt === 'string' ? budget.carriedAt : null,
+  }));
 
   dedupeUsers(data);
 
@@ -669,24 +739,168 @@ export function createSampleData(base, actor = {}) {
     const key = shiftMonthKey(current, -offset);
     const baseDate = `${key}-01`;
     const incomeDate = offset === 0 ? `${key}-25` : `${key}-25`;
-    txList.push(tx(incomeDate, 'income', 8_500_000, bank.id, 'cat-inc-salary', 'sub-salary-rizki', 'Gaji utama'));
-    txList.push(tx(incomeDate, 'income', 5_750_000, bank.id, 'cat-inc-salary', 'sub-salary-shelly', 'Gaji pasangan'));
-    txList.push(tx(`${key}-03`, 'expense', 1_850_000, bank.id, 'cat-exp-home', 'sub-home-utility', 'Listrik, air, dan internet'));
-    txList.push(tx(`${key}-05`, 'expense', 1_450_000, bank.id, 'cat-exp-food', 'sub-food-grocery', 'Belanja bulanan'));
-    txList.push(tx(`${key}-08`, 'expense', 650_000, cash.id, 'cat-exp-transport', 'sub-transport-fuel', 'Bensin mobil'));
-    txList.push(tx(`${key}-11`, 'expense', 425_000, wallet.id, 'cat-exp-food', 'sub-food-dining', 'Makan akhir pekan'));
-    txList.push(tx(`${key}-14`, 'transfer', 1_000_000, bank.id, null, null, 'Tabungan rutin', { toAccountId: savings.id }));
-    txList.push(tx(`${key}-17`, 'expense', 325_000, wallet.id, 'cat-exp-fun', 'sub-fun-subscription', 'Langganan hiburan'));
-    txList.push(tx(`${key}-20`, 'expense', 780_000, bank.id, 'cat-exp-family', 'sub-family-kids', 'Kebutuhan anak'));
+    txList.push(
+      tx(
+        incomeDate,
+        'income',
+        8_500_000,
+        bank.id,
+        'cat-inc-salary',
+        'sub-salary-rizki',
+        'Gaji utama'
+      )
+    );
+    txList.push(
+      tx(
+        incomeDate,
+        'income',
+        5_750_000,
+        bank.id,
+        'cat-inc-salary',
+        'sub-salary-shelly',
+        'Gaji pasangan'
+      )
+    );
+    txList.push(
+      tx(
+        `${key}-03`,
+        'expense',
+        1_850_000,
+        bank.id,
+        'cat-exp-home',
+        'sub-home-utility',
+        'Listrik, air, dan internet'
+      )
+    );
+    txList.push(
+      tx(
+        `${key}-05`,
+        'expense',
+        1_450_000,
+        bank.id,
+        'cat-exp-food',
+        'sub-food-grocery',
+        'Belanja bulanan'
+      )
+    );
+    txList.push(
+      tx(
+        `${key}-08`,
+        'expense',
+        650_000,
+        cash.id,
+        'cat-exp-transport',
+        'sub-transport-fuel',
+        'Bensin mobil'
+      )
+    );
+    txList.push(
+      tx(
+        `${key}-11`,
+        'expense',
+        425_000,
+        wallet.id,
+        'cat-exp-food',
+        'sub-food-dining',
+        'Makan akhir pekan'
+      )
+    );
+    txList.push(
+      tx(`${key}-14`, 'transfer', 1_000_000, bank.id, null, null, 'Tabungan rutin', {
+        toAccountId: savings.id,
+      })
+    );
+    txList.push(
+      tx(
+        `${key}-17`,
+        'expense',
+        325_000,
+        wallet.id,
+        'cat-exp-fun',
+        'sub-fun-subscription',
+        'Langganan hiburan'
+      )
+    );
+    txList.push(
+      tx(
+        `${key}-20`,
+        'expense',
+        780_000,
+        bank.id,
+        'cat-exp-family',
+        'sub-family-kids',
+        'Kebutuhan anak'
+      )
+    );
     if (offset % 2 === 0) {
-      txList.push(tx(`${key}-22`, 'income', 750_000, bank.id, 'cat-inc-business', 'sub-business-commission', 'Komisi proyek'));
-      txList.push(tx(`${key}-23`, 'expense', 540_000, bank.id, 'cat-exp-health', 'sub-health-medicine', 'Vitamin dan obat'));
+      txList.push(
+        tx(
+          `${key}-22`,
+          'income',
+          750_000,
+          bank.id,
+          'cat-inc-business',
+          'sub-business-commission',
+          'Komisi proyek'
+        )
+      );
+      txList.push(
+        tx(
+          `${key}-23`,
+          'expense',
+          540_000,
+          bank.id,
+          'cat-exp-health',
+          'sub-health-medicine',
+          'Vitamin dan obat'
+        )
+      );
     }
     if (offset === 0) {
-      txList.push(tx(`${key}-02`, 'expense', 120_000, cash.id, 'cat-exp-food', 'sub-food-coffee', 'Kopi dan camilan'));
-      txList.push(tx(`${key}-06`, 'expense', 95_000, wallet.id, 'cat-exp-transport', 'sub-transport-parking', 'Parkir dan tol'));
-      txList.push(tx(`${key}-09`, 'expense', 250_000, wallet.id, 'cat-exp-shopping', 'sub-shop-household', 'Perlengkapan rumah'));
-      txList.push(tx(`${key}-12`, 'income', 350_000, bank.id, 'cat-inc-gift', 'sub-gift-cashback', 'Cashback kartu'));
+      txList.push(
+        tx(
+          `${key}-02`,
+          'expense',
+          120_000,
+          cash.id,
+          'cat-exp-food',
+          'sub-food-coffee',
+          'Kopi dan camilan'
+        )
+      );
+      txList.push(
+        tx(
+          `${key}-06`,
+          'expense',
+          95_000,
+          wallet.id,
+          'cat-exp-transport',
+          'sub-transport-parking',
+          'Parkir dan tol'
+        )
+      );
+      txList.push(
+        tx(
+          `${key}-09`,
+          'expense',
+          250_000,
+          wallet.id,
+          'cat-exp-shopping',
+          'sub-shop-household',
+          'Perlengkapan rumah'
+        )
+      );
+      txList.push(
+        tx(
+          `${key}-12`,
+          'income',
+          350_000,
+          bank.id,
+          'cat-inc-gift',
+          'sub-gift-cashback',
+          'Cashback kartu'
+        )
+      );
     }
   }
 
@@ -774,7 +988,8 @@ export function createSampleData(base, actor = {}) {
       id: uid('demo_note'),
       kind: 'note',
       title: 'Rencana akhir pekan',
-      content: '<div>Sabtu pagi: <strong>belanja bulanan</strong> di pasar.</div><div>Minggu: istirahat dan masak bersama.</div><div><br></div><div>Jangan lupa cek promo supermarket. 🛒</div>',
+      content:
+        '<div>Sabtu pagi: <strong>belanja bulanan</strong> di pasar.</div><div>Minggu: istirahat dan masak bersama.</div><div><br></div><div>Jangan lupa cek promo supermarket. 🛒</div>',
       color: 'yellow',
       pinned: true,
       favorite: true,
@@ -839,7 +1054,7 @@ export function createSampleData(base, actor = {}) {
       createdByName: byName,
       createdAt: now,
       updatedAt: now,
-    },
+    }
   );
 
   data.updatedAt = now;

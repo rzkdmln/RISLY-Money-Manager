@@ -28,7 +28,8 @@ import { appHooks } from '../app/hooks.js';
 /*  Local backup                                                            */
 /* ------------------------------------------------------------------------ */
 
-export function backupNow() {
+export async function backupNow() {
+  const receipts = await store.exportReceipts();
   const payload = {
     app: 'risly-money-manager',
     kind: 'risly-backup',
@@ -36,9 +37,10 @@ export function backupNow() {
     schemaVersion: APP.schemaVersion,
     exportedAt: nowISO(),
     data: store.exportSnapshot(),
+    receipts,
   };
   downloadJSON(payload, `RISLY-backup-${localDateISO()}.json`);
-  toast('Backup JSON berhasil diunduh.', 'success');
+  toast(`Backup JSON berhasil diunduh (${receipts.length} struk).`, 'success');
 }
 
 export function pickBackupFile() {
@@ -57,7 +59,9 @@ export function pickBackupFile() {
         throw new Error('File bukan backup RISLY yang valid.');
       }
       if (!parsed.schemaVersion || Number(parsed.schemaVersion) > APP.schemaVersion) {
-        throw new Error(`Versi skema backup (${parsed.schemaVersion}) tidak didukung oleh aplikasi ini (v${APP.schemaVersion}).`);
+        throw new Error(
+          `Versi skema backup (${parsed.schemaVersion}) tidak didukung oleh aplikasi ini (v${APP.schemaVersion}).`
+        );
       }
 
       const data = parsed?.data && parsed.app === 'risly-money-manager' ? parsed.data : parsed;
@@ -66,7 +70,16 @@ export function pickBackupFile() {
       }
 
       // Validasi koleksi wajib
-      const required = ['users', 'accounts', 'categories', 'transactions', 'budgets', 'recurring', 'notes', 'goals'];
+      const required = [
+        'users',
+        'accounts',
+        'categories',
+        'transactions',
+        'budgets',
+        'recurring',
+        'notes',
+        'goals',
+      ];
       for (const key of required) {
         if (!Array.isArray(data[key])) {
           throw new Error(`Koleksi ${key} tidak ditemukan dalam backup.`);
@@ -74,9 +87,7 @@ export function pickBackupFile() {
       }
 
       // Hitung rentang tanggal transaksi
-      const dates = data.transactions
-        .filter((t) => t && t.date)
-        .map((t) => t.date);
+      const dates = data.transactions.filter((t) => t && t.date).map((t) => t.date);
       let dateRange = '—';
       if (dates.length) {
         const sorted = dates.slice().sort();
@@ -94,8 +105,7 @@ export function pickBackupFile() {
 
       const ok = await confirmDialog({
         title: 'Pulihkan backup?',
-        message:
-          `Seluruh data lokal saat ini akan diganti oleh isi backup.\n\nRingkasan backup:\n${summary}\n\nTindakan ini dapat dibatalkan selama sesi ini via tombol “Undo restore” yang akan muncul.`,
+        message: `Seluruh data lokal saat ini akan diganti oleh isi backup.\n\nRingkasan backup:\n${summary}\n\nTindakan ini dapat dibatalkan selama sesi ini via tombol “Undo restore” yang akan muncul.`,
         confirmLabel: 'Pulihkan',
         cancelLabel: 'Batal',
         danger: false,
@@ -109,13 +119,17 @@ export function pickBackupFile() {
           'risly.mm.backup.prerestore',
           JSON.stringify({
             data: store.exportSnapshot(),
+            receipts: await store.exportReceipts(),
             restoredAt: nowISO(),
             sourceFile: file.name,
-          }),
+          })
         );
       } catch (e) {
         console.warn('Gagal menyimpan snapshot pra-restore:', e);
       }
+
+      // Pulihkan struk ke IndexedDB terlebih dahulu
+      await store.importReceipts(parsed.receipts || []);
 
       store.importData(data);
       const user = store.currentUser || store.activeUsers()[0];
@@ -133,11 +147,12 @@ export function pickBackupFile() {
       // Tampilkan tombol undo restore (hilang setelah navigasi/refresh)
       toast('Undo restore tersedia selama sesi ini.', 'info', {
         label: 'Undo restore',
-        onClick: () => {
+        onClick: async () => {
           try {
             const raw = localStorage.getItem('risly.mm.backup.prerestore');
             if (!raw) throw new Error('Snapshot pra-restore tidak ditemukan.');
             const prerestore = JSON.parse(raw);
+            await store.importReceipts(prerestore.receipts || []);
             store.importData(prerestore.data, { emit: false });
             localStorage.removeItem('risly.mm.backup.prerestore');
             ui.appMounted = false;
@@ -164,7 +179,8 @@ export function pickBackupFile() {
 export async function resetApplication() {
   const ok = await confirmDialog({
     title: 'Reset ruang ini?',
-    message: 'Semua data, PIN, dan pengaturan ruang aktif akan dihapus dari perangkat ini. Ruang lain tidak terpengaruh.',
+    message:
+      'Semua data, PIN, dan pengaturan ruang aktif akan dihapus dari perangkat ini. Ruang lain tidak terpengaruh.',
     confirmLabel: 'Reset sekarang',
     danger: true,
     iconName: 'alert-triangle',
@@ -229,6 +245,7 @@ export async function driveBackupNow() {
     toast(error.message || 'Masuk dengan Google dulu untuk memakai backup Drive.', 'error');
     return;
   }
+  const receipts = await store.exportReceipts();
   const payload = {
     app: 'risly-money-manager',
     kind: 'risly-backup',
@@ -236,13 +253,16 @@ export async function driveBackupNow() {
     schemaVersion: APP.schemaVersion,
     exportedAt: nowISO(),
     data: store.exportSnapshot(),
+    receipts,
   };
   try {
     const token = await GoogleDrive.token();
     const name = `${APP.driveBackupPrefix}${driveFileStamp()}.json`;
     await GoogleDrive.createFile(token, { name, content: JSON.stringify(payload) });
     const files = await GoogleDrive.listFiles(token);
-    const backups = files.filter((file) => String(file.name || '').startsWith(APP.driveBackupPrefix));
+    const backups = files.filter((file) =>
+      String(file.name || '').startsWith(APP.driveBackupPrefix)
+    );
     const stale = backups.slice(APP.driveBackupLimit);
     if (stale.length) {
       await Promise.allSettled(stale.map((file) => GoogleDrive.deleteFile(token, file.id)));
@@ -272,11 +292,17 @@ export async function openDriveRestoreModal() {
     return;
   }
   const list = files.length
-    ? files.map((file) => `<button type="button" class="drive-backup-row" data-action="drive-restore-file" data-id="${escapeAttr(file.id)}">
+    ? files
+        .map(
+          (
+            file
+          ) => `<button type="button" class="drive-backup-row" data-action="drive-restore-file" data-id="${escapeAttr(file.id)}">
         <span class="drive-backup-icon">${icon('file-text', 'w-4 h-4')}</span>
         <span class="min-w-0 flex-1"><strong>${escapeHTML(file.name)}</strong><small>${escapeHTML(formatDateTime(file.createdTime))} · ${escapeHTML(formatBytes(Number(file.size) || 0))}</small></span>
         ${icon('chevron-right', 'w-4 h-4 text-slate-400')}
-      </button>`).join('')
+      </button>`
+        )
+        .join('')
     : `<div class="py-6 text-center text-sm text-slate-500 dark:text-slate-400">Belum ada backup di Google Drive.</div>`;
   openModal({
     size: 'md',
@@ -299,7 +325,8 @@ export async function driveRestoreFile(fileId) {
   if (!fileId) return;
   const ok = await confirmDialog({
     title: 'Pulihkan backup dari Drive?',
-    message: 'Seluruh data lokal saat ini akan diganti oleh isi backup. Tindakan ini tidak dapat dibatalkan.',
+    message:
+      'Seluruh data lokal saat ini akan diganti oleh isi backup. Tindakan ini tidak dapat dibatalkan.',
     confirmLabel: 'Pulihkan',
     danger: false,
     iconName: 'upload',
@@ -313,6 +340,7 @@ export async function driveRestoreFile(fileId) {
     if (!data || !Array.isArray(data.transactions) || !Array.isArray(data.users)) {
       throw new Error('Struktur backup tidak dikenali.');
     }
+    await store.importReceipts(parsed.receipts || []);
     store.importData(data);
     const account = GoogleDrive.getAccount();
     const accountEmail = String(account?.email || '').toLowerCase();

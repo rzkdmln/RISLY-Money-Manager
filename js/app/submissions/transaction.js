@@ -40,19 +40,17 @@ export const transactionSubmissions = {
       ? Array.from(form.querySelectorAll('[data-payment-row]'))
       : [];
 
-    const payments = paymentRows.map((row) => {
-      const paymentAccountId = String(
-        row.querySelector('[name="paymentAccount"]')?.value || '',
-      );
-      const account = store.accountById(paymentAccountId);
-      return {
-        accountId: paymentAccountId,
-        memberId: account?.owner || null,
-        amount: Math.round(
-          Number(row.querySelector('[name="paymentAmount"]')?.value || 0),
-        ),
-      };
-    }).filter((payment) => payment.accountId || payment.amount > 0);
+    const payments = paymentRows
+      .map((row) => {
+        const paymentAccountId = String(row.querySelector('[name="paymentAccount"]')?.value || '');
+        const account = store.accountById(paymentAccountId);
+        return {
+          accountId: paymentAccountId,
+          memberId: account?.owner || null,
+          amount: Math.round(Number(row.querySelector('[name="paymentAmount"]')?.value || 0)),
+        };
+      })
+      .filter((payment) => payment.accountId || payment.amount > 0);
 
     let paymentTotal = 0;
     if (makePaymentSplit) {
@@ -70,10 +68,7 @@ export const transactionSubmissions = {
       }
       const uniqueAccounts = new Set(payments.map((payment) => payment.accountId));
       if (uniqueAccounts.size !== payments.length) {
-        showFormError(
-          form,
-          'Setiap akun hanya boleh dipakai satu kali dalam split pembayaran.',
-        );
+        showFormError(form, 'Setiap akun hanya boleh dipakai satu kali dalam split pembayaran.');
         return;
       }
       if (amount === null || amount <= 0) {
@@ -84,14 +79,14 @@ export const transactionSubmissions = {
       if (paymentTotal !== Math.round(amount)) {
         showFormError(
           form,
-          `Total split (${formatCurrency(paymentTotal, { hide: false })}) belum sesuai dengan nominal transaksi (${formatCurrency(Math.round(amount), { hide: false })}).`,
+          `Total split (${formatCurrency(paymentTotal, { hide: false })}) belum sesuai dengan nominal transaksi (${formatCurrency(Math.round(amount), { hide: false })}).`
         );
         return;
       }
     } else if (amount === null || amount <= 0) {
       showFormError(
         form,
-        'Nominal harus lebih dari nol. Gunakan angka atau ekspresi seperti 250000+50000.',
+        'Nominal harus lebih dari nol. Gunakan angka atau ekspresi seperti 250000+50000.'
       );
       return;
     }
@@ -103,7 +98,7 @@ export const transactionSubmissions = {
     if (store.isMonthLocked(txMonth)) {
       showFormError(
         form,
-        `Bulan ${formatMonth(txMonth)} sudah ditutup. Buka buku kembali sebelum mencatat atau mengubah transaksi.`,
+        `Bulan ${formatMonth(txMonth)} sudah ditutup. Buka buku kembali sebelum mencatat atau mengubah transaksi.`
       );
       return;
     }
@@ -119,18 +114,12 @@ export const transactionSubmissions = {
       showFormError(form, 'Pilih akun tujuan yang berbeda dari akun sumber.');
       return;
     }
-    if (
-      type !== 'transfer' &&
-      !categoryId &&
-      !originalTransaction?.adjustment
-    ) {
+    if (type !== 'transfer' && !categoryId && !originalTransaction?.adjustment) {
       showFormError(form, 'Pilih kategori transaksi.');
       return;
     }
     if (type === 'expense') {
-      const checkParts = makePaymentSplit
-        ? payments
-        : [{ accountId, amount }];
+      const checkParts = makePaymentSplit ? payments : [{ accountId, amount }];
       for (const part of checkParts) {
         const account = store.accountById(part.accountId);
         if (account?.type !== 'credit') continue;
@@ -141,7 +130,7 @@ export const transactionSubmissions = {
         if (part.amount > remainingLimit) {
           showFormError(
             form,
-            `Nominal dari akun ${account.name} melebihi sisa limit kredit (sisa ${formatCurrency(remainingLimit)}).`,
+            `Nominal dari akun ${account.name} melebihi sisa limit kredit (sisa ${formatCurrency(remainingLimit)}).`
           );
           return;
         }
@@ -154,7 +143,7 @@ export const transactionSubmissions = {
       : [];
     const originalSplitTotal = originalSplits.reduce(
       (sum, split) => sum + (Number(split.amount) || 0),
-      0,
+      0
     );
     const keepLegacySplits =
       type !== 'transfer' &&
@@ -172,8 +161,8 @@ export const transactionSubmissions = {
       amount: finalAmount,
       accountId: makePaymentSplit ? payments[0].accountId : accountId,
       toAccountId: type === 'transfer' ? toAccountId : null,
-      categoryId: type === 'transfer' ? null : (categoryId || null),
-      subcategoryId: type === 'transfer' ? null : (subcategoryId || null),
+      categoryId: type === 'transfer' ? null : categoryId || null,
+      subcategoryId: type === 'transfer' ? null : subcategoryId || null,
       note: String(fd.get('note') || '').trim(),
       payee: String(fd.get('payee') || '').trim(),
       tags: String(fd.get('tags') || '')
@@ -183,7 +172,7 @@ export const transactionSubmissions = {
         .slice(0, 20),
       payments: makePaymentSplit ? payments : [],
       splits: keepLegacySplits ? originalSplits : [],
-      receipt: receiptValue || null,
+      receiptId: receiptValue || null,
     };
 
     try {
@@ -195,16 +184,11 @@ export const transactionSubmissions = {
         toast('Transaksi berhasil dicatat.', 'success');
         if (fd.get('makeRecurring')) {
           const frequency = String(fd.get('recurringFrequency') || 'monthly');
-          const interval = Math.max(
-            1,
-            Number(fd.get('recurringInterval')) || 1,
-          );
+          const interval = Math.max(1, Number(fd.get('recurringInterval')) || 1);
           const anchorDay = Number(date.slice(8, 10)) || 1;
           store.saveRecurring({
             title:
-              String(fd.get('recurringTitle') || '').trim() ||
-              payload.note ||
-              'Transaksi berulang',
+              String(fd.get('recurringTitle') || '').trim() || payload.note || 'Transaksi berulang',
             type,
             amount: payload.amount,
             accountId,

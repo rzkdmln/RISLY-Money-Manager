@@ -146,7 +146,7 @@ export function transactionForm(tx = null, defaults = {}) {
     : (Array.isArray(defaults.payments) ? defaults.payments : []);
   const paymentSplit = payments.length > 0 || Boolean(defaults.paymentSplit);
   const paymentRows = payments.length ? payments : [{}, {}];
-  const receipt = typeof tx?.receipt === 'string' ? tx.receipt : '';
+  const receiptId = tx?.receiptId || null;
   const editing = Boolean(tx?.id);
   const result = expressionResult(displayAmount);
   const currentUser = store.currentUser;
@@ -306,10 +306,10 @@ export function transactionForm(tx = null, defaults = {}) {
           </label>
         </div>
 
-        <input type="hidden" name="receipt" value="${escapeAttr(receipt)}">
-        <div class="receipt-preview ${receipt ? '' : 'hidden'}" data-receipt-wrap>
+        <input type="hidden" name="receipt" value="${escapeAttr(receiptId || '')}">
+        <div class="receipt-preview ${receiptId ? '' : 'hidden'}" data-receipt-wrap data-receipt-id="${escapeAttr(receiptId || '')}">
           <button type="button" class="receipt-preview-image" data-action="view-receipt" aria-label="Perbesar foto struk" title="Klik untuk memperbesar">
-            <img src="${receipt ? escapeAttr(receipt) : ''}" alt="Struk" data-receipt-preview>
+            <img src="" alt="Struk" data-receipt-preview data-receipt-id="${escapeAttr(receiptId || '')}">
             <span class="receipt-preview-badge" aria-hidden="true">${icon('eye', 'w-3 h-3')}</span>
           </button>
           <div class="receipt-preview-bar">

@@ -23,12 +23,7 @@ import { initPullToRefresh } from '../ui/pull-to-refresh.js';
 import { warmUpGoogleAuth } from '../services/google-auth-relay.js';
 import { GoogleDrive } from '../services/gdrive.js';
 import { updateSyncSlots } from '../views/shell.js';
-import {
-  getSession,
-  isSessionExpired,
-  clearSession,
-  createSession,
-} from '../core/auth.js';
+import { getSession, isSessionExpired, clearSession, createSession } from '../core/auth.js';
 import { clearGoogleAuthRedirectPending } from '../services/google-auth-relay.js';
 import { ROUTES, APP } from '../core/config.js';
 import {
@@ -115,7 +110,7 @@ async function boot() {
   }
 
   setSplashStatus('Memuat data...');
-  store.init();
+  await store.init();
   setSplashStatus('Menyiapkan cloud...');
   Cloud.init(store);
   bindStore();
@@ -127,7 +122,9 @@ async function boot() {
   setSplashStatus('Memeriksa sesi...');
   const session = getSession();
   if (session?.workspaceId) {
-    const opened = store.openWorkspace(session.workspaceId, { account: store.accountForWorkspace(session.workspaceId) });
+    const opened = await store.openWorkspace(session.workspaceId, {
+      account: store.accountForWorkspace(session.workspaceId),
+    });
     let user = opened ? store.resolveUser(session.userId) : null;
     if (opened && !user) {
       const account = store.account;
@@ -155,7 +152,7 @@ async function boot() {
   registerServiceWorker();
 
   if (!store.currentUser && !getSession()?.workspaceId) {
-    const opened = store.openLastWorkspace();
+    const opened = await store.openLastWorkspace();
     if (opened) {
       if (opened.hasPin) {
         store.setCurrentUser(opened.user.id);
@@ -172,7 +169,11 @@ async function boot() {
         savePrefs({ lastUser: opened.user.id });
         createSession(opened.user.id, store.workspaceId);
         if (!location.hash || !ROUTES[String(location.hash).replace(/^#\//, '')]) {
-          try { history.replaceState(null, '', '#/dashboard'); } catch { /* noop */ }
+          try {
+            history.replaceState(null, '', '#/dashboard');
+          } catch {
+            /* noop */
+          }
         }
       }
     }
@@ -184,31 +185,44 @@ async function boot() {
     if (!resumed) {
       if (hadPendingRedirect) {
         if (isIos() && isStandalone()) {
-          toast('Login Google di iOS standalone mungkin terhambat oleh keamanan Safari (ITP). Coba buka aplikasi di Safari biasa.', 'info');
+          toast(
+            'Login Google di iOS standalone mungkin terhambat oleh keamanan Safari (ITP). Coba buka aplikasi di Safari biasa.',
+            'info'
+          );
         } else {
           toast('Login Google tidak dapat diselesaikan. Silakan coba lagi.', 'error');
         }
       }
       renderAuth();
-      try { history.replaceState(null, '', location.pathname + location.search); } catch { /* noop */ }
+      try {
+        history.replaceState(null, '', location.pathname + location.search);
+      } catch {
+        /* noop */
+      }
     }
   } else {
     if (!location.hash) {
-      try { history.replaceState(null, '', '#/dashboard'); } catch { /* noop */ }
+      try {
+        history.replaceState(null, '', '#/dashboard');
+      } catch {
+        /* noop */
+      }
     }
     if (hasPendingGoogleAuthRedirect()) {
-      completeGoogleAuthLogin().then((session) => {
-        if (!session?.account?.email) {
+      completeGoogleAuthLogin()
+        .then((session) => {
+          if (!session?.account?.email) {
+            clearGoogleAuthRedirectPending();
+            return;
+          }
+          GoogleDrive.adoptSession(session);
+          toast(`Google Drive terhubung sebagai ${session.account.email}.`, 'success');
+          renderApplication();
+        })
+        .catch((error) => {
           clearGoogleAuthRedirectPending();
-          return;
-        }
-        GoogleDrive.adoptSession(session);
-        toast(`Google Drive terhubung sebagai ${session.account.email}.`, 'success');
-        renderApplication();
-      }).catch((error) => {
-        clearGoogleAuthRedirectPending();
-        console.warn('Gagal menyelesaikan redirect Google:', error);
-      });
+          console.warn('Gagal menyelesaikan redirect Google:', error);
+        });
     }
     renderApplication();
     runRecurring({ notify: true });
@@ -217,10 +231,18 @@ async function boot() {
 
   setupInstallPrompt();
 
-  const finishSplash = () => { try { hideSplash(); } catch { /* noop */ } };
+  const finishSplash = () => {
+    try {
+      hideSplash();
+    } catch {
+      /* noop */
+    }
+  };
   if (store.hasWorkspace) {
     Cloud.bootstrap({ waitForAuth: true })
-      .then(() => { if (store.currentUser && !ui.locked) renderApplication(); })
+      .then(() => {
+        if (store.currentUser && !ui.locked) renderApplication();
+      })
       .catch((error) => console.warn('Cloud bootstrap skipped:', error))
       .finally(finishSplash);
   } else {

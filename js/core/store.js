@@ -2,6 +2,7 @@ import { APP } from './config.js';
 import { GoogleDrive } from '../services/gdrive.js';
 import { Cloud } from '../services/cloud.js';
 import { createSession, getSession } from './auth.js';
+import { repository, dataURLToBlob, blobToDataUrl } from './repository.js';
 import {
   createDefaultData,
   createSampleData,
@@ -61,18 +62,21 @@ function pickNewest(localRecord, remoteRecord) {
 }
 
 function normalizedMemberName(value) {
-  return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  return String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
 }
 
 function normalizePayments(payments) {
   return Array.isArray(payments)
     ? payments
-      .map((payment) => ({
-        accountId: payment?.accountId || null,
-        memberId: payment?.memberId || null,
-        amount: Math.max(0, Math.round(safeNumber(payment?.amount))),
-      }))
-      .filter((payment) => payment.accountId && payment.amount > 0)
+        .map((payment) => ({
+          accountId: payment?.accountId || null,
+          memberId: payment?.memberId || null,
+          amount: Math.max(0, Math.round(safeNumber(payment?.amount))),
+        }))
+        .filter((payment) => payment.accountId && payment.amount > 0)
     : [];
 }
 
@@ -98,7 +102,8 @@ function readWorkspaceRegistry() {
     const parsed = raw ? JSON.parse(raw) : null;
     return {
       accounts: parsed?.accounts && typeof parsed.accounts === 'object' ? parsed.accounts : {},
-      workspaces: parsed?.workspaces && typeof parsed.workspaces === 'object' ? parsed.workspaces : {},
+      workspaces:
+        parsed?.workspaces && typeof parsed.workspaces === 'object' ? parsed.workspaces : {},
       legacyWorkspaceId: parsed?.legacyWorkspaceId || null,
     };
   } catch {
@@ -121,14 +126,35 @@ export class Store {
     this.lastError = null;
     this._initialized = false;
     this._uploadTimer = null;
+    this._idbReady = false;
+    this._receiptUrlCache = new Map();
   }
 
-  init() {
+  async init() {
     if (this._initialized) return this.data;
     this.registry = readWorkspaceRegistry();
     // Keep a lightweight placeholder for the signed-out screen. It is never
     // persisted until a Google account opens or creates a workspace.
     this.data = createDefaultData();
+
+    try {
+      await repository._open();
+      this._idbReady = true;
+
+      const migrated = await repository.isMigrated();
+      if (!migrated) {
+        const result = await repository.migrateFromLocalStorage();
+        if (result.workspaces > 0 || result.receipts > 0) {
+          console.info(
+            `IndexedDB migrasi: ${result.workspaces} workspace, ${result.receipts} struk`
+          );
+        }
+      }
+    } catch (error) {
+      console.warn('IndexedDB tidak tersedia, fallback ke localStorage:', error);
+      this._idbReady = false;
+    }
+
     this._initialized = true;
     return this.data;
   }
@@ -138,19 +164,34 @@ export class Store {
     const payload = data || this.data;
     if (!payload) return;
     try {
-      localStorage.setItem(workspaceStorageKey(this.workspaceId), JSON.stringify(payload));
+      if (this._idbReady) {
+        // Simpan data workspace tanpa base64 struk (struk ada di object store terpisah).
+        // Tulis ke IndexedDB di background (fire-and-forget) agar tidak blokir UI.
+        const clean = deepClone(payload);
+        if (Array.isArray(clean.transactions)) {
+          clean.transactions.forEach((tx) => {
+            if (tx.receiptId) delete tx.receipt;
+          });
+        }
+        void repository.putWorkspace(this.workspaceId, clean).catch((error) => {
+          console.error('Gagal menyimpan ke IndexedDB:', error);
+          this.lastError = error;
+        });
+      } else {
+        // Fallback localStorage untuk browser yang tidak mendukung IndexedDB
+        localStorage.setItem(workspaceStorageKey(this.workspaceId), JSON.stringify(payload));
+      }
       this.updateWorkspaceMeta(payload);
       this.lastError = null;
     } catch (error) {
       console.error('Gagal menyimpan data lokal:', error);
       this.lastError = error;
-      const isQuota = error.name === 'QuotaExceededError'
-        || /quota/i.test(error.message || '');
+      const isQuota = error.name === 'QuotaExceededError' || /quota/i.test(error.message || '');
       throw isQuota
         ? new StorageQuotaError(
-          'Penyimpanan perangkat penuh. Data tidak tersimpan. Backup data atau hapus lampiran struk lalu coba lagi.',
-          'STORAGE_QUOTA_EXCEEDED',
-        )
+            'Penyimpanan perangkat penuh. Data tidak tersimpan. Backup data atau hapus lampiran struk lalu coba lagi.',
+            'STORAGE_QUOTA_EXCEEDED'
+          )
         : error;
     }
   }
@@ -169,16 +210,47 @@ export class Store {
     writeWorkspaceRegistry(this.registry);
   }
 
-  openWorkspace(workspaceId, { account = null } = {}) {
+  async openWorkspace(workspaceId, { account = null } = {}) {
     if (!workspaceId) return false;
     try {
-      const raw = localStorage.getItem(workspaceStorageKey(workspaceId));
+      let raw = null;
+      let fromLocalStorage = false;
+
+      if (this._idbReady) {
+        try {
+          const record = await repository.getWorkspace(workspaceId);
+          if (record && record.data) {
+            raw = JSON.stringify(record.data);
+          }
+        } catch {
+          // Abaikan error IDB, coba localStorage
+        }
+      }
+
+      if (!raw) {
+        raw = localStorage.getItem(workspaceStorageKey(workspaceId));
+        fromLocalStorage = true;
+      }
+
       if (!raw) return false;
+
       this.data = migrateData(JSON.parse(raw));
       this.workspaceId = workspaceId;
       this.account = account || this.accountForWorkspace(workspaceId);
       this.currentUserId = null;
-      this.persist();
+
+      // Jika data masih ada di localStorage tapi IDB sudah siap, lakukan migrasi
+      // secara bertahap saat workspace dibuka.
+      if (fromLocalStorage && this._idbReady && !(await repository.isMigrated())) {
+        const result = await repository.migrateFromLocalStorage();
+        if (result.workspaces > 0 || result.receipts > 0) {
+          console.info(
+            `IndexedDB migrasi saat buka: ${result.workspaces} workspace, ${result.receipts} struk`
+          );
+        }
+      }
+
+      await this.persist();
       return true;
     } catch (error) {
       console.error('Gagal membuka ruang:', error);
@@ -188,13 +260,16 @@ export class Store {
   }
 
   accountForWorkspace(workspaceId) {
-    const entry = Object.values(this.registry.accounts)
-      .find((item) => item?.workspaceId === workspaceId);
+    const entry = Object.values(this.registry.accounts).find(
+      (item) => item?.workspaceId === workspaceId
+    );
     return entry ? { email: entry.email, name: entry.name, picture: entry.picture || '' } : null;
   }
 
   registerAccount(account, workspaceId) {
-    const email = String(account?.email || '').trim().toLowerCase();
+    const email = String(account?.email || '')
+      .trim()
+      .toLowerCase();
     if (!email) return;
     this.registry.accounts[email] = {
       email,
@@ -204,20 +279,26 @@ export class Store {
       lastLoginAt: nowISO(),
     };
     writeWorkspaceRegistry(this.registry);
-    localStorage.setItem(APP.lastAccountKey, JSON.stringify({
-      email,
-      workspaceId,
-      name: String(account.name || email),
-      picture: String(account.picture || ''),
-    }));
+    localStorage.setItem(
+      APP.lastAccountKey,
+      JSON.stringify({
+        email,
+        workspaceId,
+        name: String(account.name || email),
+        picture: String(account.picture || ''),
+      })
+    );
   }
 
   ensureMember(account) {
-    const email = String(account?.email || '').trim().toLowerCase();
+    const email = String(account?.email || '')
+      .trim()
+      .toLowerCase();
     if (!email) return this.data.users.find((item) => !item.deletedAt) || this.data.users[0];
     // Match by email first
-    let user = this.data.users.find((item) => !item.deletedAt
-      && String(item.googleEmail || '').toLowerCase() === email);
+    let user = this.data.users.find(
+      (item) => !item.deletedAt && String(item.googleEmail || '').toLowerCase() === email
+    );
     if (user) {
       const picture = String(account?.picture || '').trim();
       if (picture && user.picture !== picture) {
@@ -230,9 +311,12 @@ export class Store {
     // For legacy users without googleEmail, try matching by name
     const accountName = normalizedMemberName(account?.name || email.split('@')[0] || '');
     if (accountName) {
-      user = this.data.users.find((item) => !item.deletedAt
-        && !String(item.googleEmail || '').trim()
-        && normalizedMemberName(item.name) === accountName);
+      user = this.data.users.find(
+        (item) =>
+          !item.deletedAt &&
+          !String(item.googleEmail || '').trim() &&
+          normalizedMemberName(item.name) === accountName
+      );
       if (user) {
         user.googleEmail = email;
         user.picture = user.picture || String(account?.picture || '');
@@ -264,10 +348,16 @@ export class Store {
   }
 
   async signInWithGoogle(account) {
-    const email = String(account?.email || '').trim().toLowerCase();
+    const email = String(account?.email || '')
+      .trim()
+      .toLowerCase();
     if (!email) throw new Error('Akun Google tidak valid.');
     // Bridge Google login to Firebase Auth so each household is isolated by UID.
-    try { await Cloud.signInWithGoogle(GoogleDrive.accessToken); } catch { /* noop */ }
+    try {
+      await Cloud.signInWithGoogle(GoogleDrive.accessToken);
+    } catch {
+      /* noop */
+    }
     const entry = this.registry.accounts[email];
     if (entry?.workspaceId && this.openWorkspace(entry.workspaceId, { account })) {
       const user = await this.attachFirebaseUid(this.ensureMember(account));
@@ -278,7 +368,9 @@ export class Store {
 
     const legacy = this.readLegacyData();
     if (legacy) {
-      const match = (legacy.users || []).find((user) => String(user.googleEmail || '').toLowerCase() === email);
+      const match = (legacy.users || []).find(
+        (user) => String(user.googleEmail || '').toLowerCase() === email
+      );
       if (match) {
         const workspaceId = this.adoptLegacyWorkspace(legacy, account);
         this.openWorkspace(workspaceId, { account });
@@ -308,7 +400,9 @@ export class Store {
     try {
       const uid = await Cloud.getFirebaseUid();
       if (uid) user.firebaseUid = String(uid);
-    } catch { /* offline / provider lokal */ }
+    } catch {
+      /* offline / provider lokal */
+    }
     return user;
   }
 
@@ -325,17 +419,20 @@ export class Store {
   }
 
   adoptLegacyWorkspace(legacy, account) {
-    if (this.registry.legacyWorkspaceId
-      && localStorage.getItem(workspaceStorageKey(this.registry.legacyWorkspaceId))) {
+    if (
+      this.registry.legacyWorkspaceId &&
+      localStorage.getItem(workspaceStorageKey(this.registry.legacyWorkspaceId))
+    ) {
       return this.registry.legacyWorkspaceId;
     }
     const workspaceId = uid('ws');
     const data = migrateData(legacy);
     data.settings.workspaceName = data.settings.workspaceName || data.settings.householdName;
     data.settings.inviteCode = data.settings.inviteCode || generateInviteCode();
-    data.settings.ownerEmail = data.settings.ownerEmail
-      || data.users.find((user) => user.googleEmail)?.googleEmail
-      || account.email;
+    data.settings.ownerEmail =
+      data.settings.ownerEmail ||
+      data.users.find((user) => user.googleEmail)?.googleEmail ||
+      account.email;
     data.users.forEach((user) => {
       if (!user.googleEmail) return;
       this.registry.accounts[user.googleEmail] = {
@@ -360,16 +457,21 @@ export class Store {
   }
 
   async joinWorkspaceByCode(code, account) {
-    const normalized = String(code || '').trim().toUpperCase();
+    const normalized = String(code || '')
+      .trim()
+      .toUpperCase();
     if (!/^[A-Z0-9]{4,8}$/.test(normalized)) {
       throw new Error('Kode undangan tidak valid.');
     }
 
     // 1. Cari workspace lokal yang memakai kode ini (satu perangkat).
-    const localWorkspaceId = Object.keys(this.registry.workspaces)
-      .find((id) => String(this.registry.workspaces[id]?.inviteCode || '').toUpperCase() === normalized);
+    const localWorkspaceId = Object.keys(this.registry.workspaces).find(
+      (id) => String(this.registry.workspaces[id]?.inviteCode || '').toUpperCase() === normalized
+    );
     let workspaceId = localWorkspaceId || null;
-    let matchedLocally = Boolean(workspaceId && localStorage.getItem(workspaceStorageKey(workspaceId)));
+    let matchedLocally = Boolean(
+      workspaceId && localStorage.getItem(workspaceStorageKey(workspaceId))
+    );
     if (matchedLocally) {
       matchedLocally = this.openWorkspace(workspaceId, { account });
     }
@@ -401,7 +503,9 @@ export class Store {
           cloudError = cloudResult?.error || new Error('Gagal bergabung ke cloud keluarga.');
         }
       } else if (!matchedLocally) {
-        cloudError = new Error('Kode undangan tidak ditemukan. Pastikan pemilik ruang sudah membuka aplikasi versi terbaru.');
+        cloudError = new Error(
+          'Kode undangan tidak ditemukan. Pastikan pemilik ruang sudah membuka aplikasi versi terbaru.'
+        );
       }
     } catch (error) {
       cloudError = error;
@@ -421,7 +525,12 @@ export class Store {
       this.persist();
     }
 
-    return { user, workspaceId: this.workspaceId, cloud: cloudResult, localOnly: matchedLocally && !cloudResult?.ok };
+    return {
+      user,
+      workspaceId: this.workspaceId,
+      cloud: cloudResult,
+      localOnly: matchedLocally && !cloudResult?.ok,
+    };
   }
 
   /**
@@ -440,8 +549,11 @@ export class Store {
       const last = JSON.parse(localStorage.getItem(APP.lastAccountKey) || 'null');
       if (!last?.workspaceId) return null;
       if (!this.openWorkspace(last.workspaceId, { account: last })) return null;
-      const user = this.data.users.find((item) => !item.deletedAt
-        && String(item.googleEmail || '').toLowerCase() === String(last.email || '').toLowerCase());
+      const user = this.data.users.find(
+        (item) =>
+          !item.deletedAt &&
+          String(item.googleEmail || '').toLowerCase() === String(last.email || '').toLowerCase()
+      );
       if (!user) return null;
       this.currentUserId = user.id;
       this.account = last;
@@ -523,6 +635,13 @@ export class Store {
       if (source === 'local') draft.updatedBy = this.currentUserId || draft.updatedBy;
     }
     this.persist(draft);
+    // Hapus base64 receipt dari data di memori jika receiptId tersedia,
+    // agar tidak menumpuk string besar di RAM.
+    if (Array.isArray(draft.transactions)) {
+      draft.transactions.forEach((tx) => {
+        if (tx.receiptId) delete tx.receipt;
+      });
+    }
     this.data = draft;
     if (emit) this.emit({ source, reason, silent });
     return result;
@@ -547,15 +666,31 @@ export class Store {
         subcategoryId: payload.type === 'transfer' ? null : payload.subcategoryId || null,
         note: String(payload.note || '').trim(),
         payee: String(payload.payee || '').trim(),
-        tags: Array.isArray(payload.tags) ? payload.tags.map(String).map((t) => t.trim()).filter(Boolean).slice(0, 20) : [],
-        splits: Array.isArray(payload.splits) ? payload.splits.map((s) => ({
-          categoryId: s?.categoryId || null,
-          subcategoryId: s?.subcategoryId || null,
-          amount: Math.max(0, Math.round(safeNumber(s?.amount))),
-          note: String(s?.note || '').trim(),
-        })).filter((s) => s.amount > 0) : [],
+        tags: Array.isArray(payload.tags)
+          ? payload.tags
+              .map(String)
+              .map((t) => t.trim())
+              .filter(Boolean)
+              .slice(0, 20)
+          : [],
+        splits: Array.isArray(payload.splits)
+          ? payload.splits
+              .map((s) => ({
+                categoryId: s?.categoryId || null,
+                subcategoryId: s?.subcategoryId || null,
+                amount: Math.max(0, Math.round(safeNumber(s?.amount))),
+                note: String(s?.note || '').trim(),
+              }))
+              .filter((s) => s.amount > 0)
+          : [],
         payments: normalizePayments(payload.payments),
-        receipt: typeof payload.receipt === 'string' ? payload.receipt : null,
+        receiptId: typeof payload.receiptId === 'string' ? payload.receiptId : null,
+        receipt:
+          !payload.receiptId &&
+          typeof payload.receipt === 'string' &&
+          payload.receipt.startsWith('data:')
+            ? payload.receipt
+            : null,
         createdBy: user?.id || this.currentUserId || this.data.users[0]?.id || 'owner',
         createdByName: user?.name || this.data.users[0]?.name || 'Pengguna',
         createdAt: now,
@@ -573,10 +708,15 @@ export class Store {
     return this.commit('transaction:update', (data, now) => {
       const tx = data.transactions.find((item) => item.id === id && !item.deletedAt);
       if (!tx) throw new Error('Transaksi tidak ditemukan.');
-      const type = ['income', 'expense', 'transfer'].includes(payload.type) ? payload.type : tx.type;
+      const type = ['income', 'expense', 'transfer'].includes(payload.type)
+        ? payload.type
+        : tx.type;
       Object.assign(tx, {
         date: payload.date || tx.date,
-        time: normalizeTime(payload.time, tx.time || timeFromISO(tx.createdAt) || currentTimeHHMM()),
+        time: normalizeTime(
+          payload.time,
+          tx.time || timeFromISO(tx.createdAt) || currentTimeHHMM()
+        ),
         type,
         amount: Math.max(0, Math.round(safeNumber(payload.amount))),
         accountId: payload.accountId || tx.accountId,
@@ -585,24 +725,56 @@ export class Store {
         subcategoryId: type === 'transfer' ? null : payload.subcategoryId || null,
         note: String(payload.note || '').trim(),
         payee: payload.payee === undefined ? tx.payee : String(payload.payee || '').trim(),
-        tags: payload.tags === undefined
-          ? (Array.isArray(tx.tags) ? tx.tags : [])
-          : (Array.isArray(payload.tags) ? payload.tags.map(String).map((t) => t.trim()).filter(Boolean).slice(0, 20) : []),
-        splits: payload.splits === undefined
-          ? (Array.isArray(tx.splits) ? tx.splits : [])
-          : (Array.isArray(payload.splits) ? payload.splits.map((s) => ({
-              categoryId: s?.categoryId || null,
-              subcategoryId: s?.subcategoryId || null,
-              amount: Math.max(0, Math.round(safeNumber(s?.amount))),
-              note: String(s?.note || '').trim(),
-            })).filter((s) => s.amount > 0) : []),
-        payments: payload.payments === undefined
-          ? (Array.isArray(tx.payments) ? tx.payments : [])
-          : normalizePayments(payload.payments),
-        receipt: payload.receipt === undefined ? tx.receipt : (typeof payload.receipt === 'string' ? payload.receipt : null),
+        tags:
+          payload.tags === undefined
+            ? Array.isArray(tx.tags)
+              ? tx.tags
+              : []
+            : Array.isArray(payload.tags)
+              ? payload.tags
+                  .map(String)
+                  .map((t) => t.trim())
+                  .filter(Boolean)
+                  .slice(0, 20)
+              : [],
+        splits:
+          payload.splits === undefined
+            ? Array.isArray(tx.splits)
+              ? tx.splits
+              : []
+            : Array.isArray(payload.splits)
+              ? payload.splits
+                  .map((s) => ({
+                    categoryId: s?.categoryId || null,
+                    subcategoryId: s?.subcategoryId || null,
+                    amount: Math.max(0, Math.round(safeNumber(s?.amount))),
+                    note: String(s?.note || '').trim(),
+                  }))
+                  .filter((s) => s.amount > 0)
+              : [],
+        payments:
+          payload.payments === undefined
+            ? Array.isArray(tx.payments)
+              ? tx.payments
+              : []
+            : normalizePayments(payload.payments),
+        receiptId: payload.receiptId === undefined ? tx.receiptId : payload.receiptId,
+        receipt:
+          payload.receipt === undefined
+            ? tx.receipt
+            : typeof payload.receipt === 'string' && payload.receipt.startsWith('data:')
+              ? payload.receipt
+              : null,
         updatedAt: now,
         updatedBy: this.currentUserId || tx.updatedBy || null,
       });
+
+      // Hapus blob struk lama jika receiptId berubah atau dihapus.
+      const oldReceiptId = tx.receiptId;
+      const newReceiptId = tx.receiptId;
+      if (oldReceiptId && oldReceiptId !== newReceiptId && this._idbReady) {
+        void repository.deleteReceipt(oldReceiptId).catch(() => {});
+      }
       return tx;
     });
   }
@@ -627,6 +799,133 @@ export class Store {
       tx.updatedBy = this.currentUserId || tx.updatedBy || null;
       return tx;
     });
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /*  Receipt (lampiran struk)                                                */
+  /* ------------------------------------------------------------------------ */
+
+  /**
+   * Ambil data struk dari IndexedDB.
+   * @param {string} receiptId
+   * @returns {Promise<{id: string, blob: Blob, mimeType: string, size: number, createdAt: string} | null>}
+   */
+  async getReceipt(receiptId) {
+    if (!receiptId || !this._idbReady) return null;
+    try {
+      return await repository.getReceipt(receiptId);
+    } catch (error) {
+      console.error('Gagal membaca struk:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Simpan blob struk ke IndexedDB.
+   * @param {string} receiptId
+   * @param {Blob} blob
+   * @param {string} mimeType
+   */
+  async putReceipt(receiptId, blob, mimeType) {
+    if (!receiptId || !blob || !this._idbReady) return;
+    try {
+      await repository.putReceipt(receiptId, blob, mimeType);
+      // Revoke URL lama jika ada di cache.
+      const oldUrl = this._receiptUrlCache.get(receiptId);
+      if (oldUrl) {
+        try {
+          URL.revokeObjectURL(oldUrl);
+        } catch {
+          /* noop */
+        }
+        this._receiptUrlCache.delete(receiptId);
+      }
+    } catch (error) {
+      console.error('Gagal menyimpan struk:', error);
+    }
+  }
+
+  /**
+   * Hapus struk dari IndexedDB.
+   * @param {string} receiptId
+   */
+  async deleteReceipt(receiptId) {
+    if (!receiptId || !this._idbReady) return;
+    try {
+      const url = this._receiptUrlCache.get(receiptId);
+      if (url) {
+        try {
+          URL.revokeObjectURL(url);
+        } catch {
+          /* noop */
+        }
+        this._receiptUrlCache.delete(receiptId);
+      }
+      await repository.deleteReceipt(receiptId);
+    } catch (error) {
+      console.error('Gagal menghapus struk:', error);
+    }
+  }
+
+  /**
+   * Ambil object URL untuk ditampilkan di <img>. URL di-cache per receiptId.
+   * @param {string} receiptId
+   * @returns {Promise<string | null>}
+   */
+  async getReceiptUrl(receiptId) {
+    if (!receiptId || !this._idbReady) return null;
+    try {
+      const cached = this._receiptUrlCache.get(receiptId);
+      if (cached) return cached;
+      const record = await repository.getReceipt(receiptId);
+      if (!record || !record.blob) return null;
+      const url = URL.createObjectURL(record.blob);
+      this._receiptUrlCache.set(receiptId, url);
+      return url;
+    } catch (error) {
+      console.error('Gagal membuat URL struk:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Buang object URL dari cache (untuk mencegah memory leak).
+   * @param {string} receiptId
+   */
+  revokeReceiptUrl(receiptId) {
+    if (!receiptId) return;
+    const url = this._receiptUrlCache.get(receiptId);
+    if (url) {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {
+        /* noop */
+      }
+      this._receiptUrlCache.delete(receiptId);
+    }
+  }
+
+  /**
+   * Bersihkan struk yatim (blob yang tidak direferensi oleh transaksi mana pun).
+   * Dipanggil secara periodik atau saat logout/reset.
+   */
+  async cleanupOrphanReceipts() {
+    if (!this._idbReady) return;
+    try {
+      const usedIds = new Set();
+      (this.data?.transactions || []).forEach((tx) => {
+        if (tx.receiptId) usedIds.add(tx.receiptId);
+      });
+
+      const records = await repository.getAllReceipts();
+      await Promise.allSettled(
+        records
+          .filter((record) => !usedIds.has(record.id))
+          .map((record) => repository.deleteReceipt(record.id))
+      );
+    } catch (error) {
+      console.error('Gagal membersihkan struk yatim:', error);
+    }
   }
 
   transactionById(id) {
@@ -709,7 +1008,8 @@ export class Store {
     const transactions = this.transactionsForMonth(month);
     const expenseTransactions = transactions.filter((tx) => tx.type === 'expense');
     const average = expenseTransactions.length
-      ? expenseTransactions.reduce((total, tx) => total + safeNumber(tx.amount), 0) / expenseTransactions.length
+      ? expenseTransactions.reduce((total, tx) => total + safeNumber(tx.amount), 0) /
+        expenseTransactions.length
       : 0;
     const topCategory = this.expenseByCategory(month)[0] || null;
     return {
@@ -870,11 +1170,13 @@ export class Store {
         amount: safeNumber(split.amount),
       }));
     }
-    return [{
-      categoryId: tx?.categoryId || null,
-      subcategoryId: tx?.subcategoryId || null,
-      amount,
-    }];
+    return [
+      {
+        categoryId: tx?.categoryId || null,
+        subcategoryId: tx?.subcategoryId || null,
+        amount,
+      },
+    ];
   }
 
   expenseByCategory(month = monthKey()) {
@@ -924,10 +1226,24 @@ export class Store {
   memberSpending(month = monthKey()) {
     const map = new Map();
     this.activeUsers().forEach((user) => {
-      map.set(user.id, { userId: user.id, name: user.name, color: user.color, count: 0, income: 0, expense: 0 });
+      map.set(user.id, {
+        userId: user.id,
+        name: user.name,
+        color: user.color,
+        count: 0,
+        income: 0,
+        expense: 0,
+      });
     });
     if (!map.has('__unassigned__')) {
-      map.set('__unassigned__', { userId: '__unassigned__', name: 'Tanpa pemilik', color: 'var(--muted)', count: 0, income: 0, expense: 0 });
+      map.set('__unassigned__', {
+        userId: '__unassigned__',
+        name: 'Tanpa pemilik',
+        color: 'var(--muted)',
+        count: 0,
+        income: 0,
+        expense: 0,
+      });
     }
     this.transactionsForMonth(month).forEach((tx) => {
       const payments = Array.isArray(tx.payments)
@@ -955,7 +1271,8 @@ export class Store {
       if (tx.type === 'expense') entry.expense += safeNumber(tx.amount);
       if (tx.type === 'transfer' && tx.toAccountId) {
         const toAccount = this.accountById(tx.toAccountId);
-        const toOwner = toAccount?.owner && map.has(toAccount.owner) ? toAccount.owner : '__unassigned__';
+        const toOwner =
+          toAccount?.owner && map.has(toAccount.owner) ? toAccount.owner : '__unassigned__';
         if (toOwner !== ownerId) {
           const toEntry = map.get(toOwner);
           if (toEntry) {
@@ -964,9 +1281,7 @@ export class Store {
         }
       }
     });
-    return [...map.values()]
-      .filter((item) => item.count > 0)
-      .sort((a, b) => b.expense - a.expense);
+    return [...map.values()].filter((item) => item.count > 0).sort((a, b) => b.expense - a.expense);
   }
 
   categoryTrend(month = monthKey(), limit = 6) {
@@ -974,7 +1289,9 @@ export class Store {
     const currentMap = new Map();
     const previousMap = new Map();
     this.expenseByCategory(month).forEach((item) => currentMap.set(item.categoryId, item.total));
-    this.expenseByCategory(previous).forEach((item) => previousMap.set(item.categoryId, item.total));
+    this.expenseByCategory(previous).forEach((item) =>
+      previousMap.set(item.categoryId, item.total)
+    );
     const ids = new Set([...currentMap.keys(), ...previousMap.keys()]);
     const rows = [...ids].map((id) => {
       const cat = this.categoryById(id);
@@ -989,12 +1306,10 @@ export class Store {
         current,
         previous: prev,
         diff,
-        percent: prev > 0 ? (diff / prev) * 100 : (current > 0 ? 100 : 0),
+        percent: prev > 0 ? (diff / prev) * 100 : current > 0 ? 100 : 0,
       };
     });
-    return rows
-      .sort((a, b) => (b.current + b.previous) - (a.current + a.previous))
-      .slice(0, limit);
+    return rows.sort((a, b) => b.current + b.previous - (a.current + a.previous)).slice(0, limit);
   }
 
   /* ------------------------------------------------------------------------ */
@@ -1019,7 +1334,9 @@ export class Store {
     let balance = safeNumber(account.openingBalance);
     this.transactions({ includeDeleted: false }).forEach((tx) => {
       const amount = safeNumber(tx.amount);
-      const payments = Array.isArray(tx.payments) ? tx.payments.filter((payment) => safeNumber(payment?.amount) > 0) : [];
+      const payments = Array.isArray(tx.payments)
+        ? tx.payments.filter((payment) => safeNumber(payment?.amount) > 0)
+        : [];
       if (tx.type === 'transfer') {
         if (tx.accountId === accountId) balance -= amount;
         if (tx.toAccountId === accountId) balance += amount;
@@ -1042,9 +1359,11 @@ export class Store {
 
   accountTransactions(accountId) {
     return this.transactions().filter(
-      (tx) => tx.accountId === accountId
-        || tx.toAccountId === accountId
-        || (Array.isArray(tx.payments) && tx.payments.some((payment) => payment.accountId === accountId)),
+      (tx) =>
+        tx.accountId === accountId ||
+        tx.toAccountId === accountId ||
+        (Array.isArray(tx.payments) &&
+          tx.payments.some((payment) => payment.accountId === accountId))
     );
   }
 
@@ -1065,7 +1384,7 @@ export class Store {
     return sum(
       this.activeAccounts()
         .filter((account) => this.accountOwners(account).includes(ownerId))
-        .map((account) => this.accountBalance(account.id)),
+        .map((account) => this.accountBalance(account.id))
     );
   }
 
@@ -1075,7 +1394,9 @@ export class Store {
   }
 
   sharedAccounts() {
-    return this.activeAccounts().filter((account) => Array.isArray(account.sharedWith) && account.sharedWith.length > 0);
+    return this.activeAccounts().filter(
+      (account) => Array.isArray(account.sharedWith) && account.sharedWith.length > 0
+    );
   }
 
   creditAccounts() {
@@ -1090,9 +1411,12 @@ export class Store {
       .reduce((total, tx) => {
         const payments = Array.isArray(tx.payments) ? tx.payments : [];
         if (payments.length) {
-          return total + payments
-            .filter((payment) => payment.accountId === accountId)
-            .reduce((sum, payment) => sum + safeNumber(payment.amount), 0);
+          return (
+            total +
+            payments
+              .filter((payment) => payment.accountId === accountId)
+              .reduce((sum, payment) => sum + safeNumber(payment.amount), 0)
+          );
         }
         if (tx.accountId === accountId || tx.toAccountId === accountId) {
           return total + safeNumber(tx.amount);
@@ -1112,7 +1436,7 @@ export class Store {
 
   saveAccount(payload, id = null) {
     return this.commit(id ? 'account:update' : 'account:add', (data, now) => {
-      const owner = payload.owner || this.currentUserId || (data.users?.[0]?.id || 'owner');
+      const owner = payload.owner || this.currentUserId || data.users?.[0]?.id || 'owner';
       if (id) {
         const account = data.accounts.find((item) => item.id === id);
         if (!account) throw new Error('Akun tidak ditemukan.');
@@ -1121,20 +1445,50 @@ export class Store {
           name: String(payload.name || account.name).trim(),
           type: payload.type || account.type,
           color: payload.color || account.color,
-          openingBalance: payload.openingBalance === undefined
-            ? safeNumber(account.openingBalance)
-            : safeNumber(payload.openingBalance),
+          openingBalance:
+            payload.openingBalance === undefined
+              ? safeNumber(account.openingBalance)
+              : safeNumber(payload.openingBalance),
           owner: payload.owner || account.owner || owner,
-           sharedWith: Array.isArray(payload.sharedWith) ? payload.sharedWith : (account.sharedWith || []),
-           creditLimit: payload.creditLimit === undefined ? safeNumber(account.creditLimit) : safeNumber(payload.creditLimit),
-            creditDueDate: payload.creditDueDate === undefined ? (account.creditDueDate || null) : (payload.creditDueDate || null),
-            loanPrincipal: payload.loanPrincipal === undefined ? safeNumber(account.loanPrincipal) : safeNumber(payload.loanPrincipal),
-            loanInterestRate: payload.loanInterestRate === undefined ? safeNumber(account.loanInterestRate) : safeNumber(payload.loanInterestRate),
-            loanTermMonths: payload.loanTermMonths === undefined ? safeNumber(account.loanTermMonths) : safeNumber(payload.loanTermMonths),
-            loanMonthlyPayment: payload.loanMonthlyPayment === undefined ? safeNumber(account.loanMonthlyPayment) : safeNumber(payload.loanMonthlyPayment),
-            loanStartDate: payload.loanStartDate === undefined ? (account.loanStartDate || null) : (payload.loanStartDate || null),
-            loanNextDueDate: payload.loanNextDueDate === undefined ? (account.loanNextDueDate || null) : (payload.loanNextDueDate || null),
-            loanRemaining: payload.loanRemaining === undefined ? safeNumber(account.loanRemaining) : safeNumber(payload.loanRemaining),
+          sharedWith: Array.isArray(payload.sharedWith)
+            ? payload.sharedWith
+            : account.sharedWith || [],
+          creditLimit:
+            payload.creditLimit === undefined
+              ? safeNumber(account.creditLimit)
+              : safeNumber(payload.creditLimit),
+          creditDueDate:
+            payload.creditDueDate === undefined
+              ? account.creditDueDate || null
+              : payload.creditDueDate || null,
+          loanPrincipal:
+            payload.loanPrincipal === undefined
+              ? safeNumber(account.loanPrincipal)
+              : safeNumber(payload.loanPrincipal),
+          loanInterestRate:
+            payload.loanInterestRate === undefined
+              ? safeNumber(account.loanInterestRate)
+              : safeNumber(payload.loanInterestRate),
+          loanTermMonths:
+            payload.loanTermMonths === undefined
+              ? safeNumber(account.loanTermMonths)
+              : safeNumber(payload.loanTermMonths),
+          loanMonthlyPayment:
+            payload.loanMonthlyPayment === undefined
+              ? safeNumber(account.loanMonthlyPayment)
+              : safeNumber(payload.loanMonthlyPayment),
+          loanStartDate:
+            payload.loanStartDate === undefined
+              ? account.loanStartDate || null
+              : payload.loanStartDate || null,
+          loanNextDueDate:
+            payload.loanNextDueDate === undefined
+              ? account.loanNextDueDate || null
+              : payload.loanNextDueDate || null,
+          loanRemaining:
+            payload.loanRemaining === undefined
+              ? safeNumber(account.loanRemaining)
+              : safeNumber(payload.loanRemaining),
           updatedAt: now,
         });
 
@@ -1177,15 +1531,18 @@ export class Store {
         openingBalance: safeNumber(payload.openingBalance),
         owner: owner,
         sharedWith: Array.isArray(payload.sharedWith) ? payload.sharedWith : [],
-           creditLimit: safeNumber(payload.creditLimit),
-            creditDueDate: payload.creditDueDate || null,
-            loanPrincipal: safeNumber(payload.loanPrincipal),
-            loanInterestRate: safeNumber(payload.loanInterestRate),
-            loanTermMonths: safeNumber(payload.loanTermMonths),
-            loanMonthlyPayment: safeNumber(payload.loanMonthlyPayment),
-            loanStartDate: payload.loanStartDate || null,
-            loanNextDueDate: payload.loanNextDueDate || null,
-            loanRemaining: payload.loanRemaining === undefined ? safeNumber(payload.loanPrincipal) : safeNumber(payload.loanRemaining),
+        creditLimit: safeNumber(payload.creditLimit),
+        creditDueDate: payload.creditDueDate || null,
+        loanPrincipal: safeNumber(payload.loanPrincipal),
+        loanInterestRate: safeNumber(payload.loanInterestRate),
+        loanTermMonths: safeNumber(payload.loanTermMonths),
+        loanMonthlyPayment: safeNumber(payload.loanMonthlyPayment),
+        loanStartDate: payload.loanStartDate || null,
+        loanNextDueDate: payload.loanNextDueDate || null,
+        loanRemaining:
+          payload.loanRemaining === undefined
+            ? safeNumber(payload.loanPrincipal)
+            : safeNumber(payload.loanRemaining),
         archived: false,
         createdAt: now,
         updatedAt: now,
@@ -1321,9 +1678,11 @@ export class Store {
 
   getBudget(month, categoryId = '__total__') {
     const id = categoryId || '__total__';
-    return this.data.budgets.find(
-      (budget) => budget.month === month && budget.categoryId === id && !budget.deletedAt,
-    ) || null;
+    return (
+      this.data.budgets.find(
+        (budget) => budget.month === month && budget.categoryId === id && !budget.deletedAt
+      ) || null
+    );
   }
 
   totalBudget(month = monthKey()) {
@@ -1339,7 +1698,9 @@ export class Store {
     return this.commit('budget:set', (data, now) => {
       const id = categoryId || '__total__';
       const value = Math.max(0, Math.round(safeNumber(amount)));
-      let record = data.budgets.find((budget) => budget.month === month && budget.categoryId === id);
+      let record = data.budgets.find(
+        (budget) => budget.month === month && budget.categoryId === id
+      );
       if (record) {
         record.amount = value;
         record.updatedAt = now;
@@ -1365,7 +1726,9 @@ export class Store {
       Object.entries(entries).forEach(([categoryId, rawAmount]) => {
         const id = categoryId || '__total__';
         const value = Math.max(0, Math.round(safeNumber(rawAmount)));
-        let record = data.budgets.find((budget) => budget.month === month && budget.categoryId === id);
+        let record = data.budgets.find(
+          (budget) => budget.month === month && budget.categoryId === id
+        );
         if (record) {
           record.amount = value;
           record.updatedAt = now;
@@ -1465,7 +1828,7 @@ export class Store {
           name: String(payload.name || goal.name).trim() || goal.name,
           targetAmount: payload.targetAmount === undefined ? goal.targetAmount : targetAmount,
           currentAmount: payload.currentAmount === undefined ? goal.currentAmount : currentAmount,
-          dueDate: payload.dueDate === undefined ? goal.dueDate : (payload.dueDate || null),
+          dueDate: payload.dueDate === undefined ? goal.dueDate : payload.dueDate || null,
           color: payload.color || goal.color,
           updatedAt: now,
         });
@@ -1521,7 +1884,9 @@ export class Store {
 
   saveRecurring(payload, id = null) {
     return this.commit(id ? 'recurring:update' : 'recurring:add', (data, now) => {
-      const type = ['income', 'expense', 'transfer'].includes(payload.type) ? payload.type : 'expense';
+      const type = ['income', 'expense', 'transfer'].includes(payload.type)
+        ? payload.type
+        : 'expense';
       if (id) {
         const rule = data.recurring.find((item) => item.id === id);
         if (!rule) throw new Error('Transaksi berulang tidak ditemukan.');
@@ -1604,7 +1969,9 @@ export class Store {
     const account = data.accounts.find((item) => item.id === rule.accountId && !item.deletedAt);
     if (!account) return false;
     if (rule.type === 'transfer') {
-      const toAccount = data.accounts.find((item) => item.id === rule.toAccountId && !item.deletedAt);
+      const toAccount = data.accounts.find(
+        (item) => item.id === rule.toAccountId && !item.deletedAt
+      );
       if (!toAccount) return false;
     }
     if (rule.type === 'expense') {
@@ -1733,72 +2100,82 @@ export class Store {
   }
 
   saveNote(payload, id = null, options = {}) {
-    return this.commit(id ? 'note:update' : 'note:add', (data, now) => {
-      if (id) {
-        const note = data.notes.find((item) => item.id === id && !item.deletedAt);
-        if (!note) throw new Error('Catatan tidak ditemukan.');
-        const items = (Array.isArray(payload.items) ? payload.items : note.items)
-          .map((item) => ({
-            id: item.id || uid('item'),
-            text: String(item.text || '').trim(),
-            done: Boolean(item.done),
-          }))
-          .filter((item) => item.text);
+    return this.commit(
+      id ? 'note:update' : 'note:add',
+      (data, now) => {
+        if (id) {
+          const note = data.notes.find((item) => item.id === id && !item.deletedAt);
+          if (!note) throw new Error('Catatan tidak ditemukan.');
+          const items = (Array.isArray(payload.items) ? payload.items : note.items)
+            .map((item) => ({
+              id: item.id || uid('item'),
+              text: String(item.text || '').trim(),
+              done: Boolean(item.done),
+            }))
+            .filter((item) => item.text);
+          const allItemsDone = items.length > 0 && items.every((item) => item.done);
+          Object.assign(note, {
+            kind: payload.kind === 'todo' ? 'todo' : note.kind,
+            title: String(payload.title ?? note.title).trim() || 'Tanpa judul',
+            content: String(payload.content ?? note.content),
+            color: payload.color || note.color,
+            pinned: payload.pinned ?? note.pinned,
+            favorite: payload.favorite ?? note.favorite,
+            tags: Array.isArray(payload.tags)
+              ? payload.tags.map(String).filter(Boolean).slice(0, 20)
+              : note.tags,
+            items,
+            done: payload.done ?? (items.length ? allItemsDone : note.done),
+            dueDate: payload.dueDate ?? note.dueDate,
+            reminderAt: payload.reminderAt ?? note.reminderAt,
+            priority: payload.priority || note.priority,
+            status: payload.status || note.status,
+            updatedAt: now,
+            completedAt: (payload.done ?? note.done) ? note.completedAt || now : null,
+          });
+          return note;
+        }
+        const user = this.getUser(payload.createdBy || this.currentUserId) || this.currentUser;
+        const items = Array.isArray(payload.items)
+          ? payload.items
+              .map((item) => ({
+                id: item.id || uid('item'),
+                text: String(item.text || '').trim(),
+                done: Boolean(item.done),
+              }))
+              .filter((item) => item.text)
+          : [];
         const allItemsDone = items.length > 0 && items.every((item) => item.done);
-        Object.assign(note, {
-          kind: payload.kind === 'todo' ? 'todo' : note.kind,
-          title: String(payload.title ?? note.title).trim() || 'Tanpa judul',
-          content: String(payload.content ?? note.content),
-          color: payload.color || note.color,
-          pinned: payload.pinned ?? note.pinned,
-          favorite: payload.favorite ?? note.favorite,
-          tags: Array.isArray(payload.tags) ? payload.tags.map(String).filter(Boolean).slice(0, 20) : note.tags,
+        const note = {
+          id: uid('note'),
+          kind: payload.kind === 'todo' ? 'todo' : 'note',
+          title: String(payload.title || '').trim() || 'Tanpa judul',
+          content: String(payload.content || ''),
+          color: payload.color || 'yellow',
+          pinned: Boolean(payload.pinned),
+          favorite: Boolean(payload.favorite),
+          tags: Array.isArray(payload.tags)
+            ? payload.tags.map(String).filter(Boolean).slice(0, 20)
+            : [],
           items,
-          done: payload.done ?? (items.length ? allItemsDone : note.done),
-          dueDate: payload.dueDate ?? note.dueDate,
-          reminderAt: payload.reminderAt ?? note.reminderAt,
-          priority: payload.priority || note.priority,
-          status: payload.status || note.status,
+          done: Boolean(payload.done ?? allItemsDone),
+          dueDate: payload.dueDate || null,
+          reminderAt: payload.reminderAt || null,
+          lastNotifiedAt: null,
+          priority: payload.priority || 'normal',
+          status: 'active',
+          order: Date.now(),
+          createdBy: user?.id || this.currentUserId || this.data.users[0]?.id || 'owner',
+          createdByName: user?.name || this.data.users[0]?.name || 'Pengguna',
+          createdAt: now,
           updatedAt: now,
-          completedAt: (payload.done ?? note.done) ? note.completedAt || now : null,
-        });
+          completedAt: payload.done || allItemsDone ? now : null,
+        };
+        data.notes.push(note);
         return note;
-      }
-      const user = this.getUser(payload.createdBy || this.currentUserId) || this.currentUser;
-      const items = Array.isArray(payload.items)
-        ? payload.items.map((item) => ({
-          id: item.id || uid('item'),
-          text: String(item.text || '').trim(),
-          done: Boolean(item.done),
-        })).filter((item) => item.text)
-        : [];
-      const allItemsDone = items.length > 0 && items.every((item) => item.done);
-      const note = {
-        id: uid('note'),
-        kind: payload.kind === 'todo' ? 'todo' : 'note',
-        title: String(payload.title || '').trim() || 'Tanpa judul',
-        content: String(payload.content || ''),
-        color: payload.color || 'yellow',
-        pinned: Boolean(payload.pinned),
-        favorite: Boolean(payload.favorite),
-        tags: Array.isArray(payload.tags) ? payload.tags.map(String).filter(Boolean).slice(0, 20) : [],
-        items,
-        done: Boolean(payload.done ?? allItemsDone),
-        dueDate: payload.dueDate || null,
-        reminderAt: payload.reminderAt || null,
-        lastNotifiedAt: null,
-        priority: payload.priority || 'normal',
-        status: 'active',
-        order: Date.now(),
-        createdBy: user?.id || this.currentUserId || this.data.users[0]?.id || 'owner',
-        createdByName: user?.name || this.data.users[0]?.name || 'Pengguna',
-        createdAt: now,
-        updatedAt: now,
-        completedAt: payload.done || allItemsDone ? now : null,
-      };
-      data.notes.push(note);
-      return note;
-    }, options);
+      },
+      options
+    );
   }
 
   updateNote(id, patch, options = {}) {
@@ -1832,7 +2209,10 @@ export class Store {
       if (!note) throw new Error('Tugas tidak ditemukan.');
       const nextDone = done === null ? !note.done : Boolean(done);
       note.done = nextDone;
-      if (note.items.length) note.items.forEach((item) => { item.done = nextDone; });
+      if (note.items.length)
+        note.items.forEach((item) => {
+          item.done = nextDone;
+        });
       note.completedAt = nextDone ? now : null;
       note.updatedAt = now;
       return note;
@@ -1896,7 +2276,9 @@ export class Store {
   }
 
   noteTags() {
-    return [...new Set(this.notes().flatMap((note) => note.tags || []))].sort((a, b) => a.localeCompare(b, 'id'));
+    return [...new Set(this.notes().flatMap((note) => note.tags || []))].sort((a, b) =>
+      a.localeCompare(b, 'id')
+    );
   }
 
   noteCounts() {
@@ -1932,13 +2314,17 @@ export class Store {
   }
 
   markReminderNotified(id) {
-    return this.commit('note:reminder', (data, now) => {
-      const note = data.notes.find((item) => item.id === id && !item.deletedAt);
-      if (!note) return null;
-      note.lastNotifiedAt = now;
-      note.updatedAt = now;
-      return note;
-    }, { silent: true });
+    return this.commit(
+      'note:reminder',
+      (data, now) => {
+        const note = data.notes.find((item) => item.id === id && !item.deletedAt);
+        if (!note) return null;
+        note.lastNotifiedAt = now;
+        note.updatedAt = now;
+        return note;
+      },
+      { silent: true }
+    );
   }
 
   /* ------------------------------------------------------------------------ */
@@ -1957,7 +2343,14 @@ export class Store {
       const user = data.users.find((item) => item.id === id);
       if (!user) throw new Error('Pengguna tidak ditemukan.');
       const allowed = [
-        'name', 'initials', 'color', 'googleEmail', 'firebaseUid', 'pinHash', 'pinSalt', 'pinIterations',
+        'name',
+        'initials',
+        'color',
+        'googleEmail',
+        'firebaseUid',
+        'pinHash',
+        'pinSalt',
+        'pinIterations',
       ];
       allowed.forEach((key) => {
         if (patch[key] !== undefined) user[key] = patch[key];
@@ -1976,7 +2369,9 @@ export class Store {
       }
       user.deletedAt = now;
       user.updatedAt = now;
-      const email = String(user.googleEmail || '').trim().toLowerCase();
+      const email = String(user.googleEmail || '')
+        .trim()
+        .toLowerCase();
       if (email && this.registry?.accounts?.[email]?.workspaceId === this.workspaceId) {
         delete this.registry.accounts[email];
         writeWorkspaceRegistry(this.registry);
@@ -1997,15 +2392,63 @@ export class Store {
     return deepClone(this.data);
   }
 
-  importData(raw, { emit = true } = {}) {
+  /**
+   * Ekspor semua struk (blob) sebagai base64 data URL untuk backup.
+   * @returns {Promise<Array<{id: string, mimeType: string, size: number, dataUrl: string}>>}
+   */
+  async exportReceipts() {
+    const receipts = [];
+    const txs = this.data?.transactions || [];
+    for (const tx of txs) {
+      if (tx.receiptId) {
+        try {
+          const record = await repository.getReceipt(tx.receiptId);
+          if (record?.blob) {
+            const dataUrl = await blobToDataUrl(record.blob);
+            receipts.push({
+              id: tx.receiptId,
+              mimeType: record.mimeType,
+              size: record.size,
+              dataUrl,
+            });
+          }
+        } catch (error) {
+          console.warn(`Gagal ekspor struk ${tx.receiptId}:`, error);
+        }
+      }
+    }
+    return receipts;
+  }
+
+  /**
+   * Impor struk dari backup ke IndexedDB.
+   * @param {Array} receipts
+   */
+  async importReceipts(receipts = []) {
+    if (!Array.isArray(receipts) || !this._idbReady) return;
+    for (const receipt of receipts) {
+      if (!receipt.id || !receipt.dataUrl) continue;
+      try {
+        const blob = dataURLToBlob(receipt.dataUrl);
+        if (blob) {
+          await repository.putReceipt(receipt.id, blob, receipt.mimeType);
+        }
+      } catch (error) {
+        console.warn(`Gagal impor struk ${receipt.id}:`, error);
+      }
+    }
+  }
+
+  async importData(raw, { emit = true } = {}) {
     const draft = migrateData(raw);
     if (this.workspaceId) {
-      draft.settings.workspaceName = draft.settings.workspaceName
-        || draft.settings.householdName
-        || 'Ruang';
+      draft.settings.workspaceName =
+        draft.settings.workspaceName || draft.settings.householdName || 'Ruang';
       this.updateWorkspaceMeta(draft);
       draft.users.forEach((user) => {
-        const email = String(user.googleEmail || '').trim().toLowerCase();
+        const email = String(user.googleEmail || '')
+          .trim()
+          .toLowerCase();
         if (!email) return;
         this.registry.accounts[email] = {
           email,
@@ -2024,8 +2467,8 @@ export class Store {
   }
 
   loadSampleData() {
-    const actor = this.currentUser || this.activeUsers()[0]
-      || { id: this.currentUserId || 'owner', name: 'Pengguna' };
+    const actor = this.currentUser ||
+      this.activeUsers()[0] || { id: this.currentUserId || 'owner', name: 'Pengguna' };
     const draft = createSampleData(this.data, actor);
     this.persist(draft);
     this.data = draft;
@@ -2033,12 +2476,23 @@ export class Store {
     return this.data;
   }
 
-  resetLocalData() {
+  async resetLocalData() {
     const previousData = this.data;
     const previousWorkspaceId = this.workspaceId;
     try {
       if (this.workspaceId) {
-        localStorage.removeItem(workspaceStorageKey(this.workspaceId));
+        // Hapus semua struk yang direferensi oleh transaksi workspace ini.
+        const txIds = new Set();
+        (this.data?.transactions || []).forEach((tx) => {
+          if (tx.receiptId) txIds.add(tx.receiptId);
+        });
+        await Promise.allSettled([...txIds].map((id) => repository.deleteReceipt(id)));
+
+        if (this._idbReady) {
+          await repository.deleteWorkspace(this.workspaceId);
+        } else {
+          localStorage.removeItem(workspaceStorageKey(this.workspaceId));
+        }
         delete this.registry.workspaces[this.workspaceId];
         Object.keys(this.registry.accounts).forEach((email) => {
           if (this.registry.accounts[email]?.workspaceId === this.workspaceId) {
@@ -2050,7 +2504,9 @@ export class Store {
         }
         writeWorkspaceRegistry(this.registry);
       }
-      localStorage.removeItem(APP.storageKey);
+      if (!this._idbReady) {
+        localStorage.removeItem(APP.storageKey);
+      }
       this.data = createDefaultData();
       this.workspaceId = null;
       this.account = null;
@@ -2099,7 +2555,11 @@ export class Store {
     if (recordStamp(remote.settings) > recordStamp(draft.settings)) {
       draft.settings = remote.settings;
     } else if (remote.settings) {
-      draft.settings = { ...remote.settings, ...draft.settings, updatedAt: draft.settings.updatedAt };
+      draft.settings = {
+        ...remote.settings,
+        ...draft.settings,
+        updatedAt: draft.settings.updatedAt,
+      };
     }
 
     draft.revision = Math.max(Number(draft.revision) || 1, Number(remote.revision) || 1);
@@ -2124,7 +2584,6 @@ export class Store {
     return { changed, data: this.data };
   }
 }
-
 
 function addDaysLocal(value, days) {
   const [year, month, day] = String(value).split('-').map(Number);

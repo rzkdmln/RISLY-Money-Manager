@@ -11,17 +11,8 @@ import {
   openImportFilePicker,
   downloadImportTemplate,
 } from '../../services/import.js';
-import {
-  exportExcel,
-  exportExcelRange,
-  exportPdf,
-  exportPdfRange,
-} from '../../services/export.js';
-import {
-  backupNow,
-  pickBackupFile,
-  resetApplication,
-} from '../../services/backup.js';
+import { exportExcel, exportExcelRange, exportPdf, exportPdfRange } from '../../services/export.js';
+import { backupNow, pickBackupFile, resetApplication } from '../../services/backup.js';
 import { monthKey, shiftMonthKey, formatMonth, escapeHTML } from '../../core/utils.js';
 import { ui } from '../../ui/ui.js';
 import { store } from '../../core/store.js';
@@ -58,21 +49,27 @@ export const exportActions = {
     const uploadWrap = form?.querySelector('[data-receipt-upload]');
     const fileName = form?.querySelector('[data-receipt-name]');
     if (hidden) hidden.value = '';
-    if (preview) preview.removeAttribute('src');
-    if (wrap) wrap.classList.add('hidden');
+    if (preview) {
+      preview.removeAttribute('src');
+      preview.removeAttribute('data-receipt-id');
+    }
+    if (wrap) {
+      wrap.classList.add('hidden');
+      wrap.removeAttribute('data-receipt-id');
+    }
     if (file) file.value = '';
     if (uploadWrap) uploadWrap.classList.remove('hidden');
     if (fileName) fileName.textContent = 'Struk terlampir';
   },
-  'view-receipt': (element) => {
+  'view-receipt': async (element) => {
     const form = element.closest('form');
-    const receipt =
+    const receiptId =
       form?.querySelector('input[name="receipt"]')?.value ||
-      element
-        ?.closest('[data-receipt-wrap]')
-        ?.querySelector('img')?.src;
-    if (!receipt) return;
-    openReceiptLightbox(receipt);
+      element?.closest('[data-receipt-wrap]')?.querySelector('img')?.dataset?.receiptId;
+    if (!receiptId) return;
+    const url = await store.getReceiptUrl(receiptId);
+    if (!url) return;
+    openReceiptLightbox(url);
   },
   'import-transactions': () => {
     openImportFormModal();
@@ -167,7 +164,7 @@ export const exportActions = {
         ' telah disalin (' +
         result.carried +
         ' kategori).',
-      'success',
+      'success'
     );
     renderApplication();
   },

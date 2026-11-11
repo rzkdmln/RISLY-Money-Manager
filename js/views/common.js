@@ -36,18 +36,28 @@ export function txSubtitle(tx) {
     return `${store.accountName(tx.accountId)} → ${store.accountName(tx.toAccountId)}`;
   }
   if (Array.isArray(tx.payments) && tx.payments.length) {
-    const names = [...new Set(tx.payments.map((payment) => {
-      const account = store.accountById(payment.accountId);
-      const owner = store.getUser(payment.memberId || account?.owner);
-      const accountName = account?.name || '';
-      const ownerName = owner?.name || '';
-      if (ownerName && accountName) return `${ownerName} · ${accountName}`;
-      return accountName || ownerName;
-    }).filter(Boolean))];
+    const names = [
+      ...new Set(
+        tx.payments
+          .map((payment) => {
+            const account = store.accountById(payment.accountId);
+            const owner = store.getUser(payment.memberId || account?.owner);
+            const accountName = account?.name || '';
+            const ownerName = owner?.name || '';
+            if (ownerName && accountName) return `${ownerName} · ${accountName}`;
+            return accountName || ownerName;
+          })
+          .filter(Boolean)
+      ),
+    ];
     return names.length ? `Split bayar · ${names.join(', ')}` : 'Split pembayaran';
   }
   if (Array.isArray(tx.splits) && tx.splits.length) {
-    const names = [...new Set(tx.splits.map((split) => store.categoryById(split.categoryId)?.name).filter(Boolean))];
+    const names = [
+      ...new Set(
+        tx.splits.map((split) => store.categoryById(split.categoryId)?.name).filter(Boolean)
+      ),
+    ];
     return names.length ? `Split · ${names.join(', ')}` : 'Split transaksi';
   }
   const category = categoryOf(tx);
@@ -81,7 +91,12 @@ export function txRow(tx, { showDate = false, showCreator = true, compact = fals
   const creator = store.getUser(tx.createdBy);
   const color = tx.type === 'transfer' ? 'var(--brand)' : category?.color || type.color;
   const iconName = tx.type === 'transfer' ? 'arrow-left-right' : category?.icon || type.icon;
-  const amountClass = tx.type === 'income' ? 'amount-income' : tx.type === 'expense' ? 'amount-expense' : 'amount-transfer';
+  const amountClass =
+    tx.type === 'income'
+      ? 'amount-income'
+      : tx.type === 'expense'
+        ? 'amount-expense'
+        : 'amount-transfer';
   const sign = tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : '';
   const time = normalizeTime(tx.time, timeFromISO(tx.createdAt) || '');
   return `<button type="button" class="tx-row ${compact ? 'tx-row-compact' : ''}" data-action="edit-tx" data-id="${escapeAttr(tx.id)}">
@@ -98,7 +113,7 @@ export function txRow(tx, { showDate = false, showCreator = true, compact = fals
         <span>${escapeHTML(txSubtitle(tx))}</span>
         ${Array.isArray(tx.tags) && tx.tags.length ? `<span class="tx-tags">${tx.tags.map((tag) => `<span class="tx-tag">#${escapeHTML(tag)}</span>`).join('')}</span>` : ''}
         ${Array.isArray(tx.payments) && tx.payments.length ? `<span class="tx-split">Split bayar ${tx.payments.length}</span>` : Array.isArray(tx.splits) && tx.splits.length ? `<span class="tx-split">Split ${tx.splits.length}</span>` : ''}
-        ${tx.receipt ? `<span class="tx-receipt" title="Ada struk">${icon('file-text', 'w-3 h-3')}</span>` : ''}
+        ${tx.receiptId ? `<span class="tx-receipt" title="Ada struk">${icon('file-text', 'w-3 h-3')}</span>` : ''}
         ${store.isMonthLocked(tx.date.slice(0, 7)) ? `<span class="tx-lock" title="Bulan terkunci">${icon('lock', 'w-3 h-3')}</span>` : ''}
         ${showCreator ? `<span class="tx-creator" style="--creator-color:${escapeAttr(creator?.color || 'var(--muted)')}">${escapeHTML(tx.createdByName || creator?.name || '—')}</span>` : ''}
       </span>
@@ -157,41 +172,66 @@ export function dueDateBadge(dueDate, done = false) {
 
 export function priorityBadge(priority) {
   const item = PRIORITIES[priority] || PRIORITIES.normal;
-  const tone = priority === 'urgent' ? 'red' : priority === 'high' ? 'amber' : priority === 'low' ? 'slate' : 'blue';
+  const tone =
+    priority === 'urgent'
+      ? 'red'
+      : priority === 'high'
+        ? 'amber'
+        : priority === 'low'
+          ? 'slate'
+          : 'blue';
   return badge(escapeHTML(item.label), tone, 'badge-soft');
 }
 
 export function noteCompletion(note) {
-  if (!note.items?.length) return { total: 0, done: note.done ? 1 : 0, percent: note.done ? 100 : 0 };
+  if (!note.items?.length)
+    return { total: 0, done: note.done ? 1 : 0, percent: note.done ? 100 : 0 };
   const done = note.items.filter((item) => item.done).length;
   return { total: note.items.length, done, percent: (done / note.items.length) * 100 };
 }
 
 export function noteCard(note, { view = 'grid', action = 'edit-note' } = {}) {
   const color = NOTE_COLORS[note.color] || NOTE_COLORS.yellow;
-  const tags = (note.tags || []).slice(0, 4).map((tag) => `<span class="note-tag">#${escapeHTML(tag)}</span>`).join('');
+  const tags = (note.tags || [])
+    .slice(0, 4)
+    .map((tag) => `<span class="note-tag">#${escapeHTML(tag)}</span>`)
+    .join('');
   const completion = noteCompletion(note);
   const isTrashed = note.status === 'trashed';
   const isArchived = note.status === 'archived';
   const kindIcon = note.kind === 'todo' ? 'check-square' : 'sticky-note';
   const due = note.kind === 'todo' ? dueDateBadge(note.dueDate, note.done) : '';
-  const preview = note.kind === 'note'
-    ? (plainTextPreview(note.content, 260) ? escapeHTML(plainTextPreview(note.content, 260)) : '<span class="text-slate-400">Catatan kosong</span>')
-    : (note.content ? escapeHTML(plainTextPreview(note.content, 180)) : '');
+  const preview =
+    note.kind === 'note'
+      ? plainTextPreview(note.content, 260)
+        ? escapeHTML(plainTextPreview(note.content, 260))
+        : '<span class="text-slate-400">Catatan kosong</span>'
+      : note.content
+        ? escapeHTML(plainTextPreview(note.content, 180))
+        : '';
   const checked = note.done ? 'is-done' : '';
-  const quickCheck = note.kind === 'todo'
-    ? `<button type="button" class="todo-check ${checked}" data-action="todo-toggle" data-id="${escapeAttr(note.id)}" aria-label="${note.done ? 'Tandai belum selesai' : 'Tandai selesai'}">${note.done ? icon('check', 'w-3.5 h-3.5') : ''}</button>`
-    : `<span class="note-kind-icon">${icon(kindIcon, 'w-4 h-4')}</span>`;
+  const quickCheck =
+    note.kind === 'todo'
+      ? `<button type="button" class="todo-check ${checked}" data-action="todo-toggle" data-id="${escapeAttr(note.id)}" aria-label="${note.done ? 'Tandai belum selesai' : 'Tandai selesai'}">${note.done ? icon('check', 'w-3.5 h-3.5') : ''}</button>`
+      : `<span class="note-kind-icon">${icon(kindIcon, 'w-4 h-4')}</span>`;
 
-  const itemRows = note.kind === 'todo' && note.items?.length
-    ? `<div class="todo-preview-list">
-      ${note.items.slice(0, 4).map((item) => `<button type="button" class="todo-preview-item ${item.done ? 'is-done' : ''}" data-action="todo-item-toggle" data-note="${escapeAttr(note.id)}" data-item="${escapeAttr(item.id)}">
+  const itemRows =
+    note.kind === 'todo' && note.items?.length
+      ? `<div class="todo-preview-list">
+      ${note.items
+        .slice(0, 4)
+        .map(
+          (
+            item
+          ) => `<button type="button" class="todo-preview-item ${item.done ? 'is-done' : ''}" data-action="todo-item-toggle" data-note="${escapeAttr(note.id)}" data-item="${escapeAttr(item.id)}">
         <span class="mini-check ${item.done ? 'is-done' : ''}">${item.done ? icon('check', 'w-2.5 h-2.5') : ''}</span>
         <span>${escapeHTML(item.text)}</span>
-      </button>`).join('')}
+      </button>`
+        )
+        .join('')}
       ${note.items.length > 4 ? `<span class="todo-more">+${note.items.length - 4} item lainnya</span>` : ''}
     </div>`
-    : '';
+      : '';
 
   const actions = isTrashed
     ? `<div class="note-card-actions">
@@ -218,13 +258,15 @@ export function noteCard(note, { view = 'grid', action = 'edit-note' } = {}) {
       </button>
       ${actions}
     </div>
-    ${note.kind === 'note'
-      ? `<button type="button" class="note-preview" data-action="${isTrashed ? 'note-restore' : action}" data-id="${escapeAttr(note.id)}">${preview}</button>`
-      : `<div class="note-preview todo-preview">
+    ${
+      note.kind === 'note'
+        ? `<button type="button" class="note-preview" data-action="${isTrashed ? 'note-restore' : action}" data-id="${escapeAttr(note.id)}">${preview}</button>`
+        : `<div class="note-preview todo-preview">
           ${preview ? `<p>${preview}</p>` : ''}
           ${completion.total ? `<div class="todo-progress">${progressBar(completion.percent, completion.percent >= 100 ? 'safe' : 'info', 'progress-thin')}<span>${Math.round(completion.percent)}%</span></div>` : ''}
           ${itemRows}
-        </div>`}
+        </div>`
+    }
     <div class="note-card-bottom">
       <div class="note-badges">${due}${note.kind === 'todo' ? priorityBadge(note.priority) : ''}</div>
       <div class="note-tags">${tags}</div>
@@ -294,4 +336,3 @@ export function insightBar(label, value, total, tone = 'info') {
 export function budgetTone(percent, warning = 75, danger = 90) {
   return toneForPercent(percent, warning, danger);
 }
-
