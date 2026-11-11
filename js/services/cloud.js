@@ -1228,7 +1228,36 @@ class CloudSync {
     if (!target) throw new Error('Pemilik ruang tidak ditemukan.');
     const uid = (await this.waitForFirebaseUser()) || (await this.getFirebaseUid());
     if (!uid) throw new Error('Login Firebase belum selesai. Coba lagi.');
-    if (target === String(uid)) throw new Error('Anda sudah menjadi pemilik ruang ini.');
+    // Pemilik ruang sendiri boleh kembali ke ruang miliknya (mis. setelah
+    // sempat berpindah ke ruang lain) tanpa harus mendaftar sebagai anggota.
+    if (target === String(uid)) {
+      const next = {
+        provider: 'firebase',
+        firebase: { path: `households/${uid}`, householdUid: uid, uid },
+      };
+      this.rememberHousehold(uid, uid);
+      this.stopEngine();
+      if (this.adapter?.destroy) {
+        try {
+          await this.adapter.destroy();
+        } catch {
+          /* noop */
+        }
+      }
+      this.config = next;
+      this.firebaseUid = uid;
+      this.connected = false;
+      this.adapter = null;
+      const result = await this.connect(next);
+      if (result?.ok && !result?.skipped) {
+        try {
+          await this.push({ immediate: true, force: true });
+        } catch {
+          /* noop */
+        }
+      }
+      return result;
+    }
 
     // Pastikan konfigurasi memakai identitas Firebase yang baru login, bukan
     // sisa akun sebelumnya di perangkat yang sama.
