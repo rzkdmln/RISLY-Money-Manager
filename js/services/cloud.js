@@ -1471,6 +1471,7 @@ class CloudSync {
       ownerUid: this.getHouseholdUid(),
       householdName,
       updatedAt: nowISO(),
+      expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
     });
     const old = String(previousCode || '')
       .trim()

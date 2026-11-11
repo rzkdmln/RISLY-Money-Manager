@@ -24,7 +24,7 @@
         )",
 
         // Validasi struktur envelope saat tulis.
-        ".validate": "newData.isObject() && newData.hasChildren(['app', 'schemaVersion', 'data', 'revision', 'savedAt'])",
+        ".validate": "newData.hasChildren(['app', 'schemaVersion', 'data', 'revision', 'savedAt'])",
 
         "owner": {
           ".validate": "newData.isString() && newData.val().length > 0",
@@ -33,7 +33,7 @@
 
         "members": {
           "$uid": {
-            ".validate": "newData.isObject() && newData.hasChildren(['name', 'email', 'role', 'joinedAt'])",
+            ".validate": "newData.hasChildren(['name', 'email', 'role', 'joinedAt'])",
             // Owner boleh menulis semua node anggota. Calon anggota boleh
             // membuat node-nya sendiri hanya jika node belum ada, household
             // sudah punya owner, dan perannya 'member'. Node yang sudah diberi
@@ -43,13 +43,13 @@
         },
 
         "data": {
-          ".validate": "newData.isObject() && newData.hasChildren(['users', 'accounts', 'categories', 'transactions', 'settings'])",
+          ".validate": "newData.hasChildren(['users', 'accounts', 'categories', 'transactions', 'settings'])",
           // Anggota dapat menulis data transaksi mereka sendiri.
           ".write": "auth != null && root.child('households').child($householdId).child('members').child(auth.uid).exists() && root.child('households').child($householdId).child('members').child(auth.uid).child('removed').val() !== true"
         },
 
         "settings": {
-          ".validate": "newData.isObject()",
+          ".validate": "newData.exists()",
           // Hanya owner yang mengubah pengaturan.
           ".write": "auth != null && root.child('households').child($householdId).child('owner').val() === auth.uid"
         },
@@ -61,9 +61,9 @@
         },
 
         "conflicts": {
-          ".validate": "newData.isObject()",
+          ".validate": "newData.exists()",
           "$conflictId": {
-            ".validate": "newData.isObject() && newData.hasChildren(['key', 'localValue', 'remoteValue', 'resolved', 'createdAt'])",
+            ".validate": "newData.hasChildren(['key', 'localValue', 'remoteValue', 'resolved', 'createdAt'])",
             ".write": "auth != null && root.child('households').child($householdId).child('owner').val() === auth.uid",
             ".read": "auth != null && ((root.child('households').child($householdId).child('members').child(auth.uid).exists() && root.child('households').child($householdId).child('members').child(auth.uid).child('removed').val() !== true) || root.child('households').child($householdId).child('owner').val() === auth.uid)"
           }
@@ -82,18 +82,18 @@
         ".read": "auth != null && data.child('expiresAt').val() > now",
 
         // Tulis: hanya owner household yang membuat kode, dengan masa berlaku di masa depan.
-        ".write": "auth != null && newData.child('ownerUid').val() && root.child('households').child(newData.child('ownerUid').val()).child('owner').val() === auth.uid && newData.child('expiresAt').val() > now",
+        ".write": "auth != null && newData.child('ownerUid').exists() && root.child('households').child(newData.child('ownerUid').val()).child('owner').val() === auth.uid && newData.child('expiresAt').val() > now",
 
-        ".validate": "newData.isObject() && newData.hasChildren(['ownerUid', 'householdName', 'updatedAt', 'expiresAt'])"
+        ".validate": "newData.hasChildren(['ownerUid', 'householdName', 'updatedAt', 'expiresAt'])"
       }
-    }
-  },
+    },
 
-  "userHouseholds": {
-    "$uid": {
-      ".read": "auth != null && auth.uid === $uid",
-      ".write": "auth != null && auth.uid === $uid",
-      ".validate": "newData.isObject() && newData.hasChildren(['householdUid'])"
+    "userHouseholds": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['householdUid'])"
+      }
     }
   }
 }
