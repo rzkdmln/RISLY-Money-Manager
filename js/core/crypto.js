@@ -67,7 +67,7 @@ async function importPinKeyMaterial(pin) {
  * Turunkan kunci AES-GCM dari PIN + salt + iterasi.
  * @returns {Promise<CryptoKey>} Kunci AES-GCM (hanya di memori).
  */
-async function deriveEncryptionKey(pin, salt, iterations = ENC_ITERATIONS) {
+export async function deriveEncryptionKey(pin, salt, iterations = ENC_ITERATIONS) {
   if (!globalThis.crypto?.subtle) {
     throw new Error('Web Crypto tidak tersedia. Buka aplikasi melalui HTTPS atau localhost.');
   }
