@@ -203,4 +203,4 @@ async function initStorageUsage() {
   }
 }
 
-export { settingsView, initStorageUsage };
+export { initStorageUsage };
