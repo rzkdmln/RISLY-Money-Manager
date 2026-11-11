@@ -2742,6 +2742,11 @@ export class Store {
   }
 
   mergeRemote(remoteRaw) {
+    // Tidak ada workspace lokal yang terbuka (this.data null) — tidak ada yang
+    // bisa digabung. Hindari crash saat cloud mencoba push sebelum unlock/buka workspace.
+    if (!this.data) {
+      return { changed: false, data: null };
+    }
     if (!remoteRaw || typeof remoteRaw !== 'object') {
       return { changed: false, data: this.data };
     }

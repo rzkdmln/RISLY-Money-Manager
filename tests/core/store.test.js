@@ -276,6 +276,25 @@ describe('store.mergeRemote', () => {
     expect(store.data.app).toBe('risly-money-manager');
     expect(store.data.schemaVersion).toBe(APP.schemaVersion);
   });
+
+  it('tidak crash saat this.data null (belum ada workspace terbuka)', () => {
+    const store = new Store();
+    store.data = null;
+    store.workspaceId = null;
+
+    const result = store.mergeRemote({
+      app: 'risly-money-manager',
+      schemaVersion: APP.schemaVersion,
+      transactions: [],
+      accounts: [],
+      users: [],
+      settings: {},
+      updatedAt: '2025-01-01T00:00:00.000Z',
+    });
+
+    expect(result.changed).toBe(false);
+    expect(result.data).toBeNull();
+  });
 });
 
 /* -------------------------------------------------------------------------- */
