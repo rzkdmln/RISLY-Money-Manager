@@ -1,5 +1,5 @@
 /**
- * RISLY Money Manager â€” Google Drive integration.
+ * RISLY Money Manager — Google Drive integration.
  *
  * Everything runs in the browser:
  *  - Google Identity Services (GIS) token flow for OAuth.
@@ -121,7 +121,7 @@ function driveErrorMessage(status, detail) {
   const text = String(detail || '');
   if (/has not been used in project|accessNotConfigured|SERVICE_DISABLED|API has not been used/i.test(text)) {
     const project = text.match(/project\s+(\d+)/i)?.[1];
-    return `Google Drive API belum diaktifkan${project ? ` di project ${project}` : ''}. Buka Google Cloud Console â†’ APIs & Services â†’ Library â†’ Google Drive API â†’ Enable, tunggu Â±2 menit, lalu coba lagi.`;
+    return `Google Drive API belum diaktifkan${project ? ` di project ${project}` : ''}. Buka Google Cloud Console → APIs & Services → Library → Google Drive API → Enable, tunggu ±2 menit, lalu coba lagi.`;
   }
   if (/insufficientPermissions|insufficient authentication scopes/i.test(text)) {
     return 'Izin Google Drive kurang. Keluar dari Google lalu masuk lagi agar izin Drive bisa diberikan.';
@@ -132,7 +132,7 @@ function driveErrorMessage(status, detail) {
   if (/storageQuotaExceeded/i.test(text)) {
     return 'Penyimpanan Google Drive penuh. Kosongkan sebagian ruang lalu coba lagi.';
   }
-  return `Google Drive ${status}${text ? ` â€” ${text}` : ''}`;
+  return `Google Drive ${status}${text ? ` — ${text}` : ''}`;
 }
 
 function authErrorMessage(response) {
