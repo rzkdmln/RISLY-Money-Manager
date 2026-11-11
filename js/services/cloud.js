@@ -1145,13 +1145,24 @@ class CloudSync {
         this.isHouseholdOwner() ? this.getHouseholdUid() : null
       );
       // Anggota tidak boleh mengubah kolom milik pemilik (owner, members,
-      // settings, inviteCode). Sertakan nilai remote yang tidak berubah agar
-      // rules mengizinkan penulisan data oleh anggota (terutama pada PATCH).
-      if (!this.isHouseholdOwner() && remote) {
-        if (remote.owner) envelope.owner = remote.owner;
-        if (remote.members) envelope.members = remote.members;
-        if (remote.settings) envelope.settings = remote.settings;
-        if (remote.inviteCode) envelope.inviteCode = remote.inviteCode;
+      // settings, inviteCode). Pada PATCH, rules dievaluasi terhadap payload,
+      // jadi sertakan nilai yang tidak berubah (diambil dari node mentah)
+      // agar penulisan data oleh anggota diizinkan.
+      if (!this.isHouseholdOwner() && this.config.provider === 'firebase') {
+        let raw = null;
+        try {
+          raw = await requestJSON(await this.adapter.endpoint(), {
+            method: 'GET',
+            cache: 'no-store',
+          });
+        } catch {
+          raw = remote || null;
+        }
+        const source = raw || remote || {};
+        if (source.owner) envelope.owner = source.owner;
+        if (source.members) envelope.members = source.members;
+        if (source.settings) envelope.settings = source.settings;
+        if (source.inviteCode) envelope.inviteCode = source.inviteCode;
       }
       await this.adapter.write(envelope);
       this.lastRevision = revision;
