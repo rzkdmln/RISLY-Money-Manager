@@ -134,15 +134,18 @@ export function settingsView(user) {
 
       ${googleDriveCard(user, driveConnected)}
 
-      <section class="card">
+      <section class="card" id="storage-card">
         <div class="card-heading">
-          <div><p class="card-kicker">Sistem</p><h2 class="section-title">Data & aplikasi</h2></div>
+          <div><p class="card-kicker">Penyimpanan</p><h2 class="section-title">Kuota perangkat</h2></div>
           ${icon('database', 'w-5 h-5 text-cyan-500')}
         </div>
         <div class="data-usage">
-          <div><span>Ukuran data</span><strong>${formatBytes(dataSize)}</strong></div>
+          <div><span>Ukuran data</span><strong id="storage-size">${formatBytes(dataSize)}</strong></div>
           <div><span>Transaksi</span><strong>${txCount}</strong></div>
           <div><span>Catatan</span><strong>${noteCount}</strong></div>
+          <div id="storage-quota" class="storage-quota"><span>Memuat kuota…</span><strong id="storage-quota-value">—</strong></div>
+          <div id="storage-persisted" class="storage-persisted"><span>Data tetap disimpan</span><strong id="storage-persisted-value">—</strong></div>
+          <div id="storage-warning" class="storage-warning hidden"></div>
         </div>
         <div class="settings-actions">
           <button type="button" class="btn btn-secondary btn-sm" data-action="export-backup">${icon('download', 'w-3.5 h-3.5')} Backup</button>
@@ -155,3 +158,49 @@ export function settingsView(user) {
 
   </div>`;
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Storage quota & persistence                                               */
+/* -------------------------------------------------------------------------- */
+
+async function initStorageUsage() {
+  const quotaEl = document.getElementById('storage-quota-value');
+  const persistedEl = document.getElementById('storage-persisted-value');
+  const warningEl = document.getElementById('storage-warning');
+
+  if (!navigator.storage?.estimate) {
+    if (quotaEl) quotaEl.textContent = 'Tidak tersedia';
+    if (persistedEl) persistedEl.textContent = 'Tidak tersedia';
+    if (warningEl) warningEl.classList.add('hidden');
+    return;
+  }
+
+  try {
+    const { usage, quota } = await navigator.storage.estimate();
+    const usedMB = Math.round((usage || 0) / (1024 * 1024));
+    const totalMB = quota ? Math.round(quota / (1024 * 1024)) : 0;
+    const pct = quota ? Math.round(((usage || 0) / quota) * 100) : 0;
+
+    if (quotaEl) quotaEl.textContent = `${usedMB} MB ${totalMB ? `dari ~${totalMB} MB` : ''}`.trim();
+    if (persistedEl) {
+      const persisted = await navigator.storage.persisted();
+      persistedEl.textContent = persisted ? 'Aktif' : 'Tidak aktif';
+    }
+
+    if (warningEl && quota) {
+      if (pct >= 80) {
+        warningEl.classList.remove('hidden');
+        warningEl.innerHTML = `${icon('alert-triangle', 'w-3 h-3')} <strong>Penyimpanan hampir penuh (${pct}%).</strong> Backup data sekarang sebelum membuang aplikasi atau membersihkan data browser.`;
+        warningEl.className = 'storage-warning';
+      } else {
+        warningEl.classList.add('hidden');
+      }
+    }
+  } catch {
+    if (quotaEl) quotaEl.textContent = 'Gagal dimuat';
+    if (persistedEl) persistedEl.textContent = 'Gagal dimuat';
+    if (warningEl) warningEl.classList.add('hidden');
+  }
+}
+
+export { settingsView, initStorageUsage };

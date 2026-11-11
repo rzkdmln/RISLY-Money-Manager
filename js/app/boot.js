@@ -36,7 +36,6 @@ import {
   completeGoogleAuthLogin,
 } from '../services/google-auth-relay.js';
 import { isIos } from '../core/utils.js';
-import { transactionForm } from '../forms/transaction.js';
 
 function bindStore() {
   store.subscribe((event) => {
@@ -152,12 +151,6 @@ async function boot() {
     }
   }
 
-  try {
-    if (store.workspaceId && store.data?.settings?.autoLockMinutes === 15) {
-      store.updateSettings({ autoLockMinutes: 0 });
-    }
-  } catch { /* noop */ }
-
   setSplashStatus('Memeriksa pembaruan...');
   registerServiceWorker();
 
@@ -224,25 +217,6 @@ async function boot() {
 
   setupInstallPrompt();
 
-  if (location.search.includes('debug=1')) {
-    try {
-      const html = transactionForm(null, {});
-      const match = html.match(/name="amountExpression"[^>]*>/);
-      console.log('DEBUG amount input tag:', match ? match[0] : 'NOT FOUND');
-    } catch (e) {
-      console.error('DEBUG txform failed', e);
-    }
-  }
-  if (location.search.includes('debug=1')) {
-    try {
-      const html = transactionForm(null, {});
-      const idx = html.indexOf('name="time"');
-      console.log('DEBUG time input:', html.slice(Math.max(0, idx - 80), idx + 120));
-    } catch (e) {
-      console.error('DEBUG timeform failed', e);
-    }
-  }
-
   const finishSplash = () => { try { hideSplash(); } catch { /* noop */ } };
   if (store.hasWorkspace) {
     Cloud.bootstrap({ waitForAuth: true })
@@ -253,7 +227,9 @@ async function boot() {
     finishSplash();
   }
 
-  window.__RISLY__ = { store, Cloud, navigate, version: APP.version };
+  if (location.search.includes('debug=1')) {
+    window.__RISLY__ = { store, Cloud, navigate, version: APP.version };
+  }
 }
 
 export { bindStore, tryResumeRedirectLogin, boot };

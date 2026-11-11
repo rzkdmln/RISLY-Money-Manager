@@ -50,6 +50,7 @@ import { subcategoryOptions, accountOptions } from '../forms/transaction.js';
 import { transactionFilterModal } from '../views/transactions.js';
 import { todoItemRow } from '../forms/note.js';
 import { icon } from '../ui/icons.js';
+import { initStorageUsage } from '../views/settings.js';
 import { resizeCharts, destroyCharts, renderDashboardCharts } from '../services/charts.js';
 import { initPullToRefresh } from '../ui/pull-to-refresh.js';
 import { handleAction } from './actions/index.js';
@@ -427,6 +428,7 @@ export function bindEvents() {
     if (store.currentUser) {
       window.scrollTo({ top: 0, behavior: 'auto' });
       renderApplication();
+      if (location.hash === '#/settings') void initStorageUsage();
     }
   });
 
@@ -461,6 +463,11 @@ export function bindEvents() {
       Cloud.syncNow().then(() => {}).catch(() => {});
     }
   });
+
+  // Inisialisasi kuota penyimpanan jika halaman settings aktif saat boot.
+  if (location.hash === '#/settings' && store.currentUser) {
+    void initStorageUsage();
+  }
 }
 
 export { debounceSearch, noteActivity };

@@ -54,6 +54,10 @@ export function enterApplication(user, { fresh = false } = {}) {
   ui.appMounted = false;
   savePrefs({ lastUser: user.id });
   createSession(user.id, store.workspaceId);
+  // Best-effort: minta browser tidak membersihkan data situs (khusus iOS/Safari ITP).
+  if (navigator.storage?.persist) {
+    void navigator.storage.persist().catch(() => {});
+  }
   if (!location.hash || !ROUTES[String(location.hash).replace(/^#\//, '')]) {
     try { history.replaceState(null, '', '#/dashboard'); } catch { /* noop */ }
   }

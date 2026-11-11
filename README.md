@@ -399,12 +399,11 @@ Deploy seluruh isi repo ke hosting statis apa pun (Cloudflare Pages, Vercel, dsb
 
 Saat merilis perubahan:
 
-1. Naikkan versi di **dua tempat**:
-   - `js/config.js` → `APP.version`
-   - `sw.js` → `const VERSION`
-   Satu sumber kebenaran versi: kedua file di-naikkan bersama setiap rilis.
-2. Deploy ulang.
-3. Pengguna dapat memeriksa update lewat **Pengaturan → Periksa update**.
+1. Naikkan `APP.version` di `js/core/config.js`.
+2. Jalankan `node tools/sync-version.mjs` untuk menyesuaikan `const VERSION` di `sw.js` secara otomatis.
+   (Atau ubah `const VERSION` di `sw.js` secara manual ke `risly-<versi>`.)
+3. Deploy ulang.
+4. Pengguna dapat memeriksa update lewat **Pengaturan → Periksa update**.
 
 Service worker memakai strategi *stale-while-revalidate* untuk aset lokal. Jika perubahan belum terlihat setelah deploy, lakukan hard refresh atau tutup lalu buka kembali PWA.
 
