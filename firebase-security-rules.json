@@ -2,24 +2,23 @@
   "rules": {
     "households": {
       "$householdId": {
-        // Baca: anggota household yang tidak dikeluarkan, atau owner.
+        // Baca: Anggota household yang tidak dikeluarkan, atau owner.
         ".read": "auth != null && ((root.child('households').child($householdId).child('members').child(auth.uid).exists() && root.child('households').child($householdId).child('members').child(auth.uid).child('removed').val() !== true) || root.child('households').child($householdId).child('owner').val() === auth.uid)",
 
-        // Tulis:
+        // Tulis Root (Sync Envelope):
         // 1. Household baru: pencipta menjadi owner.
         // 2. Owner: boleh menulis seluruh node.
-        // 3. Anggota: hanya boleh menulis jika kolom non-data (owner, members, settings, inviteCode) tidak berubah.
+        // 3. Anggota aktif: boleh menulis jika owner, settings, dan inviteCode tidak dimodifikasi secara ilegal (opsional dalam PATCH).
         ".write": "auth != null && (
           (!data.exists() && newData.child('owner').val() === auth.uid) ||
-          (root.child('households').child($householdId).child('owner').val() === auth.uid) ||
+          (data.child('owner').val() === auth.uid) ||
           (
             root.child('households').child($householdId).child('members').child(auth.uid).exists() &&
             root.child('households').child($householdId).child('members').child(auth.uid).child('removed').val() !== true &&
             data.exists() &&
-            newData.child('owner').val() === data.child('owner').val() &&
-            newData.child('members').val() === data.child('members').val() &&
-            newData.child('settings').val() === data.child('settings').val() &&
-            newData.child('inviteCode').val() === data.child('inviteCode').val()
+            (!newData.child('owner').exists() || newData.child('owner').val() === data.child('owner').val()) &&
+            (!newData.child('settings').exists() || newData.child('settings').val() === data.child('settings').val()) &&
+            (!newData.child('inviteCode').exists() || newData.child('inviteCode').val() === data.child('inviteCode').val())
           )
         )",
 
@@ -28,36 +27,34 @@
 
         "owner": {
           ".validate": "newData.isString() && newData.val().length > 0",
-          ".write": "auth != null && root.child('households').child($householdId).child('owner').val() === auth.uid"
+          // PERBAIKAN: Izinkan jika owner tidak dikirim (!newData.exists()), ATAU penulisan dilakukan oleh Owner asli.
+          ".write": "auth != null && (!newData.exists() || data.val() === auth.uid)"
         },
 
         "members": {
           "$uid": {
             ".validate": "newData.hasChildren(['name', 'email', 'role', 'joinedAt'])",
-            // Owner boleh menulis semua node anggota. Calon anggota boleh
-            // membuat node-nya sendiri hanya jika node belum ada, household
-            // sudah punya owner, dan perannya 'member'. Node yang sudah diberi
-            // penanda `removed` tidak bisa didaftarkan ulang (data.exists()).
+            // Owner boleh menulis semua node anggota. Calon anggota hanya boleh mendaftarkan dirinya saat pertama bergabung.
             ".write": "auth != null && (root.child('households').child($householdId).child('owner').val() === auth.uid || (auth.uid === $uid && !data.exists() && newData.exists() && root.child('households').child($householdId).child('owner').exists() && newData.child('role').val() === 'member'))"
           }
         },
 
         "data": {
           ".validate": "newData.hasChildren(['users', 'accounts', 'categories', 'transactions', 'settings'])",
-          // Anggota dapat menulis data transaksi mereka sendiri.
-          ".write": "auth != null && root.child('households').child($householdId).child('members').child(auth.uid).exists() && root.child('households').child($householdId).child('members').child(auth.uid).child('removed').val() !== true"
+          // Anggota aktif dan owner dapat memperbarui data transaksi/kategori/akun.
+          ".write": "auth != null && ((root.child('households').child($householdId).child('members').child(auth.uid).exists() && root.child('households').child($householdId).child('members').child(auth.uid).child('removed').val() !== true) || root.child('households').child($householdId).child('owner').val() === auth.uid)"
         },
 
         "settings": {
           ".validate": "newData.exists()",
-          // Hanya owner yang mengubah pengaturan.
-          ".write": "auth != null && root.child('households').child($householdId).child('owner').val() === auth.uid"
+          // Hanya owner yang boleh mengubah pengaturan. Izinkan jika node tidak dikirim (!newData.exists()).
+          ".write": "auth != null && (!newData.exists() || root.child('households').child($householdId).child('owner').val() === auth.uid)"
         },
 
         "inviteCode": {
           ".validate": "newData.isString() && newData.val().length >= 4 && newData.val().length <= 8",
-          // Hanya owner yang mengubah kode undangan.
-          ".write": "auth != null && root.child('households').child($householdId).child('owner').val() === auth.uid"
+          // Hanya owner yang boleh mengubah kode undangan. Izinkan jika node tidak dikirim (!newData.exists()).
+          ".write": "auth != null && (!newData.exists() || root.child('households').child($householdId).child('owner').val() === auth.uid)"
         },
 
         "conflicts": {
@@ -78,12 +75,8 @@
 
     "inviteCodes": {
       "$code": {
-        // Baca kode undangan: hanya jika belum kedaluwarsa (expelsAt > now).
         ".read": "auth != null && data.child('expiresAt').val() > now",
-
-        // Tulis: hanya owner household yang membuat kode, dengan masa berlaku di masa depan.
         ".write": "auth != null && newData.child('ownerUid').exists() && root.child('households').child(newData.child('ownerUid').val()).child('owner').val() === auth.uid && newData.child('expiresAt').val() > now",
-
         ".validate": "newData.hasChildren(['ownerUid', 'householdName', 'updatedAt', 'expiresAt'])"
       }
     },
