@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="google-site-verification" content="C77HhrmFZ_9zTg0TIx8ZqUXt1fCibK_ACjoOsAhCMAg" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="RISLY Money Manager — catat transaksi, anggaran, kalender, catatan, dan laporan keuangan dalam satu PWA.">
   <meta name="theme-color" content="#F5F7FB">
+  <meta name="theme-color" content="#08101E" media="(prefers-color-scheme: dark)">
   <meta name="color-scheme" content="light dark">
   <meta name="format-detection" content="telephone=no">
 
@@ -22,61 +23,6 @@
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
   <link rel="mask-icon" href="./icons/icon-maskable-512.png" color="#2563EB">
 
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&family=Kaushan+Script&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet">
-
-  <script>
-    // Apply the saved theme before first paint to avoid a flash.
-    (function () {
-      try {
-        var prefs = JSON.parse(localStorage.getItem('risly.mm.prefs.v1') || '{}') || {};
-        var dark = prefs.theme === 'dark' ||
-          ((!prefs.theme || prefs.theme === 'system') &&
-            window.matchMedia('(prefers-color-scheme: dark)').matches);
-        document.documentElement.classList.toggle('dark', dark);
-        document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
-        var meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) meta.setAttribute('content', dark ? '#08101E' : '#F5F7FB');
-      } catch (error) { /* noop */ }
-    })();
-  </script>
-
-  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              50: '#EFF6FF',
-              100: '#DBEAFE',
-              200: '#BFDBFE',
-              300: '#93C5FD',
-              400: '#60A5FA',
-              500: '#3B82F6',
-              600: '#2563EB',
-              700: '#1D4ED8',
-              800: '#1E40AF',
-              900: '#1E3A8A',
-            },
-          },
-          spacing: {
-            '4.5': '1.125rem',
-            '18': '4.5rem',
-            'safe-bottom': 'env(safe-area-inset-bottom)',
-          },
-          boxShadow: {
-            soft: '0 1px 2px rgba(15, 23, 42, .04), 0 12px 32px -20px rgba(15, 23, 42, .22)',
-            lift: '0 20px 45px -22px rgba(15, 23, 42, .35)',
-          },
-        },
-      },
-    };
-  </script>
-
   <link rel="stylesheet" href="./css/tokens.css">
   <link rel="stylesheet" href="./css/base.css">
   <link rel="stylesheet" href="./css/layout.css">
@@ -85,6 +31,8 @@
   <link rel="stylesheet" href="./css/modals.css">
   <link rel="stylesheet" href="./css/responsive.css">
   <link rel="stylesheet" href="./css/overrides.css">
+  <link rel="stylesheet" href="./css/tailwind.css">
+  <script type="module" src="./js/theme-init.js"></script>
 </head>
 
 <body class="h-full">
@@ -109,14 +57,14 @@
     </div>
   </noscript>
 
-  <!-- Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
+  <!-- Libraries (self-hosted di vendor/) -->
+    <script src="./vendor/chart.umd.min.js"></script>
+    <script src="./vendor/xlsx.full.min.js"></script>
+    <script src="./vendor/jspdf.umd.min.js"></script>
+    <script src="./vendor/jspdf.plugin.autotable.min.js"></script>
 
-    <!-- SDK Google Identity Services -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- SDK Google Identity Services (OAuth, tetap dari Google) -->
+    <script src="https://accounts.google.com/gsi/client" async defer crossorigin="anonymous"></script>
 
     <!-- Script Aplikasi Utama -->
     <script type="module" src="./js/app/index.js"></script>

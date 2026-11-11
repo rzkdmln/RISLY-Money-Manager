@@ -26,6 +26,8 @@ const APP_SHELL = [
   './css/modals.css',
   './css/responsive.css',
   './css/overrides.css',
+  './css/tailwind.css',
+  './js/theme-init.js',
   './js/app/index.js',
   './js/app/hooks.js',
   './js/app/boot.js',
@@ -112,19 +114,19 @@ const APP_SHELL = [
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',
   './icons/apple-touch-icon.png',
+  ...VENDOR_ASSETS,
 ];
 
-const CDN_ASSETS = [
-  'https://cdn.tailwindcss.com/3.4.16',
-  'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
-  'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js',
+const VENDOR_ASSETS = [
+  './vendor/chart.umd.min.js',
+  './vendor/xlsx.full.min.js',
+  './vendor/jspdf.umd.min.js',
+  './vendor/jspdf.plugin.autotable.min.js',
 ];
 
-const CDN_URLS = new Set(CDN_ASSETS);
+const VENDOR_URLS = new Set(VENDOR_ASSETS);
 
-const isCdnRequest = (url) => CDN_URLS.has(url.href);
+const isVendorRequest = (url) => VENDOR_URLS.has(url.href);
 
 /**
  * A response produced by fetch() after following a redirect has
@@ -158,12 +160,12 @@ self.addEventListener('install', (event) => {
         if (response && response.ok) await cache.put(url, response);
       } catch { /* optional asset */ }
     }));
-    // CDN libraries are best-effort: a failing CDN must not break installation.
-    await Promise.allSettled(CDN_ASSETS.map(async (url) => {
+    // Vendor libraries are same-origin, so they are cached normally.
+    await Promise.allSettled(VENDOR_ASSETS.map(async (url) => {
       try {
-        const response = await fetch(url, { mode: 'no-cors' });
-        if (response) await cache.put(url, response);
-      } catch { /* optional */ }
+        const response = await fetch(url, { cache: 'reload' });
+        if (response && response.ok) await cache.put(url, response);
+      } catch { /* optional asset */ }
     }));
     await self.skipWaiting();
   })());
@@ -274,11 +276,11 @@ self.addEventListener('fetch', (event) => {
 
   if (!/^https?:$/.test(url.protocol)) return;
 
-  // Only this app's own pages and the known CDN libraries are handled by the
-  // service worker. Every other cross-origin request (Google Sign-In, Firebase
-  // Auth, gapi, fonts, REST APIs) must go straight to the network: intercepting
-  // them used to return the offline fallback and broke Google login.
-  if (url.origin !== self.location.origin && !isCdnRequest(url)) return;
+  // Only this app's own pages and same-origin vendor libraries are handled by
+  // the service worker. Every other cross-origin request (Google Sign-In,
+  // Firebase Auth, gapi, fonts, REST APIs) must go straight to the network:
+  // intercepting them used to return the offline fallback and broke Google login.
+  if (url.origin !== self.location.origin && !isVendorRequest(url)) return;
 
   // Let the browser handle the OAuth callback directly. Intercepting it with
   // the service worker can turn a normal online navigation into an offline
@@ -287,6 +289,13 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(networkFirstNavigation(request));
+    return;
+  }
+
+  // Vendor library: cache-first agar Chart.js, SheetJS, jsPDF, autotable
+  // tetap tersedia offline tanpa jebakan opaque response.
+  if (isVendorRequest(url)) {
+    event.respondWith(cacheFirst(request));
     return;
   }
 
