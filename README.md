@@ -128,6 +128,16 @@ RISLY cocok untuk mencatat pemasukan, pengeluaran, transfer, anggaran, transaksi
 - **Firebase Realtime Database** untuk sinkronisasi real-time.
 - Mode default: **Perangkat ini saja** (tanpa sinkronisasi).
 
+#### 🔒 Firebase Security Rules (Fase 6)
+
+Aturan di `firebase-security-rules.json` harus dipublikasikan ke Firebase Realtime Database sebelum sinkronisasi keluarga diaktifkan:
+
+- **Owner-only writes:** hanya owner household yang boleh mengubah `owner`, `members`, `settings`, dan `inviteCode`.
+- **Anggota terbatas:** anggota hanya bisa menulis subtree `data` (transaksi, akun, dll.), tidak boleh mengubah kolom non-data.
+- **Validasi struktur:** `.validate` memastikan envelope (`app`, `schemaVersion`, `data`, `revision`, `savedAt`) dan sub-koleksi tetap utuh.
+- **Kode undangan dengan TTL:** `inviteCodes` hanya bisa dibaca jika belum kedaluwarsa (`expiresAt > now`), hanya bisa ditulis oleh owner.
+- **Log konflik:** catatan yang kalah dalam merge sinkronisasi dicatat di `risly.mm.conflicts.v1` dan bisa dilihat di Pengaturan › Log Konflik.
+
 ### 🔐 Keamanan & Privasi
 
 - PIN 4–8 angka dengan hashing **PBKDF2-SHA256** (150.000 iterasi).

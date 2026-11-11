@@ -1,31 +1,17 @@
-import {
-  APP,
-  LOCK_OPTIONS,
-  THEME_OPTIONS,
-  WEEK_OPTIONS,
-} from '../core/config.js';
+import { APP, LOCK_OPTIONS, THEME_OPTIONS, WEEK_OPTIONS } from '../core/config.js';
 import { GoogleDrive, googleAccountBadge, googleGlyph } from '../services/gdrive.js';
 import { store } from '../core/store.js';
 import { Cloud } from '../services/cloud.js';
 import { icon } from '../ui/icons.js';
-import {
-  avatar,
-  badge,
-  pageHeader,
-  prefs,
-  syncPill,
-} from '../ui/ui.js';
-import {
-  escapeAttr,
-  escapeHTML,
-  formatBytes,
-  formatDateTime,
-} from '../core/utils.js';
+import { avatar, badge, pageHeader, prefs, syncPill } from '../ui/ui.js';
+import { escapeAttr, escapeHTML, formatBytes, formatDateTime } from '../core/utils.js';
 
 function notificationStatus() {
   if (!('Notification' in window)) return { label: 'Tidak didukung', tone: 'slate', canAsk: false };
-  if (Notification.permission === 'granted') return { label: 'Aktif', tone: 'green', canAsk: false };
-  if (Notification.permission === 'denied') return { label: 'Diblokir', tone: 'red', canAsk: false };
+  if (Notification.permission === 'granted')
+    return { label: 'Aktif', tone: 'green', canAsk: false };
+  if (Notification.permission === 'denied')
+    return { label: 'Diblokir', tone: 'red', canAsk: false };
   return { label: 'Belum diizinkan', tone: 'amber', canAsk: true };
 }
 
@@ -57,13 +43,16 @@ function googleDriveCard(user, driveConnected) {
       </div>
     </div>
 
-    ${driveConnected ? `<div class="settings-actions mt-4">
+    ${
+      driveConnected
+        ? `<div class="settings-actions mt-4">
       <button type="button" class="btn btn-secondary btn-sm" data-action="drive-backup" data-drive-requires-google>${icon('cloud', 'w-3.5 h-3.5')} Backup sekarang</button>
       <button type="button" class="btn btn-secondary btn-sm" data-action="drive-restore" data-drive-requires-google>${icon('upload', 'w-3.5 h-3.5')} Pulihkan</button>
       <button type="button" class="btn btn-secondary btn-sm" data-action="google-join">${icon('users', 'w-3.5 h-3.5')} Gabung ruang lain</button>
       <button type="button" class="btn btn-secondary btn-sm" data-action="gdrive-signout">${icon('log-out', 'w-3.5 h-3.5')} Ganti akun</button>
     </div>`
-      : `<button type="button" class="btn btn-secondary w-full mt-4" data-action="gdrive-signin">${googleGlyph('w-4 h-4')} Masuk dengan Google</button>`}
+        : `<button type="button" class="btn btn-secondary w-full mt-4" data-action="gdrive-signin">${googleGlyph('w-4 h-4')} Masuk dengan Google</button>`
+    }
   </section>`;
 }
 
@@ -121,14 +110,19 @@ export function settingsView(user) {
         </div>
       </form>
       <div class="settings-list mt-4">
-        ${store.activeUsers().map((member) => `<div class="settings-row">
+        ${store
+          .activeUsers()
+          .map(
+            (member) => `<div class="settings-row">
           <span class="settings-row-icon">${avatar(member, 'xs')}</span>
           <span class="flex-1">
             <strong>${escapeHTML(member.name)}</strong>
             <small>${escapeHTML(member.googleEmail || 'Belum terhubung Google')}${member.id === user?.id ? ' · Anda' : ''}</small>
           </span>
           ${member.id !== user?.id ? `<button type="button" class="btn btn-danger-soft btn-sm" data-action="remove-member" data-id="${escapeAttr(member.id)}">${icon('x', 'w-3.5 h-3.5')} Keluarkan</button>` : ''}
-        </div>`).join('')}
+        </div>`
+          )
+          .join('')}
       </div>
     </section>
 
@@ -154,9 +148,43 @@ export function settingsView(user) {
           <button type="button" class="btn btn-secondary btn-sm" data-action="check-update">${icon('refresh', 'w-4 h-4')} Periksa pembaruan</button>
         </div>
       </section>
+
+      <section class="card" id="conflict-log-card">
+        <div class="card-heading">
+          <div><p class="card-kicker">Sinkronisasi</p><h2 class="section-title">Log Konflik</h2></div>
+          ${icon('alert-triangle', 'w-5 h-5 text-amber-500')}
+        </div>
+        <div class="settings-list mt-4">
+          ${renderConflictLog()}
+        </div>
+        <div class="settings-actions mt-4">
+          <button type="button" class="btn btn-secondary btn-sm" data-action="clear-conflict-log">${icon('trash', 'w-3.5 h-3.5')} Bersihkan Log</button>
+        </div>
+      </section>
     </div>
 
   </div>`;
+}
+
+function renderConflictLog() {
+  const log = store.getConflictLog();
+  if (!log.length) {
+    return '<div class="py-6 text-center text-sm text-slate-500 dark:text-slate-400">Belum ada konflik sinkronisasi tercatat.</div>';
+  }
+  return log
+    .map(
+      (entry) => `
+    <div class="settings-row">
+      <span class="settings-row-icon">${icon('alert-triangle', 'w-4 h-4 text-amber-500')}</span>
+      <span class="flex-1 min-w-0">
+        <strong>${escapeHTML(entry.collection)} / ${escapeHTML(entry.recordId)}</strong>
+        <small class="block">${escapeHTML(entry.resolvedBy || '-')} · ${escapeHTML(formatDateTime(entry.createdAt))}</small>
+      </span>
+      <button type="button" class="btn btn-ghost btn-sm" data-action="view-conflict" data-id="${escapeAttr(entry.id)}">${icon('chevron-right', 'w-3 h-3 text-slate-400')}</button>
+    </div>
+  `
+    )
+    .join('');
 }
 
 /* -------------------------------------------------------------------------- */
@@ -181,7 +209,8 @@ async function initStorageUsage() {
     const totalMB = quota ? Math.round(quota / (1024 * 1024)) : 0;
     const pct = quota ? Math.round(((usage || 0) / quota) * 100) : 0;
 
-    if (quotaEl) quotaEl.textContent = `${usedMB} MB ${totalMB ? `dari ~${totalMB} MB` : ''}`.trim();
+    if (quotaEl)
+      quotaEl.textContent = `${usedMB} MB ${totalMB ? `dari ~${totalMB} MB` : ''}`.trim();
     if (persistedEl) {
       const persisted = await navigator.storage.persisted();
       persistedEl.textContent = persisted ? 'Aktif' : 'Tidak aktif';

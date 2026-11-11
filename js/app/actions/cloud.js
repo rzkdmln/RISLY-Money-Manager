@@ -13,12 +13,9 @@ import { Cloud } from '../../services/cloud.js';
 import { GoogleDrive } from '../../services/gdrive.js';
 import { store } from '../../core/store.js';
 import { clearSession } from '../../core/auth.js';
-import {
-  ui,
-  closeModal,
-  confirmDialog,
-  toast,
-} from '../../ui/ui.js';
+import { icon } from '../../ui/icons.js';
+import { ui, closeModal, confirmDialog, toast } from '../../ui/ui.js';
+import { escapeHTML, formatDateTime } from '../../core/utils.js';
 import {
   backupNow,
   pickBackupFile,
@@ -138,10 +135,7 @@ export const cloudActions = {
       } else if (result?.local) {
         toast('Sinkronisasi cloud belum diaktifkan.', 'info');
       } else {
-        toast(
-          result?.error?.message || 'Gagal menyinkronkan ke cloud.',
-          'error',
-        );
+        toast(result?.error?.message || 'Gagal menyinkronkan ke cloud.', 'error');
       }
     } catch (error) {
       toast(error.message || 'Gagal menyinkronkan ke cloud.', 'error');
@@ -182,10 +176,7 @@ export const cloudActions = {
       await openDriveRestoreModal();
     } catch (error) {
       console.error(error);
-      toast(
-        error.message || 'Gagal memulihkan dari Google Drive.',
-        'error',
-      );
+      toast(error.message || 'Gagal memulihkan dari Google Drive.', 'error');
     } finally {
       element.disabled = false;
       element.innerHTML = label;
@@ -194,8 +185,7 @@ export const cloudActions = {
   'gdrive-signout': async () => {
     const ok = await confirmDialog({
       title: 'Putuskan Google?',
-      message:
-        'Backup Drive berhenti di perangkat ini. Data lokal tetap aman.',
+      message: 'Backup Drive berhenti di perangkat ini. Data lokal tetap aman.',
       confirmLabel: 'Putuskan',
     });
     if (!ok) return;
@@ -230,15 +220,58 @@ export const cloudActions = {
   'cloud-provider-change': (element) => {
     const form = element.closest('form');
     const provider = element.value;
-    form
-      ?.querySelectorAll('[data-provider-section]')
-      .forEach((section) => {
-        section.hidden = section.dataset.providerSection !== provider;
-      });
-    const help =
-      form?.querySelector('[data-cloud-help], #cloud-provider-help');
-    if (help)
-      help.textContent =
-        CLOUD_PROVIDERS[provider]?.description || '';
+    form?.querySelectorAll('[data-provider-section]').forEach((section) => {
+      section.hidden = section.dataset.providerSection !== provider;
+    });
+    const help = form?.querySelector('[data-cloud-help], #cloud-provider-help');
+    if (help) help.textContent = CLOUD_PROVIDERS[provider]?.description || '';
+  },
+  'clear-conflict-log': () => {
+    store.clearConflictLog();
+    toast('Log Konflik dibersihkan.', 'success');
+    if (store.currentUser) renderApplication();
+    else renderAuth();
+  },
+  'view-conflict': (element) => {
+    const id = element.dataset.id;
+    if (!id) return;
+    const entry = store.getConflictLog().find((e) => e.id === id);
+    if (!entry) {
+      toast('Entri konflik tidak ditemukan.', 'error');
+      return;
+    }
+    openModal({
+      size: 'lg',
+      className: 'form-modal',
+      html: `
+        <header class="modal-header">
+          <div>
+            <p class="modal-kicker">Konflik Sinkronisasi</p>
+            <h2 class="modal-title">${escapeHTML(entry.collection)} / ${escapeHTML(entry.recordId)}</h2>
+          </div>
+          <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
+        </header>
+        <div class="modal-body">
+          <div class="space-y-3">
+            <div>
+              <p class="text-xs font-bold uppercase text-slate-500">Nilai Lokal</p>
+              <pre class="bg-slate-50 dark:bg-slate-800 p-3 rounded text-xs overflow-auto">${escapeHTML(JSON.stringify(entry.localValue, null, 2))}</pre>
+            </div>
+            <div>
+              <p class="text-xs font-bold uppercase text-slate-500">Nilai Remote</p>
+              <pre class="bg-blue-50 dark:bg-blue-900/20 p-3 rounded text-xs overflow-auto border border-blue-100 dark:border-blue-800">${escapeHTML(JSON.stringify(entry.remoteValue, null, 2))}</pre>
+            </div>
+            <div>
+              <p class="text-xs font-bold uppercase text-slate-500">Diselesaikan</p>
+              <pre class="bg-green-50 dark:bg-green-900/20 p-3 rounded text-xs overflow-auto border border-green-100 dark:border-green-800">${escapeHTML(JSON.stringify(entry.resolvedValue, null, 2))}</pre>
+              <p class="text-[11px] text-slate-500 mt-2">Pemenang: ${escapeHTML(entry.resolvedBy || '-')} · ${escapeHTML(formatDateTime(entry.createdAt))}</p>
+            </div>
+          </div>
+        </div>
+        <footer class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-action="close-modal">Tutup</button>
+        </footer>
+      `,
+    });
   },
 };

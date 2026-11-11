@@ -36,7 +36,9 @@ function extractEnvelope(value) {
 function getClientId() {
   let id = localStorage.getItem(APP.clientKey);
   if (!id) {
-    id = crypto.randomUUID ? crypto.randomUUID() : `client_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    id = crypto.randomUUID
+      ? crypto.randomUUID()
+      : `client_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     localStorage.setItem(APP.clientKey, id);
   }
   return id;
@@ -51,7 +53,9 @@ function timeoutSignal(ms = 16_000) {
 
 async function getFirebaseAuth() {
   const appMod = await import(FIREBASE_APP_URL);
-  const authMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`);
+  const authMod = await import(
+    `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`
+  );
   const { initializeApp, getApps, getApp } = appMod;
   const { getAuth, setPersistence, browserLocalPersistence } = authMod;
   const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
@@ -60,14 +64,22 @@ async function getFirebaseAuth() {
   // proses sign-in apa pun. Tanpa ini, pada mobile (terutama iOS PWA/Safari)
   // SDK boleh memakai persistence lain sehingga sesi tidak terbawa kembali
   // setelah redirect dari Google.
-  try { await setPersistence(auth, browserLocalPersistence); } catch (error) { console.warn('Gagal set firebase persistence:', error); }
+  try {
+    await setPersistence(auth, browserLocalPersistence);
+  } catch (error) {
+    console.warn('Gagal set firebase persistence:', error);
+  }
   return auth;
 }
 
 async function getFirebaseIdToken(auth) {
   const user = auth?.currentUser;
   if (!user) return null;
-  try { return await user.getIdToken(); } catch { return null; }
+  try {
+    return await user.getIdToken();
+  } catch {
+    return null;
+  }
 }
 
 async function requestJSON(url, options = {}, timeout = 16_000) {
@@ -85,7 +97,8 @@ async function requestJSON(url, options = {}, timeout = 16_000) {
     }
   }
   if (!response.ok) {
-    const detail = typeof body === 'object' ? body?.message || body?.error || JSON.stringify(body) : body;
+    const detail =
+      typeof body === 'object' ? body?.message || body?.error || JSON.stringify(body) : body;
     throw new Error(`${response.status} ${response.statusText}${detail ? ` — ${detail}` : ''}`);
   }
   return body;
@@ -100,7 +113,8 @@ class JsonBinAdapter {
     this.config = config;
     this.binId = String(config.jsonbin?.binId || '').trim();
     this.masterKey = String(config.jsonbin?.masterKey || '').trim();
-    if (!this.binId || !this.masterKey) throw new Error('Bin ID dan Master Key JSONBin wajib diisi.');
+    if (!this.binId || !this.masterKey)
+      throw new Error('Bin ID dan Master Key JSONBin wajib diisi.');
   }
 
   headers(extra = {}) {
@@ -112,11 +126,14 @@ class JsonBinAdapter {
   }
 
   async read() {
-    const body = await requestJSON(`https://api.jsonbin.io/v3/b/${encodeURIComponent(this.binId)}/latest`, {
-      method: 'GET',
-      headers: this.headers({ 'X-Bin-Meta': 'false' }),
-      cache: 'no-store',
-    });
+    const body = await requestJSON(
+      `https://api.jsonbin.io/v3/b/${encodeURIComponent(this.binId)}/latest`,
+      {
+        method: 'GET',
+        headers: this.headers({ 'X-Bin-Meta': 'false' }),
+        cache: 'no-store',
+      }
+    );
     return extractEnvelope(body);
   }
 
@@ -193,12 +210,14 @@ class SupabaseAdapter {
 
   async write(envelope) {
     const query = '?on_conflict=id';
-    const body = [{
-      id: this.rowId,
-      payload: envelope,
-      revision: envelope.revision,
-      updated_at: envelope.savedAt,
-    }];
+    const body = [
+      {
+        id: this.rowId,
+        payload: envelope,
+        revision: envelope.revision,
+        updated_at: envelope.savedAt,
+      },
+    ];
     await requestJSON(`${this.endpoint()}${query}`, {
       method: 'POST',
       headers: this.headers({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
@@ -234,7 +253,10 @@ class FirebaseAdapter {
     this.firebaseConfig = parsed;
     this.databaseURL = String(parsed.databaseURL).replace(/\/+$/, '');
     this.ownerUid = null;
-    this.path = String(config.firebase?.path || `households/${APP.householdId}`).replace(/^\/+|\/+$/g, '');
+    this.path = String(config.firebase?.path || `households/${APP.householdId}`).replace(
+      /^\/+|\/+$/g,
+      ''
+    );
   }
 
   setOwner(uid) {
@@ -347,19 +369,27 @@ class FirebaseAdapter {
           const envelope = extractEnvelope(snapshot.val());
           if (envelope) callback(envelope);
         },
-        (error) => console.warn('Firebase realtime listener error:', error),
+        (error) => console.warn('Firebase realtime listener error:', error)
       );
     } catch (error) {
       console.warn('Firebase realtime tidak tersedia, memakai polling:', error);
     }
     return () => {
-      try { this.unsubscribe?.(); } catch { /* noop */ }
+      try {
+        this.unsubscribe?.();
+      } catch {
+        /* noop */
+      }
       this.unsubscribe = null;
     };
   }
 
   async destroy() {
-    try { this.unsubscribe?.(); } catch { /* noop */ }
+    try {
+      this.unsubscribe?.();
+    } catch {
+      /* noop */
+    }
     this.unsubscribe = null;
     return null;
   }
@@ -410,7 +440,9 @@ class CloudSync {
         return migrated;
       }
       if (parsed?.provider) return parsed;
-    } catch { /* noop */ }
+    } catch {
+      /* noop */
+    }
     // Default to the built-in Firebase project so sync works out of the box.
     return { provider: 'firebase', firebase: { path: `households/${APP.householdId}` } };
   }
@@ -432,7 +464,9 @@ class CloudSync {
       if (map[String(uid)] === String(householdUid)) return;
       map[String(uid)] = String(householdUid);
       localStorage.setItem(APP.cloudHouseholdsKey, JSON.stringify(map));
-    } catch { /* noop */ }
+    } catch {
+      /* noop */
+    }
   }
 
   /**
@@ -448,8 +482,8 @@ class CloudSync {
     const sameUser = String(current.uid || '') === String(uid || '');
     const pathMatch = /^households\/([^/]+)$/.exec(String(current.path || ''));
     const previousHousehold = current.householdUid || (pathMatch ? pathMatch[1] : '');
-    const householdUid = this.rememberedHousehold(uid)
-      || (sameUser && previousHousehold ? previousHousehold : uid);
+    const householdUid =
+      this.rememberedHousehold(uid) || (sameUser && previousHousehold ? previousHousehold : uid);
     this.rememberHousehold(uid, householdUid);
     return {
       provider: 'firebase',
@@ -510,7 +544,11 @@ class CloudSync {
       const finish = (value) => {
         if (settled) return;
         settled = true;
-        try { unsubscribe?.(); } catch { /* noop */ }
+        try {
+          unsubscribe?.();
+        } catch {
+          /* noop */
+        }
         resolve(value);
       };
       let unsubscribe = null;
@@ -546,7 +584,9 @@ class CloudSync {
   async signOutFirebase() {
     try {
       const auth = await getFirebaseAuth();
-      const authMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`);
+      const authMod = await import(
+        `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`
+      );
       const { signOut } = authMod;
       await signOut(auth);
     } catch (error) {
@@ -583,20 +623,20 @@ class CloudSync {
       // Validasi ketat: accessToken harus berupa string non-kosong. Jangan
       // melewatkan string kosong ke GoogleAuthProvider.credential karena
       // Firebase akan melempar auth/argument-error.
-      if (
-        !accessToken ||
-        typeof accessToken !== 'string' ||
-        accessToken.trim().length === 0
-      ) {
+      if (!accessToken || typeof accessToken !== 'string' || accessToken.trim().length === 0) {
         console.warn('Token akses Google kosong, melewatkan sign-in Firebase.');
         return null;
       }
       // Sebaliknya, tukarkan token akses Google via Firebase credential.
       const appMod = await import(FIREBASE_APP_URL);
-      const authMod = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`);
+      const authMod = await import(
+        `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`
+      );
       const { initializeApp, getApps, getApp } = appMod;
       const { getAuth, GoogleAuthProvider, signInWithCredential } = authMod;
-      const app = getApps().length ? getApp() : initializeApp(this.firebaseConfig || FIREBASE_CONFIG);
+      const app = getApps().length
+        ? getApp()
+        : initializeApp(this.firebaseConfig || FIREBASE_CONFIG);
       const authApp = getAuth(app);
       let credential;
       try {
@@ -624,9 +664,10 @@ class CloudSync {
     // workspace lokal dibuka (lihat syncCloudAfterLogin di app.js), agar data
     // placeholder layar login tidak sempat terunggah ke cloud.
     const next = this.firebaseConfigFor(uid, this.config);
-    const changed = this.config?.provider !== 'firebase'
-      || this.config?.firebase?.path !== next.firebase.path
-      || this.config?.firebase?.uid !== next.firebase.uid;
+    const changed =
+      this.config?.provider !== 'firebase' ||
+      this.config?.firebase?.path !== next.firebase.path ||
+      this.config?.firebase?.uid !== next.firebase.uid;
     localStorage.setItem(APP.cloudKey, JSON.stringify(next));
     this.config = next;
     this.firebaseUid = uid;
@@ -659,7 +700,8 @@ class CloudSync {
 
   getStatus() {
     return {
-      state: navigator.onLine === false && this.config.provider !== 'local' ? 'offline' : this.state,
+      state:
+        navigator.onLine === false && this.config.provider !== 'local' ? 'offline' : this.state,
       provider: this.config.provider,
       providerLabel: CLOUD_PROVIDERS[this.config.provider]?.label || 'Lokal',
       message: this.message,
@@ -701,6 +743,13 @@ class CloudSync {
         this.changeCounter += 1;
         if (this.connected && this.config.provider !== 'local') this.schedulePush();
       }
+      if (event.reason === 'sync:conflict') {
+        const count = event.detail?.conflictCount || 0;
+        this.setStatus(
+          'synced',
+          `Sinkronisasi selesai (${count} konflik catat). Lihat Pengaturan › Log Konflik.`
+        );
+      }
     });
     return this;
   }
@@ -730,7 +779,9 @@ class CloudSync {
       localStorage.setItem(APP.cloudKey, JSON.stringify(this.config));
       if (this.adapter?.setOwner) this.adapter.setOwner(uid);
     }
-    const timeout = new Promise((resolve) => setTimeout(() => resolve({ ok: false, timeout: true }), 8_000));
+    const timeout = new Promise((resolve) =>
+      setTimeout(() => resolve({ ok: false, timeout: true }), 8_000)
+    );
     const work = this.connect(this.config, { initial: true }).catch((error) => {
       this.lastError = error.message;
       this.setStatus('error', error.message);
@@ -758,15 +809,20 @@ class CloudSync {
     // Cegah dua proses connect berjalan bersamaan (mis. boot + login redirect
     // sama-sama memanggil bootstrap dalam waktu berdekatan).
     if (this.connectPromise) return this.connectPromise;
-    this.connectPromise = this._connect(config, options)
-      .finally(() => { this.connectPromise = null; });
+    this.connectPromise = this._connect(config, options).finally(() => {
+      this.connectPromise = null;
+    });
     return this.connectPromise;
   }
 
   async _connect(config, { initial = false } = {}) {
     this.stopEngine();
     if (this.adapter?.destroy) {
-      try { await this.adapter.destroy(); } catch { /* noop */ }
+      try {
+        await this.adapter.destroy();
+      } catch {
+        /* noop */
+      }
     }
     this.adapter = null;
     this.config = deepClone(config);
@@ -807,7 +863,12 @@ class CloudSync {
       // household. Anggota sudah didaftarkan oleh joinHousehold(); jangan
       // menulis ulang agar anggota yang dikeluarkan tidak bisa mendaftar
       // sendiri kembali.
-      if (this.config.provider === 'firebase' && this.firebaseUid && this.adapter?.writeMember && this.isHouseholdOwner()) {
+      if (
+        this.config.provider === 'firebase' &&
+        this.firebaseUid &&
+        this.adapter?.writeMember &&
+        this.isHouseholdOwner()
+      ) {
         try {
           const user = this.store?.currentUser || null;
           await this.adapter.writeMember(this.getHouseholdUid(), this.firebaseUid, {
@@ -866,7 +927,8 @@ class CloudSync {
       this.lastError = error.message;
       this.setStatus('error', error.message);
       // Polling can recover from transient network failures, but not config errors.
-      if (!/wajib|valid|JSON|tidak|belum diaktifkan|Enable/i.test(error.message)) this.startEngine();
+      if (!/wajib|valid|JSON|tidak|belum diaktifkan|Enable/i.test(error.message))
+        this.startEngine();
       return { ok: false, error };
     }
   }
@@ -891,7 +953,11 @@ class CloudSync {
     this.pushTimer = null;
     this.pollTimer = null;
     if (this.unsubscribeRemote) {
-      try { this.unsubscribeRemote(); } catch { /* noop */ }
+      try {
+        this.unsubscribeRemote();
+      } catch {
+        /* noop */
+      }
       this.unsubscribeRemote = null;
     }
     if (this.adapter?.destroy) {
@@ -911,7 +977,9 @@ class CloudSync {
     clearInterval(this.pollTimer);
     if (this.config.provider === 'firebase' && this.adapter.subscribe) {
       try {
-        this.unsubscribeRemote = await this.adapter.subscribe((remote) => this.handleRemote(remote, true));
+        this.unsubscribeRemote = await this.adapter.subscribe((remote) =>
+          this.handleRemote(remote, true)
+        );
         if (!this.unsubscribeRemote) this.startPolling();
       } catch (error) {
         // Real-time listener unavailable (e.g. offline or blocked SDK); keep
@@ -974,16 +1042,17 @@ class CloudSync {
         if (merged.changed) this.message = 'Perubahan dari perangkat lain digabungkan.';
       }
       const local = this.store.data;
-      const revision = Math.max(
-        Number(this.lastRevision) || 0,
-        Number(remote?.revision) || 0,
-        Number(local.revision) || 0,
-      ) + 1;
+      const revision =
+        Math.max(
+          Number(this.lastRevision) || 0,
+          Number(remote?.revision) || 0,
+          Number(local.revision) || 0
+        ) + 1;
       const envelope = makeEnvelope(
         local,
         revision,
         nowISO(),
-        this.isHouseholdOwner() ? this.getHouseholdUid() : null,
+        this.isHouseholdOwner() ? this.getHouseholdUid() : null
       );
       await this.adapter.write(envelope);
       this.lastRevision = revision;
@@ -1060,7 +1129,11 @@ class CloudSync {
       // Coba pulihkan user Firebase dari IndexedDB sebelum menyerah. Ini
       // penting setelah login redirect di mana listener auth belum sempat
       // mengisi firebaseUid saat tombol sync pertama kali ditekan.
-      try { await this.getFirebaseUid(); } catch { /* noop */ }
+      try {
+        await this.getFirebaseUid();
+      } catch {
+        /* noop */
+      }
       if (!this.firebaseUid) return { ok: false, skipped: true };
     }
     if (!this.adapter || !this.connected) {
@@ -1084,12 +1157,17 @@ class CloudSync {
    * node `inviteCodes/<KODE>` agar bisa ditemukan lintas perangkat.
    */
   async resolveInviteCode(code) {
-    const normalized = String(code || '').trim().toUpperCase();
+    const normalized = String(code || '')
+      .trim()
+      .toUpperCase();
     if (!/^[A-Z0-9]{4,8}$/.test(normalized)) return null;
     if (this.config.provider !== 'firebase') return null;
     const uid = await this.waitForFirebaseUser();
     if (!uid) return null;
-    const adapter = new FirebaseAdapter({ provider: 'firebase', firebase: { path: `households/${uid}` } });
+    const adapter = new FirebaseAdapter({
+      provider: 'firebase',
+      firebase: { path: `households/${uid}` },
+    });
     try {
       const body = await adapter.readInvite(normalized);
       if (!body?.ownerUid) return null;
@@ -1098,7 +1176,11 @@ class CloudSync {
       console.warn('Gagal membaca kode undangan:', error);
       return null;
     } finally {
-      try { await adapter.destroy(); } catch { /* noop */ }
+      try {
+        await adapter.destroy();
+      } catch {
+        /* noop */
+      }
     }
   }
 
@@ -1110,26 +1192,34 @@ class CloudSync {
     if (this.config.provider !== 'firebase') throw new Error('Sinkronisasi Firebase belum aktif.');
     const target = String(ownerUid || '').trim();
     if (!target) throw new Error('Pemilik ruang tidak ditemukan.');
-    const uid = await this.waitForFirebaseUser() || await this.getFirebaseUid();
+    const uid = (await this.waitForFirebaseUser()) || (await this.getFirebaseUid());
     if (!uid) throw new Error('Login Firebase belum selesai. Coba lagi.');
     if (target === String(uid)) throw new Error('Anda sudah menjadi pemilik ruang ini.');
 
     // Pastikan konfigurasi memakai identitas Firebase yang baru login, bukan
     // sisa akun sebelumnya di perangkat yang sama.
     this.firebaseUid = uid;
-    if (this.config.provider === 'firebase' && String(this.config.firebase?.uid || '') !== String(uid)) {
+    if (
+      this.config.provider === 'firebase' &&
+      String(this.config.firebase?.uid || '') !== String(uid)
+    ) {
       this.config = this.firebaseConfigFor(uid, this.config);
       localStorage.setItem(APP.cloudKey, JSON.stringify(this.config));
     }
 
     const previousHousehold = this.getHouseholdUid();
-    const previousCode = String(this.store?.getWorkspaceCode?.() || '').trim().toUpperCase();
+    const previousCode = String(this.store?.getWorkspaceCode?.() || '')
+      .trim()
+      .toUpperCase();
 
     // Jika perangkat ini sebelumnya memakai household pribadi, tarik dulu data
     // pribadi dari cloud (mis. saat bergabung dari perangkat baru) agar tidak
     // ada transaksi lama yang tertinggal.
     if (previousHousehold === String(uid) && this.store) {
-      const oldAdapter = new FirebaseAdapter({ provider: 'firebase', firebase: { path: `households/${uid}` } });
+      const oldAdapter = new FirebaseAdapter({
+        provider: 'firebase',
+        firebase: { path: `households/${uid}` },
+      });
       try {
         const oldRemote = await oldAdapter.read();
         if (oldRemote?.data) {
@@ -1137,13 +1227,21 @@ class CloudSync {
           // Pengaturan ruang keluarga tetap harus menang saat merge ke target.
           this.store.prepareHouseholdJoin?.();
         }
-      } catch { /* household pribadi kosong / belum ada */ }
-      finally {
-        try { await oldAdapter.destroy(); } catch { /* noop */ }
+      } catch {
+        /* household pribadi kosong / belum ada */
+      } finally {
+        try {
+          await oldAdapter.destroy();
+        } catch {
+          /* noop */
+        }
       }
     }
 
-    const tempAdapter = new FirebaseAdapter({ provider: 'firebase', firebase: { path: `households/${target}` } });
+    const tempAdapter = new FirebaseAdapter({
+      provider: 'firebase',
+      firebase: { path: `households/${target}` },
+    });
     try {
       // Anggota yang sudah pernah bergabung tidak perlu menulis ulang node.
       // Selain menghindari konflik dengan rules, ini memastikan anggota yang
@@ -1175,7 +1273,11 @@ class CloudSync {
         }
       }
     } finally {
-      try { await tempAdapter.destroy(); } catch { /* noop */ }
+      try {
+        await tempAdapter.destroy();
+      } catch {
+        /* noop */
+      }
     }
 
     const next = {
@@ -1185,7 +1287,11 @@ class CloudSync {
     this.rememberHousehold(uid, target);
     this.stopEngine();
     if (this.adapter?.destroy) {
-      try { await this.adapter.destroy(); } catch { /* noop */ }
+      try {
+        await this.adapter.destroy();
+      } catch {
+        /* noop */
+      }
     }
     this.config = next;
     this.firebaseUid = uid;
@@ -1195,14 +1301,24 @@ class CloudSync {
     if (result?.ok && !result?.skipped) {
       // Anggota biasanya membawa transaksi lokal dari workspace lamanya.
       // Unggah hasil gabungan segera agar perangkat pemilik ikut melihatnya.
-      try { await this.push({ immediate: true, force: true }); } catch { /* noop */ }
+      try {
+        await this.push({ immediate: true, force: true });
+      } catch {
+        /* noop */
+      }
     }
 
     // Kode undangan household lama (milik sendiri) tidak boleh lagi
     // mengarah ke ruang yang sudah ditinggalkan.
-    const currentCode = String(this.store?.getWorkspaceCode?.() || '').trim().toUpperCase();
+    const currentCode = String(this.store?.getWorkspaceCode?.() || '')
+      .trim()
+      .toUpperCase();
     if (previousHousehold === String(uid) && previousCode && previousCode !== currentCode) {
-      try { await this.adapter?.deleteInvite?.(previousCode); } catch { /* noop */ }
+      try {
+        await this.adapter?.deleteInvite?.(previousCode);
+      } catch {
+        /* noop */
+      }
     }
     return result;
   }
@@ -1216,19 +1332,26 @@ class CloudSync {
       return { ok: false, skipped: true };
     }
     if (!this.isHouseholdOwner()) return { ok: false, member: true };
-    const code = String(this.store?.getWorkspaceCode?.() || '').trim().toUpperCase();
+    const code = String(this.store?.getWorkspaceCode?.() || '')
+      .trim()
+      .toUpperCase();
     if (!/^[A-Z0-9]{4,8}$/.test(code)) return { ok: false, invalid: true };
-    const householdName = this.store?.data?.settings?.workspaceName
-      || this.store?.data?.settings?.householdName
-      || '';
+    const householdName =
+      this.store?.data?.settings?.workspaceName || this.store?.data?.settings?.householdName || '';
     await this.adapter.writeInvite(code, {
       ownerUid: this.getHouseholdUid(),
       householdName,
       updatedAt: nowISO(),
     });
-    const old = String(previousCode || '').trim().toUpperCase();
+    const old = String(previousCode || '')
+      .trim()
+      .toUpperCase();
     if (old && old !== code) {
-      try { await this.adapter.deleteInvite(old); } catch { /* noop */ }
+      try {
+        await this.adapter.deleteInvite(old);
+      } catch {
+        /* noop */
+      }
     }
     return { ok: true, code };
   }
@@ -1242,7 +1365,8 @@ class CloudSync {
       const connected = await this.connect(this.config);
       if (!connected?.ok || connected?.skipped) return { ok: false, skipped: true };
     }
-    if (!this.isHouseholdOwner()) throw new Error('Hanya pemilik ruang yang bisa mengeluarkan anggota.');
+    if (!this.isHouseholdOwner())
+      throw new Error('Hanya pemilik ruang yang bisa mengeluarkan anggota.');
     // Jangan hapus node: penanda `removed` mencegah anggota mendaftar ulang
     // sendiri (rules hanya mengizinkan pendaftaran bila node belum ada).
     await this.adapter.writeMember(this.getHouseholdUid(), uid, {
@@ -1271,8 +1395,14 @@ class CloudSync {
   }
 
   async createJsonBin(config) {
-    if (config.provider !== 'jsonbin') throw new Error('Pembuatan bin hanya tersedia untuk JSONBin.');
-    const envelope = makeEnvelope(this.store.data, Math.max(1, Number(this.store.data.revision) || 1), nowISO(), this.firebaseUid);
+    if (config.provider !== 'jsonbin')
+      throw new Error('Pembuatan bin hanya tersedia untuk JSONBin.');
+    const envelope = makeEnvelope(
+      this.store.data,
+      Math.max(1, Number(this.store.data.revision) || 1),
+      nowISO(),
+      this.firebaseUid
+    );
     return createJsonBin(config, envelope);
   }
 }

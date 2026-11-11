@@ -1,6 +1,11 @@
 /**
  * Google login relay for installed iOS PWAs.
  *
+ * @deprecated Fase 6: rencanakan penghapusan setelah login iOS diverifikasi
+ * stabil dengan Firebase Auth redirect (`startGoogleAuthRedirect` /
+ * `completeGoogleAuthLogin`). Relay ini hanya dipertahankan untuk kompatibilitas
+ * iOS PWA lama. Jangan gunakan untuk fitur baru.
+ *
  * iOS runs an installed home-screen web app in a storage container that is
  * isolated from Safari. When Google sign-in is opened in a Safari sheet, the
  * result can never be handed back through cookies/localStorage. The sheet does
@@ -32,12 +37,17 @@ const textDecoder = new TextDecoder();
 
 export function base64UrlFromBytes(bytes) {
   let binary = '';
-  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
 export function bytesFromBase64Url(value) {
-  const padded = String(value || '').replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - String(value || '').length % 4) % 4);
+  const padded =
+    String(value || '')
+      .replace(/-/g, '+')
+      .replace(/_/g, '/') + '='.repeat((4 - (String(value || '').length % 4)) % 4);
   const binary = atob(padded);
   return Uint8Array.from(binary, (char) => char.charCodeAt(0));
 }
@@ -47,7 +57,8 @@ function stateNonce() {
   if (globalThis.crypto?.getRandomValues) {
     globalThis.crypto.getRandomValues(bytes);
   } else {
-    for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256);
+    for (let index = 0; index < bytes.length; index += 1)
+      bytes[index] = Math.floor(Math.random() * 256);
   }
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
@@ -66,8 +77,11 @@ export function parseState(state) {
 }
 
 export async function createRelayKeys() {
-  if (!globalThis.crypto?.subtle) throw new Error('Browser tidak mendukung kriptografi aman untuk login.');
-  const pair = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey']);
+  if (!globalThis.crypto?.subtle)
+    throw new Error('Browser tidak mendukung kriptografi aman untuk login.');
+  const pair = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, [
+    'deriveKey',
+  ]);
   return {
     publicJwk: await crypto.subtle.exportKey('jwk', pair.publicKey),
     privateJwk: await crypto.subtle.exportKey('jwk', pair.privateKey),
@@ -75,20 +89,45 @@ export async function createRelayKeys() {
 }
 
 async function deriveAesKey(privateKeyOrJwk, publicKeyJwk) {
-  const privateKey = privateKeyOrJwk instanceof CryptoKey
-    ? privateKeyOrJwk
-    : await crypto.subtle.importKey('jwk', privateKeyOrJwk, { name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveKey']);
-  const publicKey = await crypto.subtle.importKey('jwk', publicKeyJwk, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
-  return crypto.subtle.deriveKey({ name: 'ECDH', public: publicKey }, privateKey, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  const privateKey =
+    privateKeyOrJwk instanceof CryptoKey
+      ? privateKeyOrJwk
+      : await crypto.subtle.importKey(
+          'jwk',
+          privateKeyOrJwk,
+          { name: 'ECDH', namedCurve: 'P-256' },
+          false,
+          ['deriveKey']
+        );
+  const publicKey = await crypto.subtle.importKey(
+    'jwk',
+    publicKeyJwk,
+    { name: 'ECDH', namedCurve: 'P-256' },
+    false,
+    []
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'ECDH', public: publicKey },
+    privateKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
 }
 
 export async function encryptRelayPayload(state, payload) {
   const parsed = parseState(state);
   if (!parsed) throw new Error('State login tidak valid.');
-  const ephemeral = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey']);
+  const ephemeral = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, [
+    'deriveKey',
+  ]);
   const key = await deriveAesKey(ephemeral.privateKey, parsed.k);
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, textEncoder.encode(JSON.stringify(payload)));
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    textEncoder.encode(JSON.stringify(payload))
+  );
   const epk = await crypto.subtle.exportKey('jwk', ephemeral.publicKey);
   return {
     v: 1,
@@ -100,9 +139,14 @@ export async function encryptRelayPayload(state, payload) {
 }
 
 export async function decryptRelayPayload(entry, privateJwk) {
-  if (!entry?.epk || !entry?.iv || !entry?.ciphertext) throw new Error('Payload login tidak valid.');
+  if (!entry?.epk || !entry?.iv || !entry?.ciphertext)
+    throw new Error('Payload login tidak valid.');
   const key = await deriveAesKey(privateJwk, entry.epk);
-  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytesFromBase64Url(entry.iv) }, key, bytesFromBase64Url(entry.ciphertext));
+  const plain = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: bytesFromBase64Url(entry.iv) },
+    key,
+    bytesFromBase64Url(entry.ciphertext)
+  );
   return JSON.parse(textDecoder.decode(plain));
 }
 
@@ -153,7 +197,11 @@ export function readPendingGoogleLogin() {
 }
 
 export function clearPendingGoogleLogin() {
-  try { localStorage.removeItem(PENDING_KEY); } catch { /* storage unavailable */ }
+  try {
+    localStorage.removeItem(PENDING_KEY);
+  } catch {
+    /* storage unavailable */
+  }
 }
 
 function abortError() {
@@ -251,7 +299,10 @@ async function writeRelaySession(state, payload) {
   throw new Error(lastError?.message || 'Gagal mengirim hasil login Google.');
 }
 
-async function pollForSession(state, { signal = null, deadline = Date.now() + ACTIVE_TIMEOUT_MS, privateKey = null } = {}) {
+async function pollForSession(
+  state,
+  { signal = null, deadline = Date.now() + ACTIVE_TIMEOUT_MS, privateKey = null } = {}
+) {
   let attempt = 0;
   while (Date.now() < deadline) {
     if (signal?.aborted) throw abortError();
@@ -360,9 +411,10 @@ export async function completeGoogleRelayFromFragment() {
   const createdAt = Date.now();
   const oauthError = params.get('error');
   if (oauthError) {
-    const message = oauthError === 'access_denied'
-      ? 'Akses Google dibatalkan.'
-      : (params.get('error_description') || oauthError);
+    const message =
+      oauthError === 'access_denied'
+        ? 'Akses Google dibatalkan.'
+        : params.get('error_description') || oauthError;
     await writeRelaySession(state, await encryptRelayPayload(state, { error: message, createdAt }));
     return { error: message };
   }
@@ -387,14 +439,21 @@ export async function completeGoogleRelayFromFragment() {
     picture: profile.picture,
     clientId: APP.googleClientId,
   };
-  await writeRelaySession(state, await encryptRelayPayload(state, {
-    account,
-    accessToken,
-    expiresAt: Date.now() + expiresIn * 1000,
-    createdAt,
-  }));
+  await writeRelaySession(
+    state,
+    await encryptRelayPayload(state, {
+      account,
+      accessToken,
+      expiresAt: Date.now() + expiresIn * 1000,
+      createdAt,
+    })
+  );
 
-  try { history.replaceState(null, '', location.pathname); } catch { /* noop */ }
+  try {
+    history.replaceState(null, '', location.pathname);
+  } catch {
+    /* noop */
+  }
   return { account };
 }
 
@@ -415,13 +474,17 @@ function createGoogleProvider(GoogleAuthProvider) {
 export function markGoogleAuthRedirectPending() {
   try {
     localStorage.setItem(REDIRECT_PENDING_KEY, String(Date.now()));
-  } catch { /* noop */ }
+  } catch {
+    /* noop */
+  }
 }
 
 export function clearGoogleAuthRedirectPending() {
   try {
     localStorage.removeItem(REDIRECT_PENDING_KEY);
-  } catch { /* noop */ }
+  } catch {
+    /* noop */
+  }
 }
 
 export function hasPendingGoogleAuthRedirect() {
@@ -448,7 +511,9 @@ function sessionFromFirebaseUser(user, credential = null) {
   const rawExpiry = user.expiresAt;
   const parsedExpiry = Number(rawExpiry?.toMillis?.() ?? rawExpiry ?? 0);
   const expiresAt = accessToken
-    ? (parsedExpiry > Date.now() ? parsedExpiry : Date.now() + 3600_000)
+    ? parsedExpiry > Date.now()
+      ? parsedExpiry
+      : Date.now() + 3600_000
     : 0;
   const account = {
     email: String(user.email || ''),
@@ -478,7 +543,11 @@ export async function startGoogleAuthRedirect({ signal = null } = {}) {
   const app = getApps().length ? getApp() : initializeApp(FIREBASE_CONFIG);
   const auth = getAuth(app);
   // Pastikan state redirect disimpan permanen sebelum browser meninggalkan app.
-  try { await setPersistence(auth, browserLocalPersistence); } catch { /* noop */ }
+  try {
+    await setPersistence(auth, browserLocalPersistence);
+  } catch {
+    /* noop */
+  }
   markGoogleAuthRedirectPending();
   try {
     await signInWithRedirect(auth, createGoogleProvider(GoogleAuthProvider));
@@ -498,10 +567,9 @@ let warmUpPromise = null;
  */
 export function warmUpGoogleAuth() {
   if (!warmUpPromise) {
-    warmUpPromise = Promise.all([
-      import(FIREBASE_APP_URL),
-      import(FIREBASE_AUTH_URL),
-    ]).catch(() => null);
+    warmUpPromise = Promise.all([import(FIREBASE_APP_URL), import(FIREBASE_AUTH_URL)]).catch(
+      () => null
+    );
   }
   return warmUpPromise;
 }

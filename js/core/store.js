@@ -3,6 +3,8 @@ import { GoogleDrive } from '../services/gdrive.js';
 import { Cloud } from '../services/cloud.js';
 import { createSession, getSession } from './auth.js';
 import { repository, dataURLToBlob, blobToDataUrl } from './repository.js';
+
+const CONFLICT_LOG_KEY = 'risly.mm.conflicts.v1';
 import {
   createDefaultData,
   createSampleData,
@@ -128,6 +130,7 @@ export class Store {
     this._uploadTimer = null;
     this._idbReady = false;
     this._receiptUrlCache = new Map();
+    this._conflictLog = [];
   }
 
   async init() {
@@ -156,6 +159,7 @@ export class Store {
     }
 
     this._initialized = true;
+    this._loadConflictLog();
     return this.data;
   }
 
@@ -295,11 +299,18 @@ export class Store {
       .trim()
       .toLowerCase();
     if (!email) return this.data.users.find((item) => !item.deletedAt) || this.data.users[0];
-    // Match by email first
+    // Match by googleEmail or firebaseUid only — never by name, to avoid
+    // wrongly merging two different people who happen to share a name.
     let user = this.data.users.find(
       (item) => !item.deletedAt && String(item.googleEmail || '').toLowerCase() === email
     );
     if (user) {
+      const firebaseUid = String(account?.firebaseUid || '').trim();
+      if (firebaseUid && user.firebaseUid !== firebaseUid) {
+        user.firebaseUid = firebaseUid;
+        user.updatedAt = nowISO();
+        this.persist();
+      }
       const picture = String(account?.picture || '').trim();
       if (picture && user.picture !== picture) {
         user.picture = picture;
@@ -307,23 +318,6 @@ export class Store {
         this.persist();
       }
       return user;
-    }
-    // For legacy users without googleEmail, try matching by name
-    const accountName = normalizedMemberName(account?.name || email.split('@')[0] || '');
-    if (accountName) {
-      user = this.data.users.find(
-        (item) =>
-          !item.deletedAt &&
-          !String(item.googleEmail || '').trim() &&
-          normalizedMemberName(item.name) === accountName
-      );
-      if (user) {
-        user.googleEmail = email;
-        user.picture = user.picture || String(account?.picture || '');
-        user.updatedAt = nowISO();
-        this.persist();
-        return user;
-      }
     }
     // Create new user
     const name = String(account?.name || email.split('@')[0] || 'Pengguna').trim() || 'Pengguna';
@@ -2529,6 +2523,7 @@ export class Store {
       return { changed: false, data: this.data, warning: 'format' };
     }
     const remote = migrateData(remoteRaw);
+    this._lastRemoteData = remote;
     const draft = deepClone(this.data);
 
     draft.users = mergeCollection(draft.users, remote.users);
@@ -2577,11 +2572,135 @@ export class Store {
     const after = JSON.stringify(draft);
     const changed = before !== after;
     if (changed) {
+      this._recordMergeConflicts(draft);
       this.persist(draft);
       this.data = draft;
       this.emit({ source: 'remote', reason: 'sync:merge' });
     }
     return { changed, data: this.data };
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /*  Conflict log                                                            */
+  /* ------------------------------------------------------------------------ */
+
+  _loadConflictLog() {
+    try {
+      const raw = localStorage.getItem(CONFLICT_LOG_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (Array.isArray(parsed)) this._conflictLog = parsed;
+    } catch {
+      this._conflictLog = [];
+    }
+  }
+
+  _saveConflictLog() {
+    try {
+      localStorage.setItem(CONFLICT_LOG_KEY, JSON.stringify(this._conflictLog));
+    } catch {
+      /* storage unavailable */
+    }
+  }
+
+  /**
+   * Bandingkan item lokal dan remote per id. Jika sama id namun konten berbeda,
+   * catat sebagai konflik dengan pemenang (yang tersisa dalam draft).
+   */
+  _recordMergeConflicts(draft) {
+    const remote = this._lastRemoteData;
+    if (!remote) return;
+
+    const collections = [
+      'users',
+      'accounts',
+      'categories',
+      'transactions',
+      'budgets',
+      'recurring',
+      'notes',
+      'goals',
+      'netWorthHistory',
+    ];
+
+    const now = nowISO();
+    let newConflicts = 0;
+
+    collections.forEach((key) => {
+      const localItems = Array.isArray(this.data?.[key]) ? this.data[key] : [];
+      const remoteItems = Array.isArray(remote?.[key]) ? remote[key] : [];
+      const mergedItems = Array.isArray(draft?.[key]) ? draft[key] : [];
+
+      const localById = new Map();
+      localItems.forEach((item) => {
+        if (item?.id) localById.set(item.id, item);
+      });
+      const remoteById = new Map();
+      remoteItems.forEach((item) => {
+        if (item?.id) remoteById.set(item.id, item);
+      });
+      const mergedById = new Map();
+      mergedItems.forEach((item) => {
+        if (item?.id) mergedById.set(item.id, item);
+      });
+
+      remoteById.forEach((remoteItem, id) => {
+        const localItem = localById.get(id);
+        if (!localItem) return; // baru dari remote, bukan konflik
+
+        const localStr = this._stripStamp(localItem);
+        const remoteStr = this._stripStamp(remoteItem);
+        if (localStr === remoteStr) return; // sama, tidak ada konflik
+
+        const winner = mergedById.get(id);
+        if (!winner) return;
+
+        this._conflictLog.unshift({
+          id: `conflict_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          collection: key,
+          recordId: id,
+          localValue: localItem,
+          remoteValue: remoteItem,
+          resolvedValue: winner,
+          resolvedBy: winner.updatedBy || null,
+          createdAt: now,
+        });
+        newConflicts += 1;
+      });
+    });
+
+    if (newConflicts > 0) {
+      // Batasi log agar tidak tumbuh tanpa batas.
+      this._conflictLog = this._conflictLog.slice(0, 200);
+      this._saveConflictLog();
+      this.emit({
+        source: 'remote',
+        reason: 'sync:conflict',
+        silent: false,
+        detail: { conflictCount: newConflicts },
+      });
+    }
+  }
+
+  _stripStamp(item) {
+    const clone = { ...item };
+    delete clone.updatedAt;
+    delete clone.updatedBy;
+    return JSON.stringify(clone);
+  }
+
+  /**
+   * Ambil log konflik sinkronisasi.
+   */
+  getConflictLog() {
+    return [...this._conflictLog];
+  }
+
+  /**
+   * Hapus semua entri log konflik.
+   */
+  clearConflictLog() {
+    this._conflictLog = [];
+    this._saveConflictLog();
   }
 }
 
