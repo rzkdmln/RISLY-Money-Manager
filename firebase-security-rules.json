@@ -27,8 +27,8 @@
 
         "owner": {
           ".validate": "newData.isString() && newData.val().length > 0",
-          // PERBAIKAN: Izinkan jika owner tidak dikirim (!newData.exists()), ATAU penulisan dilakukan oleh Owner asli.
-          ".write": "auth != null && (!newData.exists() || data.val() === auth.uid)"
+          // Izinkan jika: tidak dikirim (PATCH parsial), ATAU pembuatan baru (!data.exists()), ATAU ditulis oleh Owner asli.
+          ".write": "auth != null && (!newData.exists() || !data.exists() || data.val() === auth.uid)"
         },
 
         "members": {
