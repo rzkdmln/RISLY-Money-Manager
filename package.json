@@ -17,11 +17,12 @@
     "check:version": "node --input-type=module -e \"import fs from 'node:fs'; const c=fs.readFileSync('js/core/config.js','utf8'); const s=fs.readFileSync('sw.js','utf8'); const cv=c.match(/version: '([^']+)'/)[1]; const sv=s.match(/VERSION = 'risly-([^']+)'/)[1]; if(cv!==sv){console.error('Versi tidak sinkron: config.js='+cv+', sw.js=risly-'+sv);process.exit(1)}console.log('Versi sinkron: '+cv);\""
   },
   "devDependencies": {
-    "autoprefixer": "^10.4.16",
     "@playwright/test": "^1.48.0",
+    "autoprefixer": "^10.4.16",
     "eslint": "^9.15.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "^2.31.0",
+    "http-server": "^14.1.1",
     "jsdom": "^25.0.0",
     "postcss": "^8.4.31",
     "prettier": "^3.3.3",

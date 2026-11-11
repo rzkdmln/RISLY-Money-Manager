@@ -9,6 +9,7 @@ build/
 # Test & lint artifacts
 coverage/
 playwright-report/
+test-results/
 
 # Logs & OS
 *.log
