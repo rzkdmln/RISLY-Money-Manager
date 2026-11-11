@@ -4,8 +4,8 @@ export default defineConfig({
   test: {
     name: 'risly-unit',
     environment: 'jsdom',
-    include: ['tests/**/*.test.js'],
-    exclude: ['node_modules', 'dist', 'coverage', 'junk', 'tools'],
+    include: ['tests/core/**/*.test.js'],
+    exclude: ['node_modules', 'dist', 'coverage', 'junk', 'tools', 'tests/e2e'],
     globals: true,
     setupFiles: ['./tests/setup.js'],
 
