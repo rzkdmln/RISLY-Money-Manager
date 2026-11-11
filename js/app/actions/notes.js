@@ -94,9 +94,9 @@ export const noteActions = {
     toast('Catatan dihapus permanen.', 'success');
     renderApplication();
   },
-  'note-duplicate': (element) => {
+  'note-duplicate': async (element) => {
     const id = element.dataset.id;
-    const copy = store.duplicateNote(id);
+    const copy = await store.duplicateNote(id);
     closeModal({ silent: true });
     toast('Catatan diduplikasi.', 'success');
     openNoteEditor(copy, copy.kind);
@@ -109,7 +109,7 @@ export const noteActions = {
       confirmLabel: 'Kosongkan',
     });
     if (!ok) return;
-    const count = store.emptyTrash();
+    const count = await store.emptyTrash();
     toast(`${count} catatan dihapus permanen.`, 'success');
     renderApplication();
   },

@@ -390,7 +390,7 @@ describe('store.processRecurring', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('store.commit transaksional', () => {
-  it('rollback data saat localStorage gagal (kuota penuh)', () => {
+  it('rollback data saat localStorage gagal (kuota penuh)', async () => {
     const store = makeStore();
     const originalBalance = store.accountBalance(store.data.accounts[0].id);
     const originalTxCount = store.data.transactions.length;
@@ -407,7 +407,7 @@ describe('store.commit transaksional', () => {
 
     let threw = false;
     try {
-      store.commit('transaction:add', (data) => {
+      await store.commit('transaction:add', (data) => {
         data.transactions.push({
           id: 'tx-new', date: '2025-01-10', amount: 999, type: 'expense',
           accountId: store.data.accounts[0].id, categoryId: null, payments: [],

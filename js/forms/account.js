@@ -230,10 +230,10 @@ export function changePinForm(user) {
       </label>` : ''}
       <div class="form-grid">
         <label class="field-label">PIN baru
-          <input class="field mt-1.5" type="password" name="newPin" inputmode="numeric" minlength="4" maxlength="8" pattern="[0-9]{4,8}" autocomplete="new-password" required>
+          <input class="field mt-1.5" type="password" name="newPin" inputmode="numeric" minlength="6" maxlength="8" pattern="[0-9]{6,8}" autocomplete="new-password" required>
         </label>
         <label class="field-label">Ulangi PIN baru
-          <input class="field mt-1.5" type="password" name="confirmPin" inputmode="numeric" minlength="4" maxlength="8" pattern="[0-9]{4,8}" autocomplete="new-password" required>
+          <input class="field mt-1.5" type="password" name="confirmPin" inputmode="numeric" minlength="6" maxlength="8" pattern="[0-9]{6,8}" autocomplete="new-password" required>
         </label>
       </div>
       <p class="text-[11px] leading-5 text-slate-500 dark:text-slate-400">PIN disimpan sebagai hash PBKDF2-SHA256 dengan salt unik. Setelah diubah, perangkat lain akan menerima hash baru saat sinkronisasi.</p>

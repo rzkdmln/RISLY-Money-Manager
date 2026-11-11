@@ -79,8 +79,10 @@ export default [
 
       // no-undef wajib aktif: ini yang menangkap import yang hilang.
       'no-undef': 'error',
-      // Masih dimatikan sampai kode lama dibersihkan bertahap.
-      'no-unused-vars': 'off',
+      // no-unused-vars diatur sebagai peringatan (bukan error) agar kode lama
+      // yang belum dibersihkan tidak memblokir build. Diperbarui dari 'off'
+      // setelah audit fase 0–8; pembersihan dilakukan bertahap.
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrors: 'none' }],
 
       // Import rules. import/extensions dimatikan karena kode exist menggunakan
       // ekstensi .js pada semua impor.

@@ -837,7 +837,7 @@ export class Store {
     return this.data.users.filter((user) => !user.deletedAt);
   }
 
-  commit(reason, mutator, options = {}) {
+  async commit(reason, mutator, options = {}) {
     const { source = 'local', silent = false, emit = true, touchRoot = true } = options;
     const now = nowISO();
     const draft = deepClone(this.data);
@@ -847,7 +847,9 @@ export class Store {
       draft.revision = Math.max(1, Number(draft.revision) || 1) + 1;
       if (source === 'local') draft.updatedBy = this.currentUserId || draft.updatedBy;
     }
-    this.persist(draft);
+    // Tunggu penyimpanan ke IndexedDB selesai agar komit benar-benar transaksional:
+    // jika persist gagal, this.data tidak diubah dan data tidak terjadi ketidakkonsistenan.
+    await this.persist(draft);
     // Hapus base64 receipt dari data di memori jika receiptId tersedia,
     // agar tidak menumpuk string besar di RAM.
     if (Array.isArray(draft.transactions)) {
