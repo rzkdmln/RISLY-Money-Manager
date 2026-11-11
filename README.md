@@ -140,9 +140,13 @@ Aturan di `firebase-security-rules.json` harus dipublikasikan ke Firebase Realti
 
 ### 🔐 Keamanan & Privasi
 
-- PIN 4–8 angka dengan hashing **PBKDF2-SHA256** (150.000 iterasi).
-- Sesi tersimpan di cookie + localStorage agar PWA tetap bertahan setelah restart.
-- Kunci otomatis setelah waktu tertentu.
+- PIN 6–8 angka dengan hashing **PBKDF2-SHA256** (310.000 iterasi).
+- Login throttling eksponensial (1 → 5 → 15 menit setelah 5 kali gagal berurutan).
+- Data lokal di IndexedDB **di-enkripsi at-rest** (AES-GCM 256-bit, kunci turunan dari PIN). Kunci hanya di memori, tidak pernah di disk.
+- Auto-lock benar-benar menghapus kunci enkripsi dari memori.
+- Sesi di `sessionStorage` + IndexedDB meta (tidak ada cookie sensitif).
+- Token Google Drive tidak lagi disimpan di cookie yang bisa dibaca JavaScript.
+- Backup terenkripsi (`.risly.enc`) dengan passphrase terpisah untuk pemulihan di perangkat lain.
 - Mode **sembunyikan nominal** untuk privasi saat layar dilihat orang lain.
 - Notifikasi browser untuk pengingat.
 - Data utama tersimpan lokal di perangkat, bukan di server RISLY.
@@ -420,7 +424,8 @@ Deploy seluruh isi repo ke hosting statis apa pun (Cloudflare Pages, Vercel, dsb
 - Data utama disimpan di **IndexedDB** (database `risly-mm`), terpisah per workspace/ruang.
 - Struk foto disimpan sebagai **blob** di object store `receipts` (tidak sebagai base64 di dalam data workspace), sehingga kuota tidak terbuang untuk setiap transaksi.
 - `localStorage` tetap dipakai untuk registry, akun terakhir, sesi, preferensi, dan konfigurasi cloud, serta sebagai fallback baca saat IndexedDB belum tersedia.
-- **PIN hanya mengunci sesi aplikasi**; data lokal tidak dienkripsi.
+- **PIN mengaktifkan enkripsi at-rest** (AES-GCM 256-bit) untuk data lokal. Tanpa PIN yang benar, data tidak bisa dibuka.
+- Jika lupa PIN dan tidak ada backup terenkripsi, data hilang permanen.
 - Jangan gunakan perangkat bersama tanpa PIN dan kunci otomatis.
 - Kapasitas IndexedDB jauh lebih besar dari `localStorage` (biasanya ratusan MB hingga GB tergantung browser), cocok untuk menyimpan banyak foto struk.
 

@@ -28,41 +28,32 @@ function isSecureOrigin() {
     || location.hostname === '127.0.0.1';
 }
 
-function gdriveCookie(name, value, days) {
-  if (value === undefined || value === null) {
-    document.cookie = `${name}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 UTC`;
-    document.cookie = `${name}=; path=/; SameSite=None; Secure; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 UTC`;
-    return;
-  }
-  const expires = new Date(Date.now() + (days || 30) * 24 * 60 * 60 * 1000).toUTCString();
-  const flags = isSecureOrigin() ? 'SameSite=None; Secure' : 'SameSite=Lax';
-  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; expires=${expires}; ${flags}`;
-}
-
-function gdriveReadCookie(name) {
-  try {
-    const pair = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith(name + '='));
-    return pair ? decodeURIComponent(pair.slice(name.length + 1)) : null;
-  } catch {
-    return null;
-  }
-}
-
-/** Store in a cookie and mirror to localStorage as a fallback. */
+/** Store ke localStorage saja (tidak ada cookie — mencegah token dibaca via JS). */
 function gdriveStore(key, value, days) {
   if (value === undefined || value === null) {
-    gdriveCookie(key, null);
     try { localStorage.removeItem(key); } catch { /* noop */ }
+    // Bersihkan cookie lama jika masih ada (migrasi dari versi sebelumnya).
+    deleteLegacyGdriveCookie(key);
     return;
   }
-  gdriveCookie(key, value, days);
   try { localStorage.setItem(key, value); } catch { /* storage may be full */ }
 }
 
 function gdriveLoad(key) {
-  const cookie = gdriveReadCookie(key);
-  if (cookie) return cookie;
   try { return localStorage.getItem(key); } catch { return null; }
+}
+
+/** Hapus cookie legacy dari versi lama (risly_access_token, risly_token_expires_at, risly.mm.google.v1). */
+function deleteLegacyGdriveCookie(name) {
+  document.cookie = `${name}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 UTC`;
+  document.cookie = `${name}=; path=/; SameSite=None; Secure; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 UTC`;
+}
+
+/** Bersihkan semua cookie gdrive legacy saat inisialisasi. */
+export function purgeLegacyGdriveCookies() {
+  for (const key of ['risly_access_token', 'risly_token_expires_at', 'risly.mm.google.v1']) {
+    deleteLegacyGdriveCookie(key);
+  }
 }
 
 export const DRIVE_API_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';

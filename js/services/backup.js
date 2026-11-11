@@ -14,6 +14,7 @@ import {
   escapeHTML,
   formatBytes,
   formatDateTime,
+  downloadBlob,
   downloadJSON,
   localDateISO,
   nowISO,
@@ -23,12 +24,67 @@ import { APP } from '../core/config.js';
 import { GoogleDrive, googleAccountBadge } from './gdrive.js';
 import { clearSession } from '../core/auth.js';
 import { appHooks } from '../app/hooks.js';
+import { encryptBackup, decryptBackup } from '../core/crypto.js';
+
+/* ------------------------------------------------------------------------ */
+/*  Passphrase prompt                                                       */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Tampilkan modal meminta passphrase untuk backup terenkripsi.
+ * Mengembalikan string passphrase atau null jika dibatalkan.
+ */
+export function promptPassphrase(message) {
+  return new Promise((resolve) => {
+    openModal({
+      size: 'md',
+      html: `<div class="p-5 sm:p-6">
+        <div class="flex items-start justify-between gap-3 mb-4">
+          <div>
+            <p class="page-eyebrow">Backup Terenkripsi</p>
+            <h2 class="text-xl font-bold text-slate-900 dark:text-white mt-1">Masukkan Passphrase</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">${escapeHTML(message)}</p>
+          </div>
+          <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
+        </div>
+        <form id="passphrase-form" class="space-y-3">
+          <label class="field-label block">Passphrase</label>
+          <input id="passphrase-input" type="password" class="field w-full" placeholder="Masukkan passphrase" autocomplete="off" required>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Tanpa passphrase, data backup tidak dapat dibuka.</p>
+        </form>
+        <div class="settings-actions mt-6 flex gap-2">
+          <button type="button" class="btn btn-secondary flex-1" data-action="close-modal">Batal</button>
+          <button type="submit" form="passphrase-form" class="btn btn-primary flex-1">Buka</button>
+        </div>
+      </div>`,
+      onClose: () => resolve(null),
+    });
+
+    const form = document.getElementById('passphrase-form');
+    const inputEl = document.getElementById('passphrase-input');
+    const cancelBtn = document.querySelector('[data-action="close-modal"]');
+
+    cancelBtn?.addEventListener('click', () => {
+      closeModal({ silent: true });
+      resolve(null);
+    }, { once: true });
+
+    form?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const pass = inputEl?.value || '';
+      closeModal({ silent: true });
+      resolve(pass || null);
+    }, { once: true });
+
+    inputEl?.focus();
+  });
+}
 
 /* ------------------------------------------------------------------------ */
 /*  Local backup                                                            */
 /* ------------------------------------------------------------------------ */
 
-export async function backupNow() {
+export async function backupNow(passphrase = null) {
   const receipts = await store.exportReceipts();
   const payload = {
     app: 'risly-money-manager',
@@ -39,8 +95,17 @@ export async function backupNow() {
     data: store.exportSnapshot(),
     receipts,
   };
-  downloadJSON(payload, `RISLY-backup-${localDateISO()}.json`);
-  toast(`Backup JSON berhasil diunduh (${receipts.length} struk).`, 'success');
+
+  const stamp = localDateISO();
+  if (passphrase) {
+    const encryptedBase64 = await encryptBackup(payload, passphrase);
+    const encryptedBlob = new Blob([encryptedBase64], { type: 'application/octet-stream' });
+    downloadBlob(encryptedBlob, `RISLY-backup-${stamp}.risly.enc`);
+    toast(`Backup terenkripsi berhasil diunduh (${receipts.length} struk).`, 'success');
+  } else {
+    downloadJSON(payload, `RISLY-backup-${stamp}.json`);
+    toast(`Backup JSON berhasil diunduh (${receipts.length} struk).`, 'success');
+  }
 }
 
 export function pickBackupFile() {
@@ -52,7 +117,21 @@ export function pickBackupFile() {
     if (!file) return;
     try {
       const text = await readFileAsText(file);
-      const parsed = JSON.parse(text);
+      let parsed;
+
+      // Deteksi file terenkripsi (.risly.enc atau base64 ciphertext)
+      const isEncrypted = file.name.endsWith('.risly.enc') || (text.trim().startsWith('{') && text.includes('ciphertext') && text.includes('salt'));
+      if (isEncrypted) {
+        const passphrase = await promptPassphrase('Masukkan passphrase untuk membuka backup terenkripsi:');
+        if (!passphrase) return; // pengguna batal
+        try {
+          parsed = await decryptBackup(text, passphrase);
+        } catch (error) {
+          throw new Error('Passphrase salah atau file backup terenkripsi tidak valid.');
+        }
+      } else {
+        parsed = JSON.parse(text);
+      }
 
       // Validasi envelop backup
       if (!parsed || parsed.app !== 'risly-money-manager') {

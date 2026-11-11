@@ -10,9 +10,11 @@ import { enterApplication } from '../session.js';
 import { store } from '../../core/store.js';
 import {
   verifyPin,
+  verifyPinByVerifier,
   resetFailedAttempts,
   registerFailedAttempt,
   getLockRemaining,
+  createPinAndEncryption,
 } from '../../core/auth.js';
 import { ui, toast } from '../../ui/ui.js';
 
@@ -21,7 +23,7 @@ export const authSubmissions = {
     const userId = String(formValue(form, 'user') || ui.selectedUser || '');
     const pin = String(formValue(form, 'pin') || '');
     const user = store.getUser(userId);
-    if (!user?.pinHash) {
+    if (!user?.pinHash && !user?.pinVerifier) {
       renderAuth();
       return;
     }
@@ -39,9 +41,26 @@ export const authSubmissions = {
     const submit = form.querySelector('[type="submit"]');
     if (submit) submit.disabled = true;
     try {
-      const valid = await verifyPin(user, pin);
+      // Verifikasi PIN via verifier (tidak membuka kunci enkripsi),
+      // fallback ke pinHash untuk kompatibilitas versi lama.
+      let valid = false;
+      if (user.pinVerifier && user.pinSalt) {
+        valid = await verifyPinByVerifier(user, pin);
+      }
+      if (!valid) {
+        valid = await verifyPin(user, pin);
+      }
       if (valid) {
         resetFailedAttempts(user.id);
+        // Jika workspace terenkripsi, unlock untuk mendekripsi data ke memori.
+        if (store.encryptionEnabled || (user.pinHash && store._encrypted === false && user.pinSalt)) {
+          try {
+            await store.unlock(pin);
+          } catch (unlockError) {
+            showFormError(form, unlockError.message || 'Gagal membuka enkripsi data.');
+            return;
+          }
+        }
         enterApplication(user);
         return;
       }
@@ -84,18 +103,72 @@ export const authSubmissions = {
       showFormError(form, 'PIN baru dan ulangannya tidak sama.');
       return;
     }
-    if (!/^\d{4,8}$/.test(newPin)) {
-      showFormError(form, 'PIN baru harus 4–8 angka.');
+    if (!/^\d{6,8}$/.test(newPin)) {
+      showFormError(form, 'PIN baru harus 6–8 angka.');
       return;
     }
     const submit = form.querySelector('[type="submit"]');
     if (submit) submit.disabled = true;
     try {
       const credentials = await changePin(user, currentPin, newPin);
-      store.updateUser(user.id, credentials);
-      toast('PIN berhasil diubah. Perangkat lain akan menerima perubahan saat sinkron.', 'success');
+      // Buat verifier baru untuk metadata PIN (untuk unlock sebelum dekripsi).
+      const { encryption } = await import('../../core/crypto.js').then((m) =>
+        m.createEncryptionCredentials(newPin)
+      );
+      // Simpan ke user profile + metadata terpisah.
+      await store.updateUser(user.id, {
+        pinHash: credentials.pinHash,
+        pinSalt: credentials.pinSalt,
+        pinIterations: credentials.pinIterations,
+        pinVerifier: encryption.verifier,
+      });
+      // Ganti kunci enkripsi di memori dengan kunci baru (jika saat ini unlock).
+      if (store.isUnlocked) {
+        import('../../core/crypto.js').then(({ deriveEncryptionKey }) => {
+          return deriveEncryptionKey(newPin, credentials.pinSalt, credentials.pinIterations);
+        }).then((newKey) => {
+          store.setEncryptionKey(newKey, credentials.pinSalt);
+        }).catch(() => {});
+      }
+      toast('PIN berhasil diubah. Data telah di-re-enkripsi dengan PIN baru.', 'success');
     } catch (error) {
       showFormError(form, error.message || 'Gagal mengubah PIN.');
+    } finally {
+      if (submit) submit.disabled = false;
+    }
+  },
+
+  'setup-pin': async (form) => {
+    const userId = String(formValue(form, 'user') || '');
+    const pin = String(formValue(form, 'pin') || '');
+    const confirmPin = String(formValue(form, 'confirmPin') || '');
+    const user = store.getUser(userId) || store.currentUser;
+    if (!user) return;
+    if (pin !== confirmPin) {
+      showFormError(form, 'PIN dan konfirmasi tidak sama.');
+      return;
+    }
+    if (!/^\d{6,8}$/.test(pin)) {
+      showFormError(form, 'PIN harus 6–8 angka.');
+      return;
+    }
+    const submit = form.querySelector('[type="submit"]');
+    if (submit) submit.disabled = true;
+    try {
+      const { pinCredentials, encryption } = await createPinAndEncryption(pin, user.id);
+      await store.updateUser(user.id, {
+        pinHash: pinCredentials.pinHash,
+        pinSalt: pinCredentials.pinSalt,
+        pinIterations: pinCredentials.pinIterations,
+        pinVerifier: encryption.verifier,
+      });
+      // Set kunci enkripsi di memori agar data segera di-enkripsi saat persist.
+      store.setEncryptionKey(encryption.key, pinCredentials.pinSalt);
+      store._encrypted = true;
+      toast('PIN dibuat. Data lokal sekarang di-enkripsi at-rest.', 'success');
+      enterApplication(user);
+    } catch (error) {
+      showFormError(form, error.message || 'Gagal membuat PIN.');
     } finally {
       if (submit) submit.disabled = false;
     }

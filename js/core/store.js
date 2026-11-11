@@ -1,8 +1,17 @@
 import { APP } from './config.js';
 import { GoogleDrive } from '../services/gdrive.js';
 import { Cloud } from '../services/cloud.js';
-import { createSession, getSession } from './auth.js';
+import {
+  createSession,
+  getSession,
+  verifyPinByVerifier,
+  savePinMetadata,
+  clearEncryptionKey,
+  getEncryptionKey,
+  setEncryptionKey,
+} from './auth.js';
 import { repository, dataURLToBlob, blobToDataUrl } from './repository.js';
+import { encryptWorkspace, decryptWorkspace, deriveEncryptionKey, ENC_ITERATIONS } from './crypto.js';
 
 const CONFLICT_LOG_KEY = 'risly.mm.conflicts.v1';
 import {
@@ -131,6 +140,8 @@ export class Store {
     this._idbReady = false;
     this._receiptUrlCache = new Map();
     this._conflictLog = [];
+    this._encryptionKey = null;
+    this._encrypted = false;
   }
 
   async init() {
@@ -167,37 +178,51 @@ export class Store {
     if (!this.workspaceId) return;
     const payload = data || this.data;
     if (!payload) return;
-    try {
-      if (this._idbReady) {
-        // Simpan data workspace tanpa base64 struk (struk ada di object store terpisah).
-        // Tulis ke IndexedDB di background (fire-and-forget) agar tidak blokir UI.
-        const clean = deepClone(payload);
-        if (Array.isArray(clean.transactions)) {
-          clean.transactions.forEach((tx) => {
-            if (tx.receiptId) delete tx.receipt;
-          });
-        }
-        void repository.putWorkspace(this.workspaceId, clean).catch((error) => {
-          console.error('Gagal menyimpan ke IndexedDB:', error);
-          this.lastError = error;
-        });
-      } else {
-        // Fallback localStorage untuk browser yang tidak mendukung IndexedDB
+
+    // Fallback localStorage (browser tanpa IndexedDB) — sinkron agar error kuota
+    // dapat ditangkap oleh pemanggil (mis. commit).
+    if (!this._idbReady) {
+      try {
         localStorage.setItem(workspaceStorageKey(this.workspaceId), JSON.stringify(payload));
+        this.updateWorkspaceMeta(payload);
+        this.lastError = null;
+      } catch (error) {
+        console.error('Gagal menyimpan data lokal:', error);
+        this.lastError = error;
+        const isQuota = error.name === 'QuotaExceededError' || /quota/i.test(error.message || '');
+        throw isQuota
+          ? new StorageQuotaError(
+              'Penyimpanan perangkat penuh. Data tidak tersimpan. Backup data atau hapus lampiran struk lalu coba lagi.',
+              'STORAGE_QUOTA_EXCEEDED'
+            )
+          : error;
       }
-      this.updateWorkspaceMeta(payload);
-      this.lastError = null;
-    } catch (error) {
-      console.error('Gagal menyimpan data lokal:', error);
-      this.lastError = error;
-      const isQuota = error.name === 'QuotaExceededError' || /quota/i.test(error.message || '');
-      throw isQuota
-        ? new StorageQuotaError(
-            'Penyimpanan perangkat penuh. Data tidak tersimpan. Backup data atau hapus lampiran struk lalu coba lagi.',
-            'STORAGE_QUOTA_EXCEEDED'
-          )
-        : error;
+      return;
     }
+
+    // IndexedDB — asinkron karena enkripsi AES-GCM dan I/O IndexedDB.
+    // Fire-and-forget agar tidak blokir UI; error dicatat ke this.lastError.
+    const clean = deepClone(payload);
+    if (Array.isArray(clean.transactions)) {
+      clean.transactions.forEach((tx) => {
+        if (tx.receiptId) delete tx.receipt;
+      });
+    }
+
+    (async () => {
+      try {
+        let toStore = clean;
+        if (this.encryptionEnabled) {
+          toStore = await encryptWorkspace(clean, this._encryptionKey);
+        }
+        await repository.putWorkspace(this.workspaceId, toStore);
+        this.updateWorkspaceMeta(payload);
+        this.lastError = null;
+      } catch (error) {
+        console.error('Gagal menyimpan ke IndexedDB:', error);
+        this.lastError = error;
+      }
+    })();
   }
 
   updateWorkspaceMeta(data = null) {
@@ -223,8 +248,18 @@ export class Store {
       if (this._idbReady) {
         try {
           const record = await repository.getWorkspace(workspaceId);
-          if (record && record.data) {
-            raw = JSON.stringify(record.data);
+          if (record) {
+            let workspaceData = record.data;
+            // Jika data terenkripsi (AES-GCM), dekripsi terlebih dahulu menggunakan kunci dari memori.
+            if (workspaceData && workspaceData.encrypted) {
+              if (!this._encryptionKey) {
+                throw new Error('Data terenkripsi tetapi kunci enkripsi tidak tersedia di memori. Unlock dulu.');
+              }
+              workspaceData = await decryptWorkspace(workspaceData, this._encryptionKey);
+            }
+            if (workspaceData) {
+              raw = JSON.stringify(workspaceData);
+            }
           }
         } catch {
           // Abaikan error IDB, coba localStorage
@@ -571,6 +606,28 @@ export class Store {
     return Boolean(this.workspaceId && this.data);
   }
 
+  /**
+   * Enkripsi at-rest aktif jika pengguna saat ini memiliki PIN (pinHash/pinVerifier)
+   * dan kunci enkripsi tersedia di memori.
+   */
+  get encryptionEnabled() {
+    return Boolean(this._encrypted && this._encryptionKey);
+  }
+
+  /**
+   * Kunci AES-GCM dari memori (hanya tersedia setelah PIN diverifikasi).
+   */
+  get encryptionKey() {
+    return this._encryptionKey;
+  }
+
+  /**
+   * Kunci enkripsi aktif di memori? (true setelah unlock, false setelah lock)
+   */
+  get isUnlocked() {
+    return Boolean(this._encryptionKey);
+  }
+
   subscribe(listener) {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -594,6 +651,77 @@ export class Store {
 
   setCurrentUser(userId) {
     this.currentUserId = userId;
+  }
+
+  /**
+   * Periksa apakah workspace di IndexedDB tersimpan dalam bentuk terenkripsi.
+   * Tidak memerlukan kunci — hanya memeriksa bentuk record.
+   * @param {string} workspaceId
+   * @returns {Promise<boolean>}
+   */
+  async isWorkspaceEncrypted(workspaceId) {
+    if (!this._idbReady) return false;
+    try {
+      const record = await repository.getWorkspace(workspaceId);
+      return Boolean(record?.data?.encrypted);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Kunci aplikasi: hapus kunci enkripsi dari memori dan bersihkan data terdekripsi.
+   * Dipanggil saat auto-lock atau logout manual.
+   */
+  lock() {
+    clearEncryptionKey();
+    this._encryptionKey = null;
+    this._encrypted = false;
+    this.data = null;
+    this.currentUserId = null;
+    this.emit({ source: 'local', reason: 'auth:lock', silent: false });
+  }
+
+  /**
+   * Unlock dengan PIN. Memverifikasi PIN, menurunkan kunci AES-GCM dari memori,
+   * dan memuat ulang workspace dari IndexedDB (terdekripsi).
+   * @param {string} pin
+   * @returns {Promise<boolean>}
+   */
+  async unlock(pin) {
+    const user = this.currentUser;
+    if (!user) throw new Error('Tidak ada pengguna saat ini.');
+    if (!user.pinHash && !user.pinVerifier) {
+      throw new Error('Pengguna ini tidak memiliki PIN.');
+    }
+
+    // Verifikasi PIN via verifier (tidak membuka kunci enkripsi),
+    // fallback ke pinHash jika verifier belum tersedia (migrasi).
+    let valid = false;
+    if (user.pinVerifier && user.pinSalt) {
+      valid = await verifyPinByVerifier(user, pin);
+    }
+    if (!valid) {
+      valid = await verifyPin(user, pin);
+    }
+    if (!valid) throw new Error('PIN salah.');
+
+    // Turunkan kunci AES-GCM dari PIN + salt.
+    const salt = user.pinSalt;
+    const iterations = Number(user.pinIterations) || ENC_ITERATIONS;
+    const key = await deriveEncryptionKey(pin, salt, iterations);
+
+    this._encryptionKey = key;
+    this._encrypted = true;
+    setEncryptionKey(key, salt);
+
+    // Muat ulang workspace dari IndexedDB (akan didekripsi otomatis).
+    if (this.workspaceId) {
+      await this.openWorkspace(this.workspaceId, { account: this.account });
+    }
+
+    this.emit({ source: 'local', reason: 'auth:unlock', silent: false });
+    return true;
   }
 
   get currentUser() {
@@ -2345,11 +2473,16 @@ export class Store {
         'pinHash',
         'pinSalt',
         'pinIterations',
+        'pinVerifier',
       ];
       allowed.forEach((key) => {
         if (patch[key] !== undefined) user[key] = patch[key];
       });
       user.updatedAt = now;
+      // Simpan metadata PIN ke IndexedDB meta agar tersedia untuk unlock sebelum workspace didekripsi.
+      if ((patch.pinHash || patch.pinSalt || patch.pinIterations || patch.pinVerifier) !== undefined) {
+        void savePinMetadata(id, user.pinSalt || '', Number(user.pinIterations) || 0, user.pinVerifier || '').catch(() => {});
+      }
       return user;
     });
   }

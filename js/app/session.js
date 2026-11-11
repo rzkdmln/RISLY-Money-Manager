@@ -72,13 +72,10 @@ export function enterApplication(user, { fresh = false } = {}) {
 }
 
 export function lockApplication({ expired = false } = {}) {
-  if (!store.currentUser?.pinHash) {
-    leaveApplication().catch(() => {});
-    if (expired) toast('Sesi berakhir. Masuk kembali dengan Google.', 'info');
-    return;
-  }
+  // Hapus kunci enkripsi dan data terdekripsi dari memori (bukan hanya ubah UI).
+  store.lock();
   clearSession();
-  ui.currentUser = store.currentUser;
+  ui.currentUser = store.currentUser; // tetap tampilkan nama di layar kunci
   ui.locked = true;
   ui.appMounted = false;
   closeModal({ silent: true });

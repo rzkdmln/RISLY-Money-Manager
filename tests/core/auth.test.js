@@ -22,42 +22,42 @@ import {
 
 describe('auth.verifyPin', () => {
   it('mengembalikan true untuk PIN yang benar', async () => {
-    const user = await createPinCredentials('1234');
-    const valid = await verifyPin(user, '1234');
+    const user = await createPinCredentials('123456');
+    const valid = await verifyPin(user, '123456');
     expect(valid).toBe(true);
   });
 
   it('mengembalikan false untuk PIN yang salah', async () => {
-    const user = await createPinCredentials('1234');
-    const valid = await verifyPin(user, '0000');
+    const user = await createPinCredentials('123456');
+    const valid = await verifyPin(user, '000000');
     expect(valid).toBe(false);
   });
 
   it('mengembalikan false untuk user tanpa pinHash', async () => {
     const user = { id: 'user-1', name: 'Tester', pinHash: '', pinSalt: '', pinIterations: 0 };
-    const valid = await verifyPin(user, '1234');
+    const valid = await verifyPin(user, '123456');
     expect(valid).toBe(false);
   });
 
   it('mengembalikan false untuk user null/undefined', async () => {
     // @ts-expect-error - testing null user intentionally
-    expect(await verifyPin(null, '1234')).toBe(false);
+    expect(await verifyPin(null, '123456')).toBe(false);
     // @ts-expect-error - testing undefined user intentionally
-    expect(await verifyPin(undefined, '1234')).toBe(false);
+    expect(await verifyPin(undefined, '123456')).toBe(false);
   });
 
   it('mengembalikan false untuk PIN dengan format tidak valid', async () => {
-    const user = await createPinCredentials('1234');
+    const user = await createPinCredentials('123456');
     // assertPin melempar untuk format tidak valid (perilaku sengaja di auth.js)
-    await expect(verifyPin(user, 'abc')).rejects.toThrow('PIN harus terdiri dari 4–8 angka.');
-    await expect(verifyPin(user, '123')).rejects.toThrow('PIN harus terdiri dari 4–8 angka.');
-    await expect(verifyPin(user, '123456789')).rejects.toThrow('PIN harus terdiri dari 4–8 angka.');
+    await expect(verifyPin(user, 'abc')).rejects.toThrow('PIN harus terdiri dari 6–8 angka.');
+    await expect(verifyPin(user, '123')).rejects.toThrow('PIN harus terdiri dari 6–8 angka.');
+    await expect(verifyPin(user, '123456789')).rejects.toThrow('PIN harus terdiri dari 6–8 angka.');
   });
 
   it('menggunakan konstanta-time comparison (tidak ada timing leak yang sederhana)', async () => {
-    const user = await createPinCredentials('1234');
-    const wrong = await verifyPin(user, '5678');
-    const right = await verifyPin(user, '1234');
+    const user = await createPinCredentials('123456');
+    const wrong = await verifyPin(user, '567890');
+    const right = await verifyPin(user, '123456');
     expect(wrong).toBe(false);
     expect(right).toBe(true);
   });
@@ -70,18 +70,18 @@ describe('auth.verifyPin', () => {
 describe('auth.changePin', () => {
   it('menghasilkan kredensial baru untuk user tanpa PIN', async () => {
     const user = { id: 'user-1', name: 'Tester', pinHash: '', pinSalt: '', pinIterations: 0 };
-    const creds = await changePin(user, '', '4321');
+    const creds = await changePin(user, '', '432100');
     expect(creds.pinHash).toBeDefined();
     expect(creds.pinSalt).toBeDefined();
     expect(creds.pinIterations).toBeGreaterThan(0);
   });
 
   it('memerlukan PIN saat ini yang benar untuk mengganti PIN', async () => {
-    const user = await createPinCredentials('1111');
-    await expect(changePin(user, '0000', '4321')).rejects.toThrow('PIN saat ini tidak cocok');
-    const creds = await changePin(user, '1111', '4321');
+    const user = await createPinCredentials('111111');
+    await expect(changePin(user, '000000', '432100')).rejects.toThrow('PIN saat ini tidak cocok');
+    const creds = await changePin(user, '111111', '432100');
     expect(creds.pinHash).toBeDefined();
-    const valid = await verifyPin({ ...user, pinHash: creds.pinHash, pinSalt: creds.pinSalt }, '4321');
+    const valid = await verifyPin({ ...user, pinHash: creds.pinHash, pinSalt: creds.pinSalt }, '432100');
     expect(valid).toBe(true);
   });
 });
@@ -155,11 +155,13 @@ describe('auth.lockout', () => {
 describe('auth.session', () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     document.cookie = 'risly.mm.session.v1=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC';
   });
 
   afterEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     clearSession();
   });
 
@@ -209,7 +211,7 @@ describe('auth.session', () => {
     const before = getSession();
     expect(before).not.toBeNull();
     const after = { ...(before || {}), lastActivity: before.lastActivity + 60_000 }; // +1 menit
-    localStorage.setItem('risly.mm.session.v1', JSON.stringify(after));
+    sessionStorage.setItem('risly.mm.session.v1', JSON.stringify(after));
     const loaded = getSession();
     expect(loaded?.lastActivity).toBeGreaterThan(before.lastActivity);
   });

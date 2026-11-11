@@ -21,7 +21,7 @@ import { bindEvents } from './events.js';
 import { setupInstallPrompt, registerServiceWorker } from './pwa.js';
 import { initPullToRefresh } from '../ui/pull-to-refresh.js';
 import { warmUpGoogleAuth } from '../services/google-auth-relay.js';
-import { GoogleDrive } from '../services/gdrive.js';
+import { GoogleDrive, purgeLegacyGdriveCookies } from '../services/gdrive.js';
 import { updateSyncSlots } from '../views/shell.js';
 import { getSession, isSessionExpired, clearSession, createSession } from '../core/auth.js';
 import { clearGoogleAuthRedirectPending } from '../services/google-auth-relay.js';
@@ -111,6 +111,8 @@ async function boot() {
 
   setSplashStatus('Memuat data...');
   await store.init();
+  // Hapus cookie Google Drive legacy (token tidak boleh disimpan di cookie).
+  purgeLegacyGdriveCookies();
   setSplashStatus('Menyiapkan cloud...');
   Cloud.init(store);
   bindStore();
@@ -122,29 +124,43 @@ async function boot() {
   setSplashStatus('Memeriksa sesi...');
   const session = getSession();
   if (session?.workspaceId) {
-    const opened = await store.openWorkspace(session.workspaceId, {
-      account: store.accountForWorkspace(session.workspaceId),
-    });
-    let user = opened ? store.resolveUser(session.userId) : null;
-    if (opened && !user) {
-      const account = store.account;
-      if (account?.email) user = store.ensureMember(account);
-      else user = store.activeUsers()[0] || null;
-    }
-    const expired = isSessionExpired(session, store.data.settings.autoLockMinutes);
-    if (!expired && user) {
-      store.setCurrentUser(user.id);
-      ui.currentUser = user;
-      ui.selectedUser = user.id;
-      if (session.userId !== user.id) createSession(user.id, session.workspaceId);
-    } else if (user) {
+    const encrypted = await store.isWorkspaceEncrypted(session.workspaceId);
+    const opened = encrypted && !store.isUnlocked
+      ? false
+      : await store.openWorkspace(session.workspaceId, {
+          account: store.accountForWorkspace(session.workspaceId),
+        });
+
+    // Workspace terenkripsi tetapi belum unlock → tampilkan layar kunci.
+    if (encrypted && !store.isUnlocked) {
       clearSession();
-      store.setCurrentUser(user.id);
-      ui.currentUser = user;
-      ui.locked = Boolean(user.pinHash);
+      store.setCurrentUser(null);
+      ui.currentUser = null;
+      ui.locked = true;
+      ui.appMounted = false;
+      renderAuth();
     } else {
-      clearSession();
-      ui.locked = false;
+      let user = opened ? store.resolveUser(session.userId) : null;
+      if (opened && !user) {
+        const account = store.account;
+        if (account?.email) user = store.ensureMember(account);
+        else user = store.activeUsers()[0] || null;
+      }
+      const expired = isSessionExpired(session, store.data.settings.autoLockMinutes);
+      if (!expired && user) {
+        store.setCurrentUser(user.id);
+        ui.currentUser = user;
+        ui.selectedUser = user.id;
+        if (session.userId !== user.id) createSession(user.id, session.workspaceId);
+      } else if (user) {
+        clearSession();
+        store.setCurrentUser(user.id);
+        ui.currentUser = user;
+        ui.locked = Boolean(user.pinHash);
+      } else {
+        clearSession();
+        ui.locked = false;
+      }
     }
   }
 
@@ -152,27 +168,40 @@ async function boot() {
   registerServiceWorker();
 
   if (!store.currentUser && !getSession()?.workspaceId) {
-    const opened = await store.openLastWorkspace();
-    if (opened) {
-      if (opened.hasPin) {
-        store.setCurrentUser(opened.user.id);
-        ui.currentUser = opened.user;
-        ui.selectedUser = opened.user.id;
+    const last = JSON.parse(localStorage.getItem(APP.lastAccountKey) || 'null');
+    if (last?.workspaceId) {
+      const encrypted = await store.isWorkspaceEncrypted(last.workspaceId);
+      if (encrypted && !store.isUnlocked) {
+        clearSession();
+        store.setCurrentUser(null);
+        ui.currentUser = null;
         ui.locked = true;
         ui.appMounted = false;
+        renderAuth();
       } else {
-        store.setCurrentUser(opened.user.id);
-        ui.currentUser = opened.user;
-        ui.selectedUser = opened.user.id;
-        ui.locked = false;
-        ui.appMounted = false;
-        savePrefs({ lastUser: opened.user.id });
-        createSession(opened.user.id, store.workspaceId);
-        if (!location.hash || !ROUTES[String(location.hash).replace(/^#\//, '')]) {
-          try {
-            history.replaceState(null, '', '#/dashboard');
-          } catch {
-            /* noop */
+        const opened = await store.openLastWorkspace();
+        if (opened) {
+          if (opened.hasPin) {
+            store.setCurrentUser(opened.user.id);
+            ui.currentUser = opened.user;
+            ui.selectedUser = opened.user.id;
+            ui.locked = true;
+            ui.appMounted = false;
+          } else {
+            store.setCurrentUser(opened.user.id);
+            ui.currentUser = opened.user;
+            ui.selectedUser = opened.user.id;
+            ui.locked = false;
+            ui.appMounted = false;
+            savePrefs({ lastUser: opened.user.id });
+            createSession(opened.user.id, store.workspaceId);
+            if (!location.hash || !ROUTES[String(location.hash).replace(/^#\//, '')]) {
+              try {
+                history.replaceState(null, '', '#/dashboard');
+              } catch {
+                /* noop */
+              }
+            }
           }
         }
       }

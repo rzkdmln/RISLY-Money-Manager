@@ -7,6 +7,7 @@ import { openForgotPinModal, openAuthCloudModal } from '../modals.js';
 import { Cloud } from '../../services/cloud.js';
 import { store } from '../../core/store.js';
 import { clearSession } from '../../core/auth.js';
+import { enterApplication } from '../session.js';
 import {
   ui,
   closeModal,
@@ -66,5 +67,9 @@ export const authActions = {
     ui.selectedUser = null;
     closeModal({ silent: true });
     renderAuth();
+  },
+  'skip-pin': () => {
+    const user = store.currentUser;
+    if (user) enterApplication(user);
   },
 };

@@ -1,9 +1,17 @@
 import { APP } from './config.js';
 import { nowISO } from './utils.js';
+import {
+  createEncryptionCredentials,
+  verifyPinAgainstVerifier,
+} from './crypto.js';
 
-const PBKDF2_ITERATIONS = 150_000;
+const PIN_MIN_DIGITS = 6;
+const PIN_MAX_DIGITS = 8;
+export const PBKDF2_ITERATIONS = 310_000;
+
+// Lockout eksponensial: 1 menit → 5 menit → 15 menit → 15 menit (maksimum).
+const LOCKOUT_STAGES_MS = [60_000, 5 * 60_000, 15 * 60_000];
 const MAX_ATTEMPTS = 5;
-const LOCK_MS = 60_000;
 
 function bytesToBase64(bytes) {
   let binary = '';
@@ -24,8 +32,8 @@ function randomSalt() {
 
 function assertPin(pin) {
   const value = String(pin || '');
-  if (!/^\d{4,8}$/.test(value)) {
-    throw new Error('PIN harus terdiri dari 4–8 angka.');
+  if (!/^\d{6,8}$/.test(value)) {
+    throw new Error('PIN harus terdiri dari 6–8 angka.');
   }
   return value;
 }
@@ -55,11 +63,38 @@ async function deriveHash(pin, salt, iterations = PBKDF2_ITERATIONS) {
   return bytesToBase64(new Uint8Array(bits));
 }
 
-export async function createPinCredentials(pin) {
+/**
+ * Buat kredensial PIN beserta kredensial enkripsi at-rest.
+ * Mengembalikan { pinCredentials, encryption }.
+ * encryptionCredentials.key (CryptoKey) hanya ada di memori dan tidak dikembalikan
+ * untuk disimpan ke disk — caller bertanggung jawab menyimpannya di memori aplikasi.
+ */
+export async function createPinAndEncryption(pin, userId = null) {
   const value = assertPin(pin);
   const salt = randomSalt();
-  const hash = await deriveHash(value, salt, PBKDF2_ITERATIONS);
-  return { pinHash: hash, pinSalt: salt, pinIterations: PBKDF2_ITERATIONS, updatedAt: nowISO() };
+  const pinHash = await deriveHash(value, salt, PBKDF2_ITERATIONS);
+  const pinCredentials = {
+    pinHash,
+    pinSalt: salt,
+    pinIterations: PBKDF2_ITERATIONS,
+    updatedAt: nowISO(),
+  };
+  const encryption = await createEncryptionCredentials(value);
+  // Simpan verifier + salt ke IndexedDB meta agar PIN dapat diverifikasi
+  // sebelum kunci enkripsi tersedia (untuk unlock layar kunci).
+  if (userId) {
+    void savePinMetadata(userId, salt, PBKDF2_ITERATIONS, encryption.verifier).catch(() => {});
+  }
+  return { pinCredentials, encryption };
+}
+
+/**
+ * Kompatibilitas lama: hanya kredensial PIN (tanpa enkripsi).
+ * Digunakan oleh existing tests.
+ */
+export async function createPinCredentials(pin) {
+  const result = await createPinAndEncryption(pin);
+  return result.pinCredentials;
 }
 
 export async function verifyPin(user, pin) {
@@ -74,6 +109,17 @@ export async function verifyPin(user, pin) {
   return diff === 0;
 }
 
+/**
+ * Verifikasi PIN menggunakan verifier (hash terpisah) tanpa membuka kunci enkripsi.
+ * Digunakan saat layar kunci (lock screen) agar kunci AES-GCM tidak perlu di-derive
+ * sebelum PIN diverifikasi.
+ */
+export async function verifyPinByVerifier(user, pin) {
+  if (!user?.pinVerifier || !user?.pinSalt) return false;
+  const value = assertPin(pin);
+  return verifyPinAgainstVerifier(value, user.pinVerifier, user.pinSalt, Number(user.pinIterations) || PBKDF2_ITERATIONS);
+}
+
 export function usersNeedingSetup(users) {
   return (users || []).filter((user) => !user.deletedAt && !user.pinHash);
 }
@@ -83,57 +129,40 @@ export function needsSetup(users) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Session — cookie + localStorage so the PWA survives iOS restarts         */
+/*  Session — sessionStorage + IndexedDB meta (cookie non-HttpOnly dihapus)  */
 /* -------------------------------------------------------------------------- */
 
-function isSecureContext() {
-  return location.protocol === 'https:'
-    || location.hostname === 'localhost'
-    || location.hostname === '127.0.0.1';
+import { repository } from './repository.js';
+
+const SESSION_META_KEY = 'risly.mm.session.v1';
+
+function writeSessionToMemory(value) {
+  try { sessionStorage.setItem(APP.sessionKey, value); } catch { /* storage may be full */ }
 }
 
-function setCookie(name, value, days = 30) {
-  const expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toUTCString();
-  const flags = isSecureContext() ? 'SameSite=None; Secure' : 'SameSite=Lax';
-  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; expires=${expires}; ${flags}`;
-}
-
-function getCookie(name) {
+function readSessionFromMemory() {
   try {
-    const pair = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith(name + '='));
-    if (!pair) return null;
-    return decodeURIComponent(pair.slice(name.length + 1));
+    const raw = sessionStorage.getItem(APP.sessionKey);
+    if (!raw) return null;
+    return JSON.parse(raw);
   } catch {
     return null;
   }
 }
 
-function deleteCookie(name) {
-  document.cookie = `${name}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 UTC`;
-  document.cookie = `${name}=; path=/; SameSite=None; Secure; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 UTC`;
+function removeSessionFromMemory() {
+  try { sessionStorage.removeItem(APP.sessionKey); } catch { /* noop */ }
 }
 
-function writeSession(value) {
-  try { localStorage.setItem(APP.sessionKey, value); } catch { /* storage may be full */ }
-  try { setCookie(APP.sessionKey, value, 30); } catch { /* cookies may be blocked */ }
-}
-
-function readSessionRaw() {
-  const cookie = getCookie(APP.sessionKey);
-  if (cookie) return cookie;
-  try { return localStorage.getItem(APP.sessionKey); } catch { return null; }
-}
-
-function removeSession() {
-  try { deleteCookie(APP.sessionKey); } catch { /* noop */ }
-  try { localStorage.removeItem(APP.sessionKey); } catch { /* noop */ }
+function deleteLegacySessionCookie() {
+  document.cookie = `${APP.sessionKey}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 UTC`;
+  document.cookie = `${APP.sessionKey}=; path=/; SameSite=None; Secure; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 UTC`;
 }
 
 export function getSession() {
   try {
-    const raw = readSessionRaw();
-    if (!raw) return null;
-    const session = JSON.parse(raw);
+    const session = readSessionFromMemory();
+    if (!session) return null;
     if (!session?.userId || !session?.lastActivity) return null;
     return session;
   } catch {
@@ -148,7 +177,15 @@ export function createSession(userId, workspaceId = null) {
     issuedAt: Date.now(),
     lastActivity: Date.now(),
   };
-  writeSession(JSON.stringify(session));
+  writeSessionToMemory(JSON.stringify(session));
+  // Simpan ringkasan sesi ke IndexedDB meta agar bertahan iOS restart (hanya ID, bukan token sensitif).
+  if (repository && typeof repository.setMeta === 'function') {
+    void repository.setMeta(SESSION_META_KEY, JSON.stringify({
+      userId,
+      workspaceId,
+      updatedAt: nowISO(),
+    })).catch(() => {});
+  }
   return session;
 }
 
@@ -156,12 +193,18 @@ export function updateSessionActivity() {
   const session = getSession();
   if (!session) return null;
   session.lastActivity = Date.now();
-  writeSession(JSON.stringify(session));
+  writeSessionToMemory(JSON.stringify(session));
   return session;
 }
 
 export function clearSession() {
-  removeSession();
+  removeSessionFromMemory();
+  deleteLegacySessionCookie();
+  try {
+    if (repository && typeof repository.setMeta === 'function') {
+      void repository.setMeta(SESSION_META_KEY, null).catch(() => {});
+    }
+  } catch { /* noop */ }
 }
 
 export function isSessionExpired(session, autoLockMinutes) {
@@ -172,7 +215,7 @@ export function isSessionExpired(session, autoLockMinutes) {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Login throttling                                                          */
+/*  Login throttling (eksponensial)                                           */
 /* -------------------------------------------------------------------------- */
 
 function readLockouts() {
@@ -185,6 +228,12 @@ function readLockouts() {
 
 function writeLockouts(map) {
   localStorage.setItem(APP.lockoutKey, JSON.stringify(map));
+}
+
+function nextLockoutMs(count) {
+  // count = jumlah kali mencapai ambang MAX_ATTEMPTS (0 = pertama kali)
+  const stage = Math.min(count, LOCKOUT_STAGES_MS.length - 1);
+  return LOCKOUT_STAGES_MS[stage];
 }
 
 export function getLockRemaining(userId) {
@@ -202,10 +251,11 @@ export function getLockRemaining(userId) {
 
 export function registerFailedAttempt(userId) {
   const map = readLockouts();
-  const entry = map[userId] || { count: 0, until: 0 };
+  const entry = map[userId] || { count: 0, stage: 0, until: 0 };
   entry.count = (entry.count || 0) + 1;
   if (entry.count >= MAX_ATTEMPTS) {
-    entry.until = Date.now() + LOCK_MS;
+    entry.stage = (entry.stage || 0) + 1;
+    entry.until = Date.now() + nextLockoutMs(entry.stage - 1);
     entry.count = 0;
   }
   map[userId] = entry;
@@ -213,6 +263,7 @@ export function registerFailedAttempt(userId) {
   return {
     remaining: getLockRemaining(userId),
     attemptsLeft: Math.max(0, MAX_ATTEMPTS - entry.count),
+    stage: entry.stage || 0,
   };
 }
 
@@ -222,10 +273,103 @@ export function resetFailedAttempts(userId) {
   writeLockouts(map);
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Kunci enkripsi di memori (hanya RAM, tidak pernah di disk)                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Simpan kunci enkripsi AES-GCM di memori aplikasi.
+ * Kunci ini digunakan untuk enkripsi/dekripsi workspace di IndexedDB.
+ * Harus dihapus (clearEncryptionKey) saat auto-lock / logout.
+ */
+let _encryptionKey = null;
+let _encryptionSalt = null;
+
+export function setEncryptionKey(key, salt) {
+  _encryptionKey = key;
+  _encryptionSalt = salt || null;
+}
+
+export function getEncryptionKey() {
+  return _encryptionKey;
+}
+
+export function getEncryptionSalt() {
+  return _encryptionSalt;
+}
+
+export function clearEncryptionKey() {
+  _encryptionKey = null;
+  _encryptionSalt = null;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Ganti PIN (dengan enkripsi)                                               */
+/* -------------------------------------------------------------------------- */
+
 export async function changePin(user, currentPin, newPin) {
   if (user?.pinHash) {
     const valid = await verifyPin(user, currentPin);
     if (!valid) throw new Error('PIN saat ini tidak cocok.');
   }
-  return createPinCredentials(newPin);
+  const { pinCredentials } = await createPinAndEncryption(newPin);
+  return pinCredentials;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Metadata PIN di IndexedDB meta (untuk verifikasi sebelum dekripsi)        */
+/* -------------------------------------------------------------------------- */
+
+const PIN_META_PREFIX = 'risly.mm.pin.meta.v1.';
+
+function pinMetaKey(userId) {
+  return `${PIN_META_PREFIX}${userId}`;
+}
+
+/**
+ * Simpan metadata verifikasi PIN ke IndexedDB meta (terpisah dari workspace terenkripsi).
+ * Digunakan untuk memverifikasi PIN sebelum kunci AES-GMC tersedia.
+ */
+export async function savePinMetadata(userId, pinSalt, pinIterations, pinVerifier) {
+  await repository.setMeta(pinMetaKey(userId), JSON.stringify({
+    pinSalt,
+    pinIterations,
+    pinVerifier,
+    updatedAt: nowISO(),
+  }));
+}
+
+/**
+ * Muat metadata verifikasi PIN dari IndexedDB meta.
+ * @returns {Promise<{pinSalt: string, pinIterations: number, pinVerifier: string} | null>}
+ */
+export async function loadPinMetadata(userId) {
+  try {
+    const raw = await repository.getMeta(pinMetaKey(userId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return {
+      pinSalt: parsed.pinSalt,
+      pinIterations: Number(parsed.pinIterations) || 0,
+      pinVerifier: parsed.pinVerifier,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Hapus metadata PIN dari IndexedDB (saat reset / hapus PIN).
+ */
+export async function clearPinMetadata(userId) {
+  try {
+    const store = await repository._store('meta', 'readwrite');
+    return new Promise((resolve, reject) => {
+      const req = store.delete(pinMetaKey(userId));
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  } catch {
+    /* noop */
+  }
 }
