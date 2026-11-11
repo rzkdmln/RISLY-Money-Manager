@@ -84,11 +84,15 @@ class Repository {
   _tx(storeNames, mode = 'readonly') {
     return this._open().then(() => {
       const tx = this.db.transaction(storeNames, mode);
-      return new Promise((resolve, reject) => {
-        tx.oncomplete = () => resolve(tx);
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error || new Error('Transaksi IndexedDB dibatalkan'));
-      }).then(() => tx);
+      // Kembalikan transaksi segera (jangan tunggu oncomplete).
+      // Transaksi IndexedDB tetap aktif selama ada permintaan tertunda padanya.
+      tx.onerror = () => {
+        console.error('IndexedDB transaction error:', tx.error);
+      };
+      tx.onabort = () => {
+        console.error('IndexedDB transaction aborted:', tx.error);
+      };
+      return tx;
     });
   }
 
