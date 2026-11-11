@@ -1,63 +1,79 @@
 <!doctype html>
 <html lang="id" class="h-full">
-<head>
-  <meta charset="utf-8">
-  <meta name="google-site-verification" content="C77HhrmFZ_9zTg0TIx8ZqUXt1fCibK_ACjoOsAhCMAg" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="RISLY Money Manager — catat transaksi, anggaran, kalender, catatan, dan laporan keuangan dalam satu PWA.">
-  <meta name="theme-color" content="#F5F7FB">
-  <meta name="theme-color" content="#08101E" media="(prefers-color-scheme: dark)">
-  <meta name="color-scheme" content="light dark">
-  <meta name="format-detection" content="telephone=no">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="google-site-verification" content="C77HhrmFZ_9zTg0TIx8ZqUXt1fCibK_ACjoOsAhCMAg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta
+      name="description"
+      content="RISLY Money Manager — catat transaksi, anggaran, kalender, catatan, dan laporan keuangan dalam satu PWA."
+    />
+    <meta name="theme-color" content="#F5F7FB" />
+    <meta name="theme-color" content="#08101E" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="format-detection" content="telephone=no" />
 
-  <!-- iOS PWA -->
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="RISLY">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="application-name" content="RISLY">
+    <!-- iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="RISLY" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="RISLY" />
 
-  <title>RISLY Money Manager</title>
-  <link rel="manifest" href="./manifest.json">
-  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
-  <link rel="mask-icon" href="./icons/icon-maskable-512.png" color="#2563EB">
+    <title>RISLY Money Manager</title>
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png" />
+    <link rel="mask-icon" href="./icons/icon-maskable-512.png" color="#2563EB" />
 
-  <link rel="stylesheet" href="./css/tokens.css">
-  <link rel="stylesheet" href="./css/base.css">
-  <link rel="stylesheet" href="./css/layout.css">
-  <link rel="stylesheet" href="./css/components.css">
-  <link rel="stylesheet" href="./css/pages.css">
-  <link rel="stylesheet" href="./css/modals.css">
-  <link rel="stylesheet" href="./css/responsive.css">
-  <link rel="stylesheet" href="./css/overrides.css">
-  <link rel="stylesheet" href="./css/tailwind.css">
-  <script type="module" src="./js/theme-init.js"></script>
-</head>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
 
-<body class="h-full">
-  <div id="app-splash" class="app-splash" role="status" aria-live="polite">
-    <div class="app-splash-inner">
-      <img src="./icons/icon-192.png" alt="RISLY Logo" class="w-16 h-16 rounded-2xl shadow-md mx-auto mb-3 object-cover">
-      <p class="app-splash-name">RISLY</p>
-      <p class="app-splash-tag" id="splash-status">Memeriksa sistem...</p>
-      <span class="app-splash-loader" aria-hidden="true"><i></i></span>
+    <link rel="stylesheet" href="./css/tokens.css" />
+    <link rel="stylesheet" href="./css/base.css" />
+    <link rel="stylesheet" href="./css/layout.css" />
+    <link rel="stylesheet" href="./css/components.css" />
+    <link rel="stylesheet" href="./css/pages.css" />
+    <link rel="stylesheet" href="./css/modals.css" />
+    <link rel="stylesheet" href="./css/responsive.css" />
+    <link rel="stylesheet" href="./css/overrides.css" />
+    <link rel="stylesheet" href="./css/tailwind.css" />
+    <script type="module" src="./js/theme-init.js"></script>
+  </head>
+
+  <body class="h-full">
+    <div id="app-splash" class="app-splash" role="status" aria-live="polite">
+      <div class="app-splash-inner">
+        <img
+          src="./icons/icon-192.png"
+          alt="RISLY Logo"
+          class="w-16 h-16 rounded-2xl shadow-md mx-auto mb-3 object-cover"
+        />
+        <p class="app-splash-name">RISLY</p>
+        <p class="app-splash-tag" id="splash-status">Memeriksa sistem...</p>
+        <span class="app-splash-loader" aria-hidden="true"><i></i></span>
+      </div>
     </div>
-  </div>
 
+    <div id="app-root" class="min-h-full"></div>
+    <div id="modal-root" class="hidden" aria-hidden="true"></div>
+    <div id="toast-root" class="toast-root" aria-live="polite" aria-atomic="false"></div>
 
-  <div id="app-root" class="min-h-full"></div>
-  <div id="modal-root" class="hidden" aria-hidden="true"></div>
-  <div id="toast-root" class="toast-root" aria-live="polite" aria-atomic="false"></div>
+    <noscript>
+      <div class="noscript-card">
+        <h1>JavaScript diperlukan</h1>
+        <p>
+          RISLY Money Manager berjalan sepenuhnya di browser. Aktifkan JavaScript untuk membuka
+          aplikasi.
+        </p>
+      </div>
+    </noscript>
 
-  <noscript>
-    <div class="noscript-card">
-      <h1>JavaScript diperlukan</h1>
-      <p>RISLY Money Manager berjalan sepenuhnya di browser. Aktifkan JavaScript untuk membuka aplikasi.</p>
-    </div>
-  </noscript>
-
-  <!-- Libraries (self-hosted di vendor/) -->
+    <!-- Libraries (self-hosted di vendor/) -->
     <script src="./vendor/chart.umd.min.js"></script>
     <script src="./vendor/xlsx.full.min.js"></script>
     <script src="./vendor/jspdf.umd.min.js"></script>
@@ -68,5 +84,5 @@
 
     <!-- Script Aplikasi Utama -->
     <script type="module" src="./js/app/index.js"></script>
-</body>
+  </body>
 </html>
