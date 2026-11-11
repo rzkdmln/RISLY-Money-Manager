@@ -85,7 +85,18 @@ export async function startGoogleRedirectFlow() {
 /*  Main sign-in flow                                                         */
 /* -------------------------------------------------------------------------- */
 
-export async function signInWithGoogleFlow() {
+export async function signInWithGoogleFlow({ preferRedirect = false } = {}) {
+  // Redirect diutamakan (jika diminta) agar tidak membuka popup cross-origin
+  // yang memicu peringatan COOP "window.closed"/"window.close" di browser.
+  if (preferRedirect) {
+    try {
+      await startGoogleRedirectFlow();
+      // Jika berhasil, halaman navigasi ke Google dan tidak kembali ke sini.
+      return null;
+    } catch (error) {
+      console.warn('Redirect Google gagal, coba popup:', error);
+    }
+  }
   try {
     const session = await startGoogleAuthPopup();
     GoogleDrive.adoptSession(session);
