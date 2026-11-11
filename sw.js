@@ -13,6 +13,17 @@ const VERSION = 'risly-1.2.41';
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 
+const VENDOR_ASSETS = [
+  './vendor/chart.umd.min.js',
+  './vendor/xlsx.full.min.js',
+  './vendor/jspdf.umd.min.js',
+  './vendor/jspdf.plugin.autotable.min.js',
+];
+
+const VENDOR_URLS = new Set(VENDOR_ASSETS);
+
+const isVendorRequest = (url) => VENDOR_URLS.has(url.href);
+
 const APP_SHELL = [
   './',
   './index.html',
@@ -116,17 +127,6 @@ const APP_SHELL = [
   './icons/apple-touch-icon.png',
   ...VENDOR_ASSETS,
 ];
-
-const VENDOR_ASSETS = [
-  './vendor/chart.umd.min.js',
-  './vendor/xlsx.full.min.js',
-  './vendor/jspdf.umd.min.js',
-  './vendor/jspdf.plugin.autotable.min.js',
-];
-
-const VENDOR_URLS = new Set(VENDOR_ASSETS);
-
-const isVendorRequest = (url) => VENDOR_URLS.has(url.href);
 
 /**
  * A response produced by fetch() after following a redirect has
