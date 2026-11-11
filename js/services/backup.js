@@ -9,6 +9,7 @@ import { store } from '../core/store.js';
 import { toast, openModal, closeModal, confirmDialog, ui } from '../ui/ui.js';
 import { icon } from '../ui/icons.js';
 import {
+  deepClone,
   escapeAttr,
   escapeHTML,
   formatBytes,
@@ -50,18 +51,72 @@ export function pickBackupFile() {
     try {
       const text = await readFileAsText(file);
       const parsed = JSON.parse(text);
+
+      // Validasi envelop backup
+      if (!parsed || parsed.app !== 'risly-money-manager') {
+        throw new Error('File bukan backup RISLY yang valid.');
+      }
+      if (!parsed.schemaVersion || Number(parsed.schemaVersion) > APP.schemaVersion) {
+        throw new Error(`Versi skema backup (${parsed.schemaVersion}) tidak didukung oleh aplikasi ini (v${APP.schemaVersion}).`);
+      }
+
       const data = parsed?.data && parsed.app === 'risly-money-manager' ? parsed.data : parsed;
-      if (!data || !Array.isArray(data.transactions) || !Array.isArray(data.users)) {
+      if (!data || typeof data !== 'object') {
         throw new Error('Struktur backup tidak dikenali.');
       }
+
+      // Validasi koleksi wajib
+      const required = ['users', 'accounts', 'categories', 'transactions', 'budgets', 'recurring', 'notes', 'goals'];
+      for (const key of required) {
+        if (!Array.isArray(data[key])) {
+          throw new Error(`Koleksi ${key} tidak ditemukan dalam backup.`);
+        }
+      }
+
+      // Hitung rentang tanggal transaksi
+      const dates = data.transactions
+        .filter((t) => t && t.date)
+        .map((t) => t.date);
+      let dateRange = '—';
+      if (dates.length) {
+        const sorted = dates.slice().sort();
+        dateRange = `${sorted[0]} s/d ${sorted[sorted.length - 1]}`;
+      }
+
+      const summary = [
+        `Transaksi: ${data.transactions.length}`,
+        `Akun: ${data.accounts.length}`,
+        `Kategori: ${data.categories.length}`,
+        `Catatan: ${data.notes.length}`,
+        `Tanggal: ${dateRange}`,
+        `Ukuran file: ${formatBytes(file.size)}`,
+      ].join(' · ');
+
       const ok = await confirmDialog({
         title: 'Pulihkan backup?',
-        message: 'Seluruh data lokal saat ini akan diganti oleh isi backup. Tindakan ini tidak dapat dibatalkan.',
+        message:
+          `Seluruh data lokal saat ini akan diganti oleh isi backup.\n\nRingkasan backup:\n${summary}\n\nTindakan ini dapat dibatalkan selama sesi ini via tombol “Undo restore” yang akan muncul.`,
         confirmLabel: 'Pulihkan',
+        cancelLabel: 'Batal',
         danger: false,
         iconName: 'upload',
       });
       if (!ok) return;
+
+      // Simpan snapshot pra-restore untuk undo selama sesi ini
+      try {
+        localStorage.setItem(
+          'risly.mm.backup.prerestore',
+          JSON.stringify({
+            data: store.exportSnapshot(),
+            restoredAt: nowISO(),
+            sourceFile: file.name,
+          }),
+        );
+      } catch (e) {
+        console.warn('Gagal menyimpan snapshot pra-restore:', e);
+      }
+
       store.importData(data);
       const user = store.currentUser || store.activeUsers()[0];
       if (!user?.pinHash) {
@@ -74,6 +129,26 @@ export function pickBackupFile() {
         appHooks.renderApplication();
       }
       toast('Backup berhasil dipulihkan.', 'success');
+
+      // Tampilkan tombol undo restore (hilang setelah navigasi/refresh)
+      toast('Undo restore tersedia selama sesi ini.', 'info', {
+        label: 'Undo restore',
+        onClick: () => {
+          try {
+            const raw = localStorage.getItem('risly.mm.backup.prerestore');
+            if (!raw) throw new Error('Snapshot pra-restore tidak ditemukan.');
+            const prerestore = JSON.parse(raw);
+            store.importData(prerestore.data, { emit: false });
+            localStorage.removeItem('risly.mm.backup.prerestore');
+            ui.appMounted = false;
+            appHooks.renderApplication();
+            toast('Restore dibatalkan. Data sebelumnya dikembalikan.', 'info');
+          } catch (err) {
+            console.error(err);
+            toast('Undo restore gagal: ' + err.message, 'error');
+          }
+        },
+      });
     } catch (error) {
       console.error(error);
       toast(error.message || 'Backup gagal dibaca.', 'error');

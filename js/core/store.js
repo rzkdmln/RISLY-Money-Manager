@@ -31,6 +31,18 @@ import {
   uid,
 } from './utils.js';
 
+/**
+ * Error terstruktur untuk kegagalan penyimpanan lokal (kuota penuh, dll.).
+ * UI bisa menangkap ini untuk menampilkan toast/banner yang lebih spesifik.
+ */
+export class StorageQuotaError extends Error {
+  constructor(message, code = 'STORAGE_QUOTA_EXCEEDED') {
+    super(message);
+    this.name = 'StorageQuotaError';
+    this.code = code;
+  }
+}
+
 function recordStamp(record) {
   if (!record) return 0;
   const raw = record.updatedAt || record.createdAt;
@@ -121,28 +133,37 @@ class Store {
     return this.data;
   }
 
-  persist() {
-    if (!this.data || !this.workspaceId) return;
+  persist(data = null) {
+    if (!this.workspaceId) return;
+    const payload = data || this.data;
+    if (!payload) return;
     try {
-      localStorage.setItem(workspaceStorageKey(this.workspaceId), JSON.stringify(this.data));
-      this.updateWorkspaceMeta();
+      localStorage.setItem(workspaceStorageKey(this.workspaceId), JSON.stringify(payload));
+      this.updateWorkspaceMeta(payload);
       this.lastError = null;
     } catch (error) {
       console.error('Gagal menyimpan data lokal:', error);
       this.lastError = error;
-      throw error;
+      const isQuota = error.name === 'QuotaExceededError'
+        || /quota/i.test(error.message || '');
+      throw isQuota
+        ? new StorageQuotaError(
+          'Penyimpanan perangkat penuh. Data tidak tersimpan. Backup data atau hapus lampiran struk lalu coba lagi.',
+          'STORAGE_QUOTA_EXCEEDED',
+        )
+        : error;
     }
   }
 
-  updateWorkspaceMeta() {
-    if (!this.workspaceId || !this.data) return;
+  updateWorkspaceMeta(data = null) {
+    if (!this.workspaceId || !data) return;
     const meta = this.registry.workspaces[this.workspaceId] || {};
     this.registry.workspaces[this.workspaceId] = {
       ...meta,
       id: this.workspaceId,
-      name: this.data.settings.workspaceName || this.data.settings.householdName || 'Ruang',
-      inviteCode: this.data.settings.inviteCode || meta.inviteCode || '',
-      ownerEmail: this.data.settings.ownerEmail || meta.ownerEmail || '',
+      name: data.settings.workspaceName || data.settings.householdName || 'Ruang',
+      inviteCode: data.settings.inviteCode || meta.inviteCode || '',
+      ownerEmail: data.settings.ownerEmail || meta.ownerEmail || '',
       updatedAt: nowISO(),
     };
     writeWorkspaceRegistry(this.registry);
@@ -494,13 +515,15 @@ class Store {
   commit(reason, mutator, options = {}) {
     const { source = 'local', silent = false, emit = true, touchRoot = true } = options;
     const now = nowISO();
-    const result = mutator(this.data, now);
+    const draft = deepClone(this.data);
+    const result = mutator(draft, now);
     if (touchRoot) {
-      this.data.updatedAt = now;
-      this.data.revision = Math.max(1, Number(this.data.revision) || 1) + 1;
-      if (source === 'local') this.data.updatedBy = this.currentUserId || this.data.updatedBy;
+      draft.updatedAt = now;
+      draft.revision = Math.max(1, Number(draft.revision) || 1) + 1;
+      if (source === 'local') draft.updatedBy = this.currentUserId || draft.updatedBy;
     }
-    this.persist();
+    this.persist(draft);
+    this.data = draft;
     if (emit) this.emit({ source, reason, silent });
     return result;
   }
@@ -1975,13 +1998,13 @@ class Store {
   }
 
   importData(raw, { emit = true } = {}) {
-    this.data = migrateData(raw);
+    const draft = migrateData(raw);
     if (this.workspaceId) {
-      this.data.settings.workspaceName = this.data.settings.workspaceName
-        || this.data.settings.householdName
+      draft.settings.workspaceName = draft.settings.workspaceName
+        || draft.settings.householdName
         || 'Ruang';
-      this.updateWorkspaceMeta();
-      this.data.users.forEach((user) => {
+      this.updateWorkspaceMeta(draft);
+      draft.users.forEach((user) => {
         const email = String(user.googleEmail || '').trim().toLowerCase();
         if (!email) return;
         this.registry.accounts[email] = {
@@ -1994,7 +2017,8 @@ class Store {
       });
       writeWorkspaceRegistry(this.registry);
     }
-    this.persist();
+    this.persist(draft);
+    this.data = draft;
     if (emit) this.emit({ source: 'local', reason: 'data:import' });
     return this.data;
   }
@@ -2002,33 +2026,43 @@ class Store {
   loadSampleData() {
     const actor = this.currentUser || this.activeUsers()[0]
       || { id: this.currentUserId || 'owner', name: 'Pengguna' };
-    this.data = createSampleData(this.data, actor);
-    this.persist();
+    const draft = createSampleData(this.data, actor);
+    this.persist(draft);
+    this.data = draft;
     this.emit({ source: 'local', reason: 'data:sample' });
     return this.data;
   }
 
   resetLocalData() {
-    if (this.workspaceId) {
-      localStorage.removeItem(workspaceStorageKey(this.workspaceId));
-      delete this.registry.workspaces[this.workspaceId];
-      Object.keys(this.registry.accounts).forEach((email) => {
-        if (this.registry.accounts[email]?.workspaceId === this.workspaceId) {
-          delete this.registry.accounts[email];
+    const previousData = this.data;
+    const previousWorkspaceId = this.workspaceId;
+    try {
+      if (this.workspaceId) {
+        localStorage.removeItem(workspaceStorageKey(this.workspaceId));
+        delete this.registry.workspaces[this.workspaceId];
+        Object.keys(this.registry.accounts).forEach((email) => {
+          if (this.registry.accounts[email]?.workspaceId === this.workspaceId) {
+            delete this.registry.accounts[email];
+          }
+        });
+        if (this.registry.legacyWorkspaceId === this.workspaceId) {
+          this.registry.legacyWorkspaceId = null;
         }
-      });
-      if (this.registry.legacyWorkspaceId === this.workspaceId) {
-        this.registry.legacyWorkspaceId = null;
+        writeWorkspaceRegistry(this.registry);
       }
-      writeWorkspaceRegistry(this.registry);
+      localStorage.removeItem(APP.storageKey);
+      this.data = createDefaultData();
+      this.workspaceId = null;
+      this.account = null;
+      this.currentUserId = null;
+      this.emit({ source: 'local', reason: 'data:reset' });
+      return this.data;
+    } catch (error) {
+      // Rollback jika sesuatu gagal di tengah jalan
+      this.data = previousData;
+      this.workspaceId = previousWorkspaceId;
+      throw error;
     }
-    localStorage.removeItem(APP.storageKey);
-    this.data = createDefaultData();
-    this.workspaceId = null;
-    this.account = null;
-    this.currentUserId = null;
-    this.emit({ source: 'local', reason: 'data:reset' });
-    return this.data;
   }
 
   mergeRemote(remoteRaw) {
@@ -2038,22 +2072,21 @@ class Store {
     if (remoteRaw.app && remoteRaw.app !== 'risly-money-manager') {
       return { changed: false, data: this.data, warning: 'format' };
     }
-    const before = JSON.stringify(this.data);
     const remote = migrateData(remoteRaw);
-    const local = this.data;
+    const draft = deepClone(this.data);
 
-    local.users = mergeCollection(local.users, remote.users);
-    local.accounts = mergeCollection(local.accounts, remote.accounts);
-    local.categories = mergeCollection(local.categories, remote.categories);
-    local.transactions = mergeCollection(local.transactions, remote.transactions);
-    local.budgets = mergeCollection(local.budgets, remote.budgets);
-    local.recurring = mergeCollection(local.recurring, remote.recurring);
-    local.notes = mergeCollection(local.notes, remote.notes);
-    local.goals = mergeCollection(local.goals, remote.goals);
-    local.netWorthHistory = mergeCollection(local.netWorthHistory, remote.netWorthHistory);
+    draft.users = mergeCollection(draft.users, remote.users);
+    draft.accounts = mergeCollection(draft.accounts, remote.accounts);
+    draft.categories = mergeCollection(draft.categories, remote.categories);
+    draft.transactions = mergeCollection(draft.transactions, remote.transactions);
+    draft.budgets = mergeCollection(draft.budgets, remote.budgets);
+    draft.recurring = mergeCollection(draft.recurring, remote.recurring);
+    draft.notes = mergeCollection(draft.notes, remote.notes);
+    draft.goals = mergeCollection(draft.goals, remote.goals);
+    draft.netWorthHistory = mergeCollection(draft.netWorthHistory, remote.netWorthHistory);
 
     const remoteClosed = Array.isArray(remote.closedMonths) ? remote.closedMonths : [];
-    const localClosed = Array.isArray(local.closedMonths) ? local.closedMonths : [];
+    const localClosed = Array.isArray(draft.closedMonths) ? draft.closedMonths : [];
     const mergedClosed = localClosed.slice();
     remoteClosed.forEach((entry) => {
       const existing = mergedClosed.find((item) => item && item.month === entry?.month);
@@ -2061,35 +2094,34 @@ class Store {
       else mergedClosed.push({ ...entry });
     });
     mergedClosed.sort((a, b) => String(b?.month || '').localeCompare(String(a?.month || '')));
-    local.closedMonths = mergedClosed;
+    draft.closedMonths = mergedClosed;
 
-    if (recordStamp(remote.settings) > recordStamp(local.settings)) {
-      local.settings = remote.settings;
+    if (recordStamp(remote.settings) > recordStamp(draft.settings)) {
+      draft.settings = remote.settings;
     } else if (remote.settings) {
-      // Keep newer local settings, but ensure all supported keys exist.
-      local.settings = { ...remote.settings, ...local.settings, updatedAt: local.settings.updatedAt };
+      draft.settings = { ...remote.settings, ...draft.settings, updatedAt: draft.settings.updatedAt };
     }
 
-    local.revision = Math.max(Number(local.revision) || 1, Number(remote.revision) || 1);
-    if (new Date(remote.updatedAt || 0) > new Date(local.updatedAt || 0)) {
-      local.updatedAt = remote.updatedAt;
+    draft.revision = Math.max(Number(draft.revision) || 1, Number(remote.revision) || 1);
+    if (new Date(remote.updatedAt || 0) > new Date(draft.updatedAt || 0)) {
+      draft.updatedAt = remote.updatedAt;
     }
-    local.schemaVersion = APP.schemaVersion;
-    // A merge can reintroduce the same person under two ids (one per device);
-    // fold those duplicates back into a single profile after every sync.
-    dedupeUsers(local);
+    draft.schemaVersion = APP.schemaVersion;
+    dedupeUsers(draft);
     if (this.currentUserId) {
       const resolved = this.resolveUser(this.currentUserId);
       if (resolved) this.currentUserId = resolved.id;
     }
 
-    const after = JSON.stringify(local);
+    const before = JSON.stringify(this.data);
+    const after = JSON.stringify(draft);
     const changed = before !== after;
     if (changed) {
-      this.persist();
+      this.persist(draft);
+      this.data = draft;
       this.emit({ source: 'remote', reason: 'sync:merge' });
     }
-    return { changed, data: local };
+    return { changed, data: this.data };
   }
 }
 

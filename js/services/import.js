@@ -136,12 +136,26 @@ export async function startTransactionImport(file) {
     toast('Pustaka Excel belum siap. Periksa koneksi lalu coba lagi.', 'error');
     return;
   }
+
+  // Batas ukuran file (10 MB)
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
+  if (file.size > MAX_FILE_SIZE) {
+    toast('File terlalu besar. Maksimal 10 MB.', 'error');
+    return;
+  }
+
   const buffer = await readFileAsArrayBuffer(file);
   const workbook = window.XLSX.read(new Uint8Array(buffer), { type: 'array', cellDates: true });
   if (!workbook.SheetNames?.length) throw new Error('File tidak memiliki sheet.');
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows = window.XLSX.utils.sheet_to_json(sheet, { defval: '' });
   if (!rows.length) throw new Error('File tidak berisi data.');
+
+  // Batas jumlah baris (20.000 baris)
+  const MAX_ROWS = 20_000;
+  if (rows.length > MAX_ROWS) {
+    throw new Error(`Terlalu banyak baris (${rows.length}). Maksimal ${MAX_ROWS} baris per impor.`);
+  }
 
   const headers = Object.keys(rows[0] || {});
   const mapping = {
