@@ -150,9 +150,9 @@ export const debounceSearch = debounce((callback) => callback(), 280);
 
 export function noteActivity() {
   if (!store.currentUser) return;
-  const now = Date.now();
-  if (now - lastActivityWrite < 30_000) return;
-  lastActivityWrite = now;
+  // Perbarui sesi pada setiap interaksi agar kunci otomatis tidak aktif
+  // saat pengguna masih aktif memakai aplikasi.
+  lastActivityWrite = Date.now();
   updateSessionActivity();
 }
 

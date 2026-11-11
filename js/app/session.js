@@ -15,6 +15,7 @@ import {
   isSessionExpired,
   saveLockSnapshot,
   clearLockSnapshot,
+  updateSessionActivity,
 } from '../core/auth.js';
 import { ui, toast, closeModal, savePrefs } from '../ui/ui.js';
 import { GoogleDrive } from '../services/gdrive.js';
@@ -57,6 +58,9 @@ export async function enterApplication(user, { fresh = false } = {}) {
   ui.appMounted = false;
   savePrefs({ lastUser: user.id });
   createSession(user.id, store.workspaceId);
+  // Perbarui aktivitas sesi segera agar kunci otomatis tidak langsung aktif
+  // saat sync cloud sedang berjalan.
+  updateSessionActivity();
   // Best-effort: minta browser tidak membersihkan data situs (khusus iOS/Safari ITP).
   if (navigator.storage?.persist) {
     void navigator.storage.persist().catch(() => {});

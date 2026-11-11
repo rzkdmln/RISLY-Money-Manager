@@ -20,6 +20,7 @@ import {
 } from '../../core/utils.js';
 import { ui, closeModal, toast } from '../../ui/ui.js';
 import { renderApplication } from '../runtime.js';
+import { updateSessionActivity } from '../../core/auth.js';
 
 export const transactionSubmissions = {
   transaction: (form) => {
@@ -182,6 +183,7 @@ export const transactionSubmissions = {
       } else {
         store.addTransaction(payload);
         toast('Transaksi berhasil dicatat.', 'success');
+        updateSessionActivity();
         if (fd.get('makeRecurring')) {
           const frequency = String(fd.get('recurringFrequency') || 'monthly');
           const interval = Math.max(1, Number(fd.get('recurringInterval')) || 1);
