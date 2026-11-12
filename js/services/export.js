@@ -75,11 +75,12 @@ function typeBadgeLabel(type) {
 
 /**
  * Hitung saldo kumulatif (running balance) per transaksi.
- * Saldo dimulai dari 0, ditambahkan pemasukan, dikurangi pengeluaran dan transfer keluar.
- * Transfer masuk ditambahkan, transfer keluar dikurangi.
+ * Saldo dimulai dari initialBalance (biasanya total opening balance semua akun),
+ * lalu ditambahkan pemasukan, dikurangi pengeluaran.
+ * Transfer tidak mengubah total saldo gabungan (uang hanya pindah antar akun).
  */
-function buildRunningBalance(list) {
-  let balance = 0;
+function buildRunningBalance(list, initialBalance = 0) {
+  let balance = initialBalance;
   return list.map((tx) => {
     let delta = 0;
     if (tx.type === 'income') delta = safeNumber(tx.amount);
@@ -226,6 +227,10 @@ export function exportPdf(month = monthKey()) {
     return;
   }
   const summary = store.monthSummary(month);
+  // Saldo awal gabungan semua akun aktif (untuk saldo yang akurat)
+  const openingBalanceTotal = store.activeAccounts().reduce(
+    (sum, account) => sum + safeNumber(account.openingBalance), 0
+  );
   const list = buildRunningBalance(
     [...store.transactionsForMonth(month)].sort((a, b) => {
       if (a.date !== b.date) return a.date < b.date ? -1 : 1;
@@ -233,6 +238,7 @@ export function exportPdf(month = monthKey()) {
       const tb = safeNumber(timeFromISO(b.time || '00:00'));
       return ta - tb;
     }),
+    openingBalanceTotal
   );
   const household = store.data.settings.householdName || 'RISLY';
   const doc = new jsPDFCtor({ orientation: 'landscape', unit: 'pt', format: 'a4' });
@@ -275,7 +281,7 @@ export function exportPdf(month = monthKey()) {
 
   /* ---------- Transaction table ---------- */
   const tableStartY = 146;
-  const colWidths = [25, 60, 70, 253, 150, 85, 85, 85];
+  const colWidths = [25, 60, 75, 250, 150, 80, 80, 80];
   const headers = ['No', 'Tanggal', 'Jenis', 'Keterangan', 'Akun', 'Nominal', 'Saldo Akun', 'Saldo Keluarga'];
   doc.autoTable({
     startY: tableStartY,
@@ -350,6 +356,9 @@ export function exportPdfRange(start, end) {
     toast('Pilih rentang tanggal terlebih dahulu.', 'info');
     return;
   }
+  const openingBalanceTotal = store.activeAccounts().reduce(
+    (sum, account) => sum + safeNumber(account.openingBalance), 0
+  );
   const list = buildRunningBalance(
     [...store.transactionsBetween(start, end)].sort((a, b) => {
       if (a.date !== b.date) return a.date < b.date ? -1 : 1;
@@ -357,6 +366,7 @@ export function exportPdfRange(start, end) {
       const tb = safeNumber(timeFromISO(b.time || '00:00'));
       return ta - tb;
     }),
+    openingBalanceTotal
   );
   const summary = store.summaryForTransactions(list);
   const household = store.data.settings.householdName || 'RISLY';
@@ -400,7 +410,7 @@ export function exportPdfRange(start, end) {
 
   /* ---------- Transaction table ---------- */
   const tableStartY = 146;
-  const colWidths = [25, 60, 70, 253, 150, 85, 85, 85];
+  const colWidths = [25, 60, 75, 250, 150, 80, 80, 80];
   const headers = ['No', 'Tanggal', 'Jenis', 'Keterangan', 'Akun', 'Nominal', 'Saldo Akun', 'Saldo Keluarga'];
   doc.autoTable({
     startY: tableStartY,
