@@ -277,8 +277,6 @@ export function exportPdf(month = monthKey()) {
   const tableStartY = 146;
   const colWidths = [25, 60, 70, 253, 150, 85, 85, 85];
   const headers = ['No', 'Tanggal', 'Jenis', 'Keterangan', 'Akun', 'Nominal', 'Saldo Akun', 'Saldo Keluarga'];
-  const tableWidth = pageWidth - 80;
-
   doc.autoTable({
     startY: tableStartY,
     head: [headers],
@@ -321,7 +319,6 @@ export function exportPdf(month = monthKey()) {
       6: { cellWidth: colWidths[6], halign: 'right' },
       7: { cellWidth: colWidths[7], halign: 'right' },
     },
-    tableWidth,
     verticalLines: true,
     margin: { left: 40, right: 40, bottom: 40 },
     didDrawPage: (data) => {
@@ -405,8 +402,6 @@ export function exportPdfRange(start, end) {
   const tableStartY = 146;
   const colWidths = [25, 60, 70, 253, 150, 85, 85, 85];
   const headers = ['No', 'Tanggal', 'Jenis', 'Keterangan', 'Akun', 'Nominal', 'Saldo Akun', 'Saldo Keluarga'];
-  const tableWidth = pageWidth - 80;
-
   doc.autoTable({
     startY: tableStartY,
     head: [headers],
@@ -449,7 +444,6 @@ export function exportPdfRange(start, end) {
       6: { cellWidth: colWidths[6], halign: 'right' },
       7: { cellWidth: colWidths[7], halign: 'right' },
     },
-    tableWidth,
     verticalLines: true,
     margin: { left: 40, right: 40, bottom: 40 },
     didDrawPage: (data) => {
