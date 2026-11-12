@@ -322,7 +322,7 @@ export function exportPdf(month = monthKey()) {
 
   /* ---------- Transaction table ---------- */
   const tableStartY = 146;
-  const colWidths = [25, 60, 75, 250, 150, 80, 80, 80];
+  const colWidths = [25, 60, 75, 200, 150, 75, 75, 75];
   const headers = ['No', 'Tanggal', 'Jenis', 'Keterangan', 'Akun', 'Nominal', 'Saldo Akun', 'Saldo Keluarga'];
   doc.autoTable({
     startY: tableStartY,
@@ -456,7 +456,7 @@ export function exportPdfRange(start, end) {
 
   /* ---------- Transaction table ---------- */
   const tableStartY = 146;
-  const colWidths = [25, 60, 75, 250, 150, 80, 80, 80];
+  const colWidths = [25, 60, 75, 200, 150, 75, 75, 75];
   const headers = ['No', 'Tanggal', 'Jenis', 'Keterangan', 'Akun', 'Nominal', 'Saldo Akun', 'Saldo Keluarga'];
   doc.autoTable({
     startY: tableStartY,
