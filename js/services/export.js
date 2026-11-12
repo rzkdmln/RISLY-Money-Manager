@@ -204,21 +204,20 @@ export function exportPdf(month = monthKey()) {
     }),
   );
   const household = store.data.settings.householdName || 'RISLY';
-  const doc = new jsPDFCtor({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+  const doc = new jsPDFCtor({ orientation: 'landscape', unit: 'pt', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
 
   /* ---------- Header ---------- */
   doc.setFillColor(37, 99, 235);
-  doc.rect(0, 0, pageWidth, 90, 'F');
+  doc.rect(0, 0, pageWidth, 70, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
-  doc.text('RISLY Money Manager', 40, 36);
+  doc.setFontSize(22);
+  doc.text('RISLY Money Manager', 40, 34);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
-  doc.text(`Laporan Keuangan ${formatMonth(month)} · ${household}`, 40, 56);
-  doc.text(`Periode: ${formatMonth(month)}`, 40, 70);
-  doc.text(`Dibuat: ${formatDate(todayISO())}`, pageWidth - 40, 70, { align: 'right' });
+  doc.text(`Laporan Keuangan ${formatMonth(month)} · ${household}`, 40, 52);
+  doc.text(`Dibuat: ${formatDate(todayISO())}`, pageWidth - 40, 52, { align: 'right' });
 
   /* ---------- Summary boxes ---------- */
   const boxes = [
@@ -232,20 +231,20 @@ export function exportPdf(month = monthKey()) {
   boxes.forEach((box, index) => {
     const x = 40 + index * (boxWidth + 10);
     doc.setFillColor(248, 250, 252);
-    doc.roundedRect(x, 106, boxWidth, 52, 6, 6, 'F');
+    doc.roundedRect(x, 84, boxWidth, 48, 6, 6, 'F');
     doc.setFontSize(7.5);
     doc.setTextColor(100, 116, 139);
-    doc.text(box.label.toUpperCase(), x + 8, 120);
+    doc.text(box.label.toUpperCase(), x + 8, 98);
     doc.setFontSize(12);
     doc.setTextColor(...box.color);
     doc.setFont('helvetica', 'bold');
-    doc.text(box.value, x + 8, 136);
+    doc.text(box.value, x + 8, 114);
     doc.setFont('helvetica', 'normal');
   });
 
   /* ---------- Transaction table ---------- */
-  const tableStartY = 174;
-  const colWidths = [22, 52, 32, 50, 56, 60, 46];
+  const tableStartY = 146;
+  const colWidths = [24, 56, 36, 95, 70, 64, 56];
   const headers = ['No', 'Tanggal', 'Jenis', 'Keterangan', 'Akun', 'Nominal', 'Saldo'];
 
   doc.autoTable({
@@ -267,11 +266,11 @@ export function exportPdf(month = monthKey()) {
     headStyles: {
       fillColor: [15, 23, 42],
       textColor: [255, 255, 255],
-      fontSize: 8,
+      fontSize: 8.5,
       font: 'helvetica',
     },
     bodyStyles: {
-      fontSize: 7.5,
+      fontSize: 8,
       cellPadding: 4,
       font: 'helvetica',
     },
@@ -325,21 +324,20 @@ export function exportPdfRange(start, end) {
   );
   const summary = store.summaryForTransactions(list);
   const household = store.data.settings.householdName || 'RISLY';
-  const doc = new jsPDFCtor({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+  const doc = new jsPDFCtor({ orientation: 'landscape', unit: 'pt', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
 
   /* ---------- Header ---------- */
   doc.setFillColor(37, 99, 235);
-  doc.rect(0, 0, pageWidth, 90, 'F');
+  doc.rect(0, 0, pageWidth, 70, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
-  doc.text('RISLY Money Manager', 40, 36);
+  doc.setFontSize(22);
+  doc.text('RISLY Money Manager', 40, 34);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
-  doc.text(`Laporan Keuangan ${start} s/d ${end} · ${household}`, 40, 56);
-  doc.text(`Periode: ${start} s/d ${end}`, 40, 70);
-  doc.text(`Dibuat: ${formatDate(todayISO())}`, pageWidth - 40, 70, { align: 'right' });
+  doc.text(`Laporan Keuangan ${start} s/d ${end} · ${household}`, 40, 52);
+  doc.text(`Dibuat: ${formatDate(todayISO())}`, pageWidth - 40, 52, { align: 'right' });
 
   /* ---------- Summary boxes ---------- */
   const boxes = [
@@ -353,20 +351,20 @@ export function exportPdfRange(start, end) {
   boxes.forEach((box, index) => {
     const x = 40 + index * (boxWidth + 10);
     doc.setFillColor(248, 250, 252);
-    doc.roundedRect(x, 106, boxWidth, 52, 6, 6, 'F');
+    doc.roundedRect(x, 84, boxWidth, 48, 6, 6, 'F');
     doc.setFontSize(7.5);
     doc.setTextColor(100, 116, 139);
-    doc.text(box.label.toUpperCase(), x + 8, 120);
+    doc.text(box.label.toUpperCase(), x + 8, 98);
     doc.setFontSize(12);
     doc.setTextColor(...box.color);
     doc.setFont('helvetica', 'bold');
-    doc.text(box.value, x + 8, 136);
+    doc.text(box.value, x + 8, 114);
     doc.setFont('helvetica', 'normal');
   });
 
   /* ---------- Transaction table ---------- */
-  const tableStartY = 174;
-  const colWidths = [22, 52, 32, 50, 56, 60, 46];
+  const tableStartY = 146;
+  const colWidths = [24, 56, 36, 95, 70, 64, 56];
   const headers = ['No', 'Tanggal', 'Jenis', 'Keterangan', 'Akun', 'Nominal', 'Saldo'];
 
   doc.autoTable({
@@ -388,11 +386,11 @@ export function exportPdfRange(start, end) {
     headStyles: {
       fillColor: [15, 23, 42],
       textColor: [255, 255, 255],
-      fontSize: 8,
+      fontSize: 8.5,
       font: 'helvetica',
     },
     bodyStyles: {
-      fontSize: 7.5,
+      fontSize: 8,
       cellPadding: 4,
       font: 'helvetica',
     },
