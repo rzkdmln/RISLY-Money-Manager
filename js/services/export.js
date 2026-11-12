@@ -27,7 +27,7 @@ import {
 
 function accountPair(tx) {
   if (tx.type === 'transfer') {
-    return `${store.accountName(tx.accountId)} → ${store.accountName(tx.toAccountId)}`;
+    return `${store.accountName(tx.accountId)} > ${store.accountName(tx.toAccountId)}`;
   }
   if (Array.isArray(tx.payments) && tx.payments.length) {
     return tx.payments.map((payment) => store.accountName(payment.accountId)).join(' + ');
@@ -252,7 +252,7 @@ export function exportPdf(month = monthKey()) {
 
   /* ---------- Transaction table ---------- */
   const tableStartY = 146;
-  const colWidths = [25, 60, 80, 273, 150, 70, 70];
+  const colWidths = [25, 60, 80, 273, 150, 77, 77];
   const headers = ['No', 'Tanggal', 'Jenis', 'Keterangan', 'Akun', 'Nominal', 'Saldo'];
   const tableWidth = pageWidth - 80;
 
@@ -378,7 +378,7 @@ export function exportPdfRange(start, end) {
 
   /* ---------- Transaction table ---------- */
   const tableStartY = 146;
-  const colWidths = [25, 60, 80, 273, 150, 70, 70];
+  const colWidths = [25, 60, 80, 273, 150, 77, 77];
   const headers = ['No', 'Tanggal', 'Jenis', 'Keterangan', 'Akun', 'Nominal', 'Saldo'];
   const tableWidth = pageWidth - 80;
 
