@@ -100,16 +100,32 @@ function normalizePayments(payments) {
     : [];
 }
 
+/**
+ * Gabungkan koleksi lokal + remote berdasarkan id.
+ *
+ * Mengembalikan juga `localPending`: true bila ada record lokal yang belum ada
+ * di remote atau lebih baru dari versi remote. Sinyal ini dipakai cloud sync
+ * untuk mendorong perubahan lokal yang tertinggal (mis. setelah aplikasi
+ * di-reload sebelum push sempat berjalan).
+ */
 function mergeCollection(localItems, remoteItems) {
   const map = new Map();
   (remoteItems || []).forEach((item) => {
     if (item?.id) map.set(item.id, item);
   });
+  let localPending = false;
   (localItems || []).forEach((item) => {
     if (!item?.id) return;
-    map.set(item.id, pickNewest(item, map.get(item.id)));
+    const remoteItem = map.get(item.id);
+    const winner = pickNewest(item, remoteItem);
+    if (winner === item) {
+      // Lokal menang: record baru (tidak ada di remote) atau versi lokal lebih
+      // baru dari remote. Keduanya berarti ada perubahan yang perlu di-push.
+      if (!remoteItem || recordStamp(item) > recordStamp(remoteItem)) localPending = true;
+    }
+    map.set(item.id, winner);
   });
-  return [...map.values()];
+  return { items: [...map.values()], localPending };
 }
 
 function workspaceStorageKey(workspaceId) {
@@ -152,6 +168,9 @@ export class Store {
     this._encryptionKey = null;
     this._encrypted = false;
     this._preferRemoteSettings = false;
+    // `undefined` = belum ditentukan (mis. instance yang diisi manual di test),
+    // `false` = hanya placeholder layar login / workspace terkunci.
+    this._dataReady = undefined;
   }
 
   async init() {
@@ -160,6 +179,7 @@ export class Store {
     // Keep a lightweight placeholder for the signed-out screen. It is never
     // persisted until a Google account opens or creates a workspace.
     this.data = createDefaultData();
+    this._dataReady = false;
 
     try {
       await repository._open();
@@ -310,6 +330,7 @@ export class Store {
       this.workspaceId = workspaceId;
       this.account = account || this.accountForWorkspace(workspaceId);
       this.currentUserId = null;
+      this._dataReady = true;
 
       // Jika data masih ada di localStorage tapi IDB sudah siap, lakukan migrasi
       // secara bertahap saat workspace dibuka.
@@ -340,6 +361,9 @@ export class Store {
     if (!workspaceId) return;
     this.workspaceId = workspaceId;
     this.account = account || this.accountForWorkspace(workspaceId);
+    // Data belum didekripsi: jangan biarkan cloud menggabungkan/mendorong
+    // placeholder layar login ke Firebase.
+    this._dataReady = false;
   }
 
   accountForWorkspace(workspaceId) {
@@ -461,6 +485,7 @@ export class Store {
     this.data = createDefaultData(account);
     this.workspaceId = workspaceId;
     this.account = account;
+    this._dataReady = true;
     const user = await this.attachFirebaseUid(this.data.users[0]);
     this.currentUserId = user.id;
     this.data.settings.ownerEmail = email;
@@ -659,6 +684,15 @@ export class Store {
   }
 
   /**
+   * Data workspace sudah benar-benar dimuat (bukan placeholder layar login dan
+   * bukan workspace terenkripsi yang masih terkunci)? Cloud sync hanya boleh
+   * menggabungkan/mendorong data ketika nilainya true.
+   */
+  get isDataReady() {
+    return this._dataReady !== false;
+  }
+
+  /**
    * Enkripsi at-rest aktif jika pengguna saat ini memiliki PIN (pinHash/pinVerifier)
    * dan kunci enkripsi tersedia di memori.
    */
@@ -742,6 +776,7 @@ export class Store {
     this._encryptionKey = null;
     this._encrypted = false;
     this.data = null;
+    this._dataReady = false;
     this.currentUserId = null;
     this.emit({ source: 'local', reason: 'auth:lock', silent: false });
   }
@@ -2737,6 +2772,7 @@ export class Store {
       this.workspaceId = null;
       this.account = null;
       this.currentUserId = null;
+      this._dataReady = false;
       this.emit({ source: 'local', reason: 'data:reset' });
       return this.data;
     } catch (error) {
@@ -2748,30 +2784,38 @@ export class Store {
   }
 
   mergeRemote(remoteRaw) {
-    // Tidak ada workspace lokal yang terbuka (this.data null) — tidak ada yang
-    // bisa digabung. Hindari crash saat cloud mencoba push sebelum unlock/buka workspace.
-    if (!this.data) {
-      return { changed: false, data: null };
+    // Tidak ada workspace lokal yang terbuka (this.data null) atau workspace
+    // masih terkunci (placeholder layar login) — tidak ada yang bisa digabung.
+    // Tanpa penjagaan ini, data placeholder bisa ikut ter-persist/ter-push dan
+    // menimpa data cloud yang sebenarnya.
+    if (!this.data || this._dataReady === false) {
+      return { changed: false, data: null, localPending: false };
     }
     if (!remoteRaw || typeof remoteRaw !== 'object') {
-      return { changed: false, data: this.data };
+      return { changed: false, data: this.data, localPending: false };
     }
     if (remoteRaw.app && remoteRaw.app !== 'risly-money-manager') {
-      return { changed: false, data: this.data, warning: 'format' };
+      return { changed: false, data: this.data, warning: 'format', localPending: false };
     }
     const remote = migrateData(remoteRaw);
     this._lastRemoteData = remote;
     const draft = deepClone(this.data);
 
-    draft.users = mergeCollection(draft.users, remote.users);
-    draft.accounts = mergeCollection(draft.accounts, remote.accounts);
-    draft.categories = mergeCollection(draft.categories, remote.categories);
-    draft.transactions = mergeCollection(draft.transactions, remote.transactions);
-    draft.budgets = mergeCollection(draft.budgets, remote.budgets);
-    draft.recurring = mergeCollection(draft.recurring, remote.recurring);
-    draft.notes = mergeCollection(draft.notes, remote.notes);
-    draft.goals = mergeCollection(draft.goals, remote.goals);
-    draft.netWorthHistory = mergeCollection(draft.netWorthHistory, remote.netWorthHistory);
+    let localPending = false;
+    const mergeKey = (key) => {
+      const result = mergeCollection(draft[key], remote[key]);
+      draft[key] = result.items;
+      if (result.localPending) localPending = true;
+    };
+    mergeKey('users');
+    mergeKey('accounts');
+    mergeKey('categories');
+    mergeKey('transactions');
+    mergeKey('budgets');
+    mergeKey('recurring');
+    mergeKey('notes');
+    mergeKey('goals');
+    mergeKey('netWorthHistory');
 
     const remoteClosed = Array.isArray(remote.closedMonths) ? remote.closedMonths : [];
     const localClosed = Array.isArray(draft.closedMonths) ? draft.closedMonths : [];
@@ -2790,6 +2834,7 @@ export class Store {
     } else if (recordStamp(remote.settings) > recordStamp(draft.settings)) {
       draft.settings = remote.settings;
     } else if (remote.settings) {
+      if (recordStamp(draft.settings) > recordStamp(remote.settings)) localPending = true;
       draft.settings = {
         ...remote.settings,
         ...draft.settings,
@@ -2817,7 +2862,7 @@ export class Store {
       this.data = draft;
       this.emit({ source: 'remote', reason: 'sync:merge' });
     }
-    return { changed, data: this.data };
+    return { changed, data: this.data, localPending };
   }
 
   /* ------------------------------------------------------------------------ */

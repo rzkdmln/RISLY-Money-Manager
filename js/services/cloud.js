@@ -18,6 +18,11 @@ function makeEnvelope(data, revision = 1, savedAt = nowISO(), owner = null) {
   return envelope;
 }
 
+function remoteFingerprint(remote) {
+  if (!remote) return null;
+  return `${remote.revision || 0}|${remote.savedAt || ''}|${remote.client || ''}`;
+}
+
 function extractEnvelope(value) {
   const candidate = value?.record ?? value;
   if (!candidate || typeof candidate !== 'object') return null;
@@ -379,6 +384,7 @@ class FirebaseAdapter {
     // Real-time listener via Firebase SDK. Di-inisialisasi lazily agar boot
     // tetap cepat. Tidak melempar error fatal saat belum ada auth — polling
     // (dengan ?auth=idToken melalui REST) tetap menangani sinkronisasi.
+    let listening = false;
     try {
       const [appMod, dbMod] = await Promise.all([
         import(FIREBASE_APP_URL),
@@ -398,9 +404,14 @@ class FirebaseAdapter {
         },
         (error) => console.warn('Firebase realtime listener error:', error)
       );
+      listening = true;
     } catch (error) {
       console.warn('Firebase realtime tidak tersedia, memakai polling:', error);
     }
+    // `null` = listener gagal dibuat. Pemanggil bisa mengandalkan polling
+    // sebagai gantinya (dulu fungsi ini selalu truthy sehingga polling tidak
+    // pernah dinyalakan saat SDK gagal dimuat).
+    if (!listening) return null;
     return () => {
       try {
         this.unsubscribe?.();
@@ -442,9 +453,12 @@ class CloudSync {
     this.changeCounter = 0;
     this.lastRevision = 0;
     this.lastSyncAt = null;
+    this.lastRemoteFingerprint = null;
     this.lastError = null;
     this.connected = false;
     this.destroyed = false;
+    this.reconnectTimer = null;
+    this.lastRefreshAt = 0;
     this.state = this.config.provider === 'local' ? 'local' : 'idle';
     this.message = '';
     this.listeners = new Set();
@@ -454,6 +468,12 @@ class CloudSync {
     this._networkHandler = () => this.handleNetworkChange();
     window.addEventListener('online', this._networkHandler);
     window.addEventListener('offline', this._networkHandler);
+    // Saat PWA dilanjutkan dari background (umum di HP), koneksi realtime bisa
+    // sudah mati tanpa terlihat. Selalu tarik data terbaru ketika aplikasi
+    // kembali terlihat/fokus agar perubahan anggota tidak tertinggal.
+    this._resumeHandler = () => this.handleResume();
+    document.addEventListener('visibilitychange', this._resumeHandler);
+    window.addEventListener('focus', this._resumeHandler);
   }
 
   loadConfig() {
@@ -850,6 +870,7 @@ class CloudSync {
         this.firebaseUid = null;
         this.adapter = null;
         this.setStatus('idle', 'Menunggu autentikasi Firebase…');
+        this.scheduleReconnect();
         return { ok: true, skipped: true };
       }
       await this.syncMembershipFromCloud(uid);
@@ -934,6 +955,9 @@ class CloudSync {
           this.firebaseUid = null;
           this.adapter = null;
           this.setStatus('idle', 'Menunggu autentikasi Firebase…');
+          // Coba lagi secara berkala: sesi Firebase kadang baru pulih setelah
+          // beberapa detik (terutama saat PWA dibuka dari background).
+          this.scheduleReconnect();
           return { ok: true, skipped: true };
         }
         await this.syncMembershipFromCloud(uid);
@@ -972,35 +996,57 @@ class CloudSync {
         }
       }
       let remote = null;
+      let readFailed = false;
+      let canSeed = false;
       try {
         remote = await this.adapter.read();
       } catch (error) {
-        // Pemilik baru bisa saja belum punya node `owner`/`members` sehingga
-        // rules menolak pembacaan. Coba seed; push() sendiri sudah menangani
-        // kegagalan baca saat mode seed.
-        if (!this.isHouseholdOwner() || !/401|403|permission|denied/i.test(error.message || '')) {
+        readFailed = true;
+        const message = error.message || '';
+        // Pemilik baru belum punya node `owner`/`members` sehingga rules
+        // menolak pembacaan. Hanya pemilik yang boleh mencoba inisialisasi.
+        if (!this.isHouseholdOwner() || !/401|403|permission|denied/i.test(message)) {
           throw error;
         }
+        // 401 = token auth tidak valid; penulisan juga akan ditolak, jadi
+        // jangan menulis apa pun. 403 = node belum ada → boleh seed.
+        canSeed = !/^\s*401\b/.test(message);
+        console.warn('Baca household ditolak:', message);
       }
-      if (remote?.data) {
-        this.lastRevision = remote.revision || 0;
-        this.lastSyncAt = remote.savedAt || nowISO();
-        const merged = this.store.mergeRemote(remote.data);
-        this.saveMeta({
-          provider: this.config.provider,
-          lastRevision: this.lastRevision,
-          lastSyncedAt: this.lastSyncAt,
-          lastRemoteSavedAt: remote.savedAt || null,
-        });
-        if (merged.changed && !initial) {
-          this.message = 'Data dari perangkat lain sudah digabungkan.';
+      let pendingLocalPush = false;
+      if (readFailed) {
+        if (canSeed && this.store?.isDataReady) {
+          // Household baru: buat node dengan snapshot lokal.
+          await this.push({ immediate: true, force: true, seed: true });
         }
-      } else {
+      } else if (remote?.data) {
+        // Workspace terkunci / masih placeholder layar login: jangan gabungkan
+        // dan jangan simpan fingerprint, agar pull setelah unlock tetap jalan.
+        if (this.store?.isDataReady) {
+          this.lastRevision = remote.revision || 0;
+          this.lastSyncAt = remote.savedAt || nowISO();
+          const merged = this.store.mergeRemote(remote.data);
+          this.lastRemoteFingerprint = remoteFingerprint(remote);
+          this.saveMeta({
+            provider: this.config.provider,
+            lastRevision: this.lastRevision,
+            lastSyncedAt: this.lastSyncAt,
+            lastRemoteSavedAt: remote.savedAt || null,
+          });
+          if (merged.changed && !initial) {
+            this.message = 'Data dari perangkat lain sudah digabungkan.';
+          }
+          // Ada perubahan lokal yang belum ada di cloud (mis. aplikasi
+          // di-reload sebelum push sempat berjalan) → dorong setelah engine siap.
+          pendingLocalPush = Boolean(merged.localPending);
+        }
+      } else if (this.store?.isDataReady) {
         // Remote is empty: seed it with the local household snapshot.
         await this.push({ immediate: true, force: true, seed: true });
       }
       this.connected = true;
       this.startEngine();
+      if (pendingLocalPush) this.schedulePush(600);
       if (this.isHouseholdOwner()) {
         // Publikasikan kode undangan agar perangkat lain bisa menemukan
         // household ini lewat kode (bukan hanya lewat localStorage).
@@ -1033,6 +1079,7 @@ class CloudSync {
     this.lastError = null;
     this.lastRevision = 0;
     this.lastSyncAt = null;
+    this.lastRemoteFingerprint = null;
     this.saveMeta({ provider: 'local', lastRevision: 0, lastSyncedAt: null });
     this.setStatus('local', '');
   }
@@ -1040,8 +1087,10 @@ class CloudSync {
   stopEngine() {
     clearTimeout(this.pushTimer);
     clearInterval(this.pollTimer);
+    clearTimeout(this.reconnectTimer);
     this.pushTimer = null;
     this.pollTimer = null;
+    this.reconnectTimer = null;
     if (this.unsubscribeRemote) {
       try {
         this.unsubscribeRemote();
@@ -1049,9 +1098,6 @@ class CloudSync {
         /* noop */
       }
       this.unsubscribeRemote = null;
-    }
-    if (this.adapter?.destroy) {
-      // Firebase app cleanup happens on explicit disconnect; avoid destroying on reconnect too early.
     }
   }
 
@@ -1065,21 +1111,69 @@ class CloudSync {
   async startEngine() {
     if (!this.adapter) return;
     clearInterval(this.pollTimer);
+    // Polling selalu aktif sebagai jaring pengaman: listener realtime bisa
+    // "diam" (socket mati saat PWA di-background) tanpa memicu error apa pun.
+    this.startPolling();
     if (this.config.provider === 'firebase' && this.adapter.subscribe) {
       try {
         this.unsubscribeRemote = await this.adapter.subscribe((remote) =>
           this.handleRemote(remote, true)
         );
-        if (!this.unsubscribeRemote) this.startPolling();
+        if (!this.unsubscribeRemote) {
+          console.warn('Firebase realtime tidak tersedia, memakai polling.');
+        }
       } catch (error) {
-        // Real-time listener unavailable (e.g. offline or blocked SDK); keep
-        // syncing with the previous polling behaviour.
+        // Real-time listener unavailable (e.g. offline or blocked SDK); polling
+        // above tetap berjalan.
         console.warn('Firebase realtime tidak tersedia, memakai polling:', error);
-        this.startPolling();
       }
-    } else {
-      this.startPolling();
     }
+  }
+
+  /**
+   * Tarik data terbaru saat aplikasi kembali terlihat/fokus (khas PWA di HP).
+   * Dibatasi agar event `focus` yang bertubi-tubi tidak membanjiri network.
+   */
+  handleResume() {
+    if (this.destroyed || this.config.provider === 'local') return;
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    if (navigator.onLine === false) return;
+    const now = Date.now();
+    if (now - this.lastRefreshAt < 5_000) return;
+    this.lastRefreshAt = now;
+    this.refreshNow().catch(() => {});
+  }
+
+  async refreshNow() {
+    if (this.destroyed || this.config.provider === 'local') return { ok: false };
+    if (!this.connected) {
+      await this.connect(this.config).catch(() => null);
+    }
+    if (!this.connected) return { ok: false };
+    return this.pull({ background: true });
+  }
+
+  scheduleReconnect(delay = 15_000) {
+    clearTimeout(this.reconnectTimer);
+    if (this.destroyed || this.config.provider === 'local') return;
+    this.reconnectTimer = setTimeout(async () => {
+      this.reconnectTimer = null;
+      if (this.destroyed || this.connected) return;
+      if (navigator.onLine === false) {
+        this.scheduleReconnect(delay);
+        return;
+      }
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        this.scheduleReconnect(delay);
+        return;
+      }
+      try {
+        await this.connect(this.config);
+      } catch {
+        /* noop */
+      }
+      if (!this.connected) this.scheduleReconnect(Math.min(delay * 2, 60_000));
+    }, delay);
   }
 
   handleNetworkChange() {
@@ -1104,6 +1198,9 @@ class CloudSync {
 
   async push({ immediate = false, force = false, seed = false } = {}) {
     if (!this.adapter || this.config.provider === 'local') return { ok: false, local: true };
+    // Jangan pernah menulis data placeholder/terkunci ke cloud: PATCH dengan
+    // `data: null` akan menghapus seluruh data household di Firebase.
+    if (!this.store?.data || !this.store.isDataReady) return { ok: false, notReady: true };
     if (navigator.onLine === false) {
       this.pendingPush = true;
       this.setStatus('offline', 'Offline — perubahan menunggu koneksi.');
@@ -1149,6 +1246,9 @@ class CloudSync {
       await this.adapter.write(envelope);
       this.lastRevision = revision;
       this.lastSyncAt = envelope.savedAt;
+      // Catat fingerprint tulisan kita sendiri agar gema realtime tidak
+      // memicu merge ulang yang tidak perlu.
+      this.lastRemoteFingerprint = remoteFingerprint(envelope);
       this.lastError = null;
       this.saveMeta({
         provider: this.config.provider,
@@ -1192,19 +1292,33 @@ class CloudSync {
 
   handleRemote(remote, realtime = false) {
     if (!remote?.data) return;
-    const remoteSaved = new Date(remote.savedAt || 0).getTime();
-    const lastSaved = new Date(this.lastSyncAt || 0).getTime();
-    const sameRevision = Number(remote.revision) === Number(this.lastRevision);
-    if (sameRevision && remoteSaved <= lastSaved) return;
+    // Jangan sentuh data placeholder layar login / workspace terkunci.
+    if (!this.store?.isDataReady) return;
+    // Dedupe berdasarkan identitas snapshot (revision + savedAt + client),
+    // BUKAN berdasarkan revision saja. Dua perangkat dapat menghasilkan
+    // revision yang sama (race) dan jam perangkat bisa berbeda; perbandingan
+    // revision/jam yang lama membuat perubahan anggota diabaikan permanen.
+    const fingerprint = remoteFingerprint(remote);
+    if (fingerprint && fingerprint === this.lastRemoteFingerprint) return;
+    let result;
+    try {
+      result = this.store.mergeRemote(remote.data);
+    } catch (error) {
+      // Jangan tandai snapshot sebagai "sudah diterapkan" kalau merge gagal,
+      // supaya percobaan berikutnya (polling/resume) masih bisa memperbaikinya.
+      console.warn('Gagal menggabungkan data cloud:', error);
+      return;
+    }
+    this.lastRemoteFingerprint = fingerprint;
     this.lastRevision = Math.max(Number(this.lastRevision) || 0, Number(remote.revision) || 0);
     this.lastSyncAt = remote.savedAt || nowISO();
-    const result = this.store.mergeRemote(remote.data);
     this.saveMeta({
       provider: this.config.provider,
       lastRevision: this.lastRevision,
       lastSyncedAt: this.lastSyncAt,
       lastRemoteSavedAt: remote.savedAt || null,
     });
+    if (result.localPending && this.connected) this.schedulePush(500);
     if (result.changed) {
       this.setStatus('synced', 'Diperbarui dari perangkat lain.');
     } else if (realtime) {
@@ -1241,7 +1355,7 @@ class CloudSync {
       // Provider Firebase tetap harus mencoba connect secara otomatis.
       const connected = await this.connect(this.config);
       if (connected?.skipped) return { ok: false, skipped: true };
-      return connected;
+      if (!this.connected) return connected;
     }
     await this.pull();
     const result = await this.push({ immediate: true, force: true });

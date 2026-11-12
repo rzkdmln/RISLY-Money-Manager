@@ -2,13 +2,8 @@
   "rules": {
     "households": {
       "$householdId": {
-        // Baca: Anggota household yang tidak dikeluarkan, atau owner.
         ".read": "auth != null && ((root.child('households').child($householdId).child('members').child(auth.uid).exists() && root.child('households').child($householdId).child('members').child(auth.uid).child('removed').val() !== true) || root.child('households').child($householdId).child('owner').val() === auth.uid)",
 
-        // Tulis Root (Sync Envelope):
-        // 1. Household baru: pencipta menjadi owner.
-        // 2. Owner: boleh menulis seluruh node.
-        // 3. Anggota aktif: boleh menulis jika owner, settings, dan inviteCode tidak dimodifikasi secara ilegal (opsional dalam PATCH).
         ".write": "auth != null && (
           (!data.exists() && newData.child('owner').val() === auth.uid) ||
           (data.child('owner').val() === auth.uid) ||
@@ -22,38 +17,32 @@
           )
         )",
 
-        // Validasi struktur envelope saat tulis.
         ".validate": "newData.hasChildren(['app', 'schemaVersion', 'data', 'revision', 'savedAt'])",
 
         "owner": {
           ".validate": "newData.isString() && newData.val().length > 0",
-          // Izinkan jika: tidak dikirim (PATCH parsial), ATAU pembuatan baru (!data.exists()), ATAU ditulis oleh Owner asli.
           ".write": "auth != null && (!newData.exists() || !data.exists() || data.val() === auth.uid)"
         },
 
         "members": {
           "$uid": {
             ".validate": "newData.hasChildren(['name', 'email', 'role', 'joinedAt'])",
-            // Owner boleh menulis semua node anggota. Calon anggota hanya boleh mendaftarkan dirinya saat pertama bergabung.
             ".write": "auth != null && (root.child('households').child($householdId).child('owner').val() === auth.uid || (auth.uid === $uid && !data.exists() && newData.exists() && root.child('households').child($householdId).child('owner').exists() && newData.child('role').val() === 'member'))"
           }
         },
 
         "data": {
           ".validate": "newData.hasChildren(['users', 'accounts', 'categories', 'transactions', 'settings'])",
-          // Anggota aktif dan owner dapat memperbarui data transaksi/kategori/akun.
           ".write": "auth != null && ((root.child('households').child($householdId).child('members').child(auth.uid).exists() && root.child('households').child($householdId).child('members').child(auth.uid).child('removed').val() !== true) || root.child('households').child($householdId).child('owner').val() === auth.uid)"
         },
 
         "settings": {
           ".validate": "newData.exists()",
-          // Hanya owner yang boleh mengubah pengaturan. Izinkan jika node tidak dikirim (!newData.exists()).
           ".write": "auth != null && (!newData.exists() || root.child('households').child($householdId).child('owner').val() === auth.uid)"
         },
 
         "inviteCode": {
           ".validate": "newData.isString() && newData.val().length >= 4 && newData.val().length <= 8",
-          // Hanya owner yang boleh mengubah kode undangan. Izinkan jika node tidak dikirim (!newData.exists()).
           ".write": "auth != null && (!newData.exists() || root.child('households').child($householdId).child('owner').val() === auth.uid)"
         },
 
