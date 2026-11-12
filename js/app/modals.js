@@ -387,16 +387,18 @@ function openBudgetCategoryAmountLightbox(categoryId, categoryName, amount, mont
       }
     });
   }
-  form.addEventListener('submit', (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const value = Number(form.amount.value) || 0;
-    store.setBudget(month, categoryId, value);
+    // Tunggu penyimpanan selesai agar budgetStatus tidak membaca data lama
+    // (race condition yang menyebabkan edit kategori hilang/revert).
+    await store.setBudget(month, categoryId, value);
     const updatedStatus = store.budgetStatus(month);
     const newTotal = (updatedStatus.categories || []).reduce(
       (sum, item) => sum + (Number(item.limit) || 0),
       0
     );
-    store.setBudget(month, '__total__', newTotal);
+    await store.setBudget(month, '__total__', newTotal);
     overlay.remove();
     const panel = document.getElementById('modal-root')?.querySelector('.modal-panel');
     if (panel) {
