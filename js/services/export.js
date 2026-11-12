@@ -27,7 +27,7 @@ import {
 
 function accountPair(tx) {
   if (tx.type === 'transfer') {
-    return `${store.accountName(tx.accountId)} -> ${store.accountName(tx.toAccountId)}`;
+    return `${store.accountName(tx.accountId)} → ${store.accountName(tx.toAccountId)}`;
   }
   if (Array.isArray(tx.payments) && tx.payments.length) {
     return tx.payments.map((payment) => store.accountName(payment.accountId)).join(' + ');
@@ -252,7 +252,10 @@ export function exportPdf(month = monthKey()) {
     startY: tableStartY,
     head: [headers],
     body: list.map((tx, i) => {
-      const amountLabel = `${tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : ''}${pdfCurrency(tx.amount)}`;
+      // Nominal selalu punya tanda: + untuk pemasukan, - untuk pengeluaran dan transfer
+      const nominalSign = tx.type === 'income' ? '+' : '-';
+      const amountLabel = `${nominalSign}${pdfCurrency(tx.amount)}`;
+      // Saldo bersih: hanya angka, tanpa tanda plus di depan (minus hanya jika negatif)
       return [
         String(i + 1),
         formatTxDate(tx.date),
@@ -375,7 +378,10 @@ export function exportPdfRange(start, end) {
     startY: tableStartY,
     head: [headers],
     body: list.map((tx, i) => {
-      const amountLabel = `${tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : ''}${pdfCurrency(tx.amount)}`;
+      // Nominal selalu punya tanda: + untuk pemasukan, - untuk pengeluaran dan transfer
+      const nominalSign = tx.type === 'income' ? '+' : '-';
+      const amountLabel = `${nominalSign}${pdfCurrency(tx.amount)}`;
+      // Saldo bersih: hanya angka, tanpa tanda plus di depan (minus hanya jika negatif)
       return [
         String(i + 1),
         formatTxDate(tx.date),
