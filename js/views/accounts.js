@@ -217,7 +217,7 @@ function memberDetail(bucket) {
     </section>
 
     ${accounts.length
-      ? `<div class="${gridClass}" data-accounts-sortable>${accounts.map((account) => accountCard(account, { draggable: true })).join('')}</div>`
+      ? `<div class="${gridClass}" data-accounts-sortable style="grid-template-columns: repeat(${Math.ceil(Math.sqrt(accounts.length))}, 1fr);">${accounts.map((account) => accountCard(account, { draggable: true })).join('')}</div>`
       : emptyState('wallet', `Belum ada akun untuk ${name}`, 'Tambahkan dompet, rekening, atau dompet digital milik anggota ini.', `<button type="button" class="btn btn-primary btn-sm" data-action="add-account" data-owner="${ownerAttr}">${icon('plus', 'w-3.5 h-3.5')} Tambah akun</button>`)}
 
     ${distribution}
