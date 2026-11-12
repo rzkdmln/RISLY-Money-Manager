@@ -41,7 +41,6 @@ export function noteEditorForm(note = null, kind = 'note') {
         <h2 class="modal-title">${editing ? (isTodo ? 'Detail tugas' : 'Catatan') : (isTodo ? 'Tugas baru' : 'Catatan baru')}</h2>
       </div>
       <div class="flex items-center gap-1.5">
-        <span class="note-save-status" id="note-save-status">${editing ? 'Tersimpan' : 'Belum disimpan'}</span>
         <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
       </div>
     </header>
@@ -111,7 +110,7 @@ export function noteEditorForm(note = null, kind = 'note') {
       <label class="field-label">Pengingat (opsional)
         <input class="field mt-1.5" type="datetime-local" name="reminderAt" value="${escapeAttr(reminderValue)}">
       </label>
-      <p class="text-[11px] text-slate-400 -mt-1">Notifikasi muncul saat aplikasi dibuka dan izin notifikasi aktif. Di iOS, pasang aplikasi ke Home Screen terlebih dahulu.</p>
+      <p class="text-[11px] text-slate-400 mt-2 mb-2">Notifikasi muncul saat aplikasi dibuka dan izin notifikasi aktif. Di iOS, pasang aplikasi ke Home Screen terlebih dahulu.</p>
 
       ${editing ? `<div class="note-editor-meta">
         <span>Dibuat ${escapeHTML(note.createdByName || '—')} · ${escapeHTML(new Date(note.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }))}</span>

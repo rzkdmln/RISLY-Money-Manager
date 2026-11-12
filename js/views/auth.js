@@ -68,7 +68,7 @@ function welcomeView() {
 
       <footer class="auth-footer">
         <span>${APP.name} v${APP.version}</span>
-        <span class="auth-private"><a href="./privacy.html" style="color:inherit;text-decoration:underline;">Kebijakan Privasi</a></span>
+        <span class="auth-private"><button type="button" data-action="open-privacy-modal" style="color:inherit;text-decoration:underline;background:none;border:none;padding:0;cursor:pointer;font:inherit;">Kebijakan Privasi</button></span>
       </footer>
     </main>
   </div>`;
@@ -114,7 +114,7 @@ function lockView(user) {
 
       <footer class="auth-footer">
         <span>${APP.name} v${APP.version}</span>
-        <span class="auth-private"><a href="./privacy.html" style="color:inherit;text-decoration:underline;">Kebijakan Privasi</a></span>
+        <span class="auth-private"><button type="button" data-action="open-privacy-modal" style="color:inherit;text-decoration:underline;background:none;border:none;padding:0;cursor:pointer;font:inherit;">Kebijakan Privasi</button></span>
       </footer>
     </main>
   </div>`;

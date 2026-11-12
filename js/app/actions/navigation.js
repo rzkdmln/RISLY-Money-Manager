@@ -19,6 +19,7 @@ import {
   openInstallHelp,
   openForgotPinModal,
   openAuthCloudModal,
+  openPrivacyModal,
 } from '../modals.js';
 import { navigate, renderApplication } from '../runtime.js';
 import { lockApplication, leaveApplication } from '../session.js';
@@ -80,6 +81,9 @@ export const navigationActions = {
   },
   'open-more': () => {
     openMoreSheet();
+  },
+  'open-privacy-modal': () => {
+    openPrivacyModal();
   },
   'open-budget-categories': () => {
     openBudgetCategoriesModal();

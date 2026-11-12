@@ -95,6 +95,9 @@
 .dark .type-segment-btn.is-active.type-income { background: #059669; color: #fff; }
 .dark .type-segment-btn.is-active.type-transfer { background: var(--brand); color: #fff; }
 .note-kind-segment { grid-template-columns: 1fr 1fr; }
+.note-kind-segment .type-segment-btn.is-active { background: var(--brand); color: #fff; box-shadow: 0 1px 3px rgba(37, 99, 235, .35); }
+.dark .note-kind-segment .type-segment-btn.is-active { background: var(--brand); color: #fff; }
+.note-kind-segment .type-segment-btn:not(.is-active) { color: var(--muted); }
 .amount-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 2px; }
 .amount-label-row .field-label { margin: 0; }
 .calc-toggle {

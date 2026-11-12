@@ -51,17 +51,25 @@ export const ROUTES = Object.freeze({
   settings: { label: 'Pengaturan', icon: 'settings' },
 });
 
-export const DESKTOP_NAV = [
+export const DESKTOP_NAV_KEUANGAN = [
   'dashboard',
   'transactions',
-  'calendar',
-  'notes',
   'accounts',
   'budgets',
+];
+
+export const DESKTOP_NAV_KELOLA = [
+  'calendar',
+  'notes',
   'reports',
   'recurring',
   'categories',
   'settings',
+];
+
+export const DESKTOP_NAV = [
+  ...DESKTOP_NAV_KEUANGAN,
+  ...DESKTOP_NAV_KELOLA,
 ];
 
 export const BOTTOM_NAV = ['dashboard', 'transactions', 'accounts', 'budgets'];

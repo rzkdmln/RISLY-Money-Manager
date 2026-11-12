@@ -9,6 +9,9 @@ import { icon } from '../../ui/icons.js';
 
 export const noteEditorActions = {
   'note-form-kind': (element) => {
+    // Jangan biarkan tab yang sudah aktif memicu pergantian modal (mencegah
+    // multiple modal menumpuk saat diklik berulang kali).
+    if (element.classList.contains('is-active')) return;
     const form = element.closest('form[data-form="note"]');
     if (form)
       changeNoteEditorKind(

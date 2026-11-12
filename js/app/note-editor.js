@@ -99,12 +99,25 @@ function changeNoteEditorKind(form, kind) {
     draft.items = draft.items?.length ? draft.items : [];
     draft.description = draft.content;
   }
-  // noteEditorForm reads `content`; todo reads the same field into description.
-  openModal({
-    size: 'lg',
-    className: 'form-modal note-modal',
-    html: noteEditorForm(draft, kind),
-  });
+  // Ganti konten modal yang sedang terbuka secara in-place alih-uka membuka
+  // modal baru yang menumpuk (stack), sehingga hanya satu modal note yang aktif.
+  const root = document.getElementById('modal-root');
+  const panel = root?.querySelector('.modal-panel');
+  const html = noteEditorForm(draft, kind);
+  if (panel) {
+    panel.innerHTML = html;
+    panel.classList.remove('modal-in');
+    void panel.offsetWidth; // force reflow
+    panel.classList.add('modal-in');
+    const autofocus = panel.querySelector('[autofocus], input:not([type="hidden"]), textarea, [contenteditable="true"]');
+    if (autofocus) {
+      setTimeout(() => {
+        try { autofocus.focus({ preventScroll: true }); } catch { /* noop */ }
+      }, 60);
+    }
+  } else {
+    openModal({ size: 'lg', className: 'form-modal note-modal', html });
+  }
 }
 
 export { setNoteSaveStatus, collectNotePayload, scheduleNoteAutosave, flushNoteAutosave, changeNoteEditorKind };

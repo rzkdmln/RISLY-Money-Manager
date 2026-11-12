@@ -1,4 +1,4 @@
-import { APP, BOTTOM_NAV, DESKTOP_NAV, MORE_NAV, ROUTES } from '../core/config.js';
+import { APP, BOTTOM_NAV, DESKTOP_NAV_KELOLA, DESKTOP_NAV_KEUANGAN, MORE_NAV, ROUTES } from '../core/config.js';
 import { Cloud } from '../services/cloud.js';
 import { icon } from '../ui/icons.js';
 import { avatar, prefs, syncPill } from '../ui/ui.js';
@@ -42,14 +42,14 @@ export function shellView(user, dueCount = 0) {
 
       <nav class="sidebar-nav" aria-label="Navigasi utama">
         <p class="nav-section-label">Keuangan</p>
-        ${DESKTOP_NAV.slice(0, 4).map((route) => navItem(route, active)).join('')}
+        ${DESKTOP_NAV_KEUANGAN.map((route) => navItem(route, active)).join('')}
         <p class="nav-section-label mt-5">Kelola</p>
-        ${DESKTOP_NAV.slice(4).map((route) => navItem(route, active)).join('')}
+        ${DESKTOP_NAV_KELOLA.map((route) => navItem(route, active)).join('')}
       </nav>
 
       <div class="sidebar-bottom">
         <p class="sidebar-version">${APP.name} v${APP.version} · ${appContextLabel()}</p>
-        <a class="sidebar-privacy" href="./privacy.html">Kebijakan Privasi</a>
+        <button type="button" class="sidebar-privacy" data-action="open-privacy-modal">Kebijakan Privasi</button>
       </div>
     </aside>
 

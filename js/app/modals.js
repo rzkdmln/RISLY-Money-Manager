@@ -604,6 +604,87 @@ function openLoanScheduleModal(accountId) {
   });
 }
 
+function openPrivacyModal() {
+  openModal({
+    size: 'xl',
+    className: 'form-modal',
+    html: `
+      <header class="modal-header">
+        <div>
+          <p class="modal-kicker">Keamanan & Privasi</p>
+          <h2 class="modal-title">Kebijakan Privasi</h2>
+        </div>
+        <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
+      </header>
+      <div class="modal-body p-4 overflow-y-auto max-h-[70vh]">
+        <div class="privacy-content">
+          <p class="text-[11px] text-slate-500 mb-4">Terakhir diperbarui: 12 November 2026</p>
+
+          <p class="text-sm mb-3">Kebijakan Privasi ini menjelaskan bagaimana <strong>RISLY Money Manager</strong> ("kami") mengumpulkan, menggunakan, dan melindungi informasi pribadi Anda saat menggunakan aplikasi ini.</p>
+
+          <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-lg p-3 mb-4">
+            <p class="text-xs font-bold text-amber-800 dark:text-amber-200 mb-1">Penting:</p>
+            <p class="text-xs text-amber-700 dark:text-amber-300">RISLY Money Manager adalah aplikasi Progressive Web App (PWA) yang berjalan sepenuhnya di browser Anda. Data keuangan utama disimpan <strong>secara lokal di perangkat Anda</strong> (IndexedDB dan localStorage), <strong>bukan</strong> di server kami. Kami tidak memiliki server backend yang menyimpan data transaksi Anda.</p>
+          </div>
+
+          <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 mt-4">1. Informasi yang Kami Kumpulkan</h3>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-1">Jika Anda memilih untuk masuk menggunakan Google Sign-In, kami hanya menerima informasi dasar dari akun Google Anda melalui Firebase Authentication, meliputi:</p>
+          <ul class="list-disc list-inside text-xs text-slate-600 dark:text-slate-400 mb-3 space-y-1">
+            <li>Nama lengkap</li>
+            <li>Alamat email</li>
+            <li>Foto profil (URL gambar profil)</li>
+          </ul>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-3">Informasi ini digunakan hanya untuk mengidentifikasi dan memverifikasi identitas Anda saat masuk, serta menampilkan profil di dalam dasbor aplikasi. Kami <strong>tidak menyimpan</strong> data ini di server kami.</p>
+
+          <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 mt-4">2. Data Keuangan &amp; Penyimpanan Lokal</h3>
+          <ul class="list-disc list-inside text-xs text-slate-600 dark:text-slate-400 mb-3 space-y-1">
+            <li>Semua data transaksi, akun, kategori, anggaran, catatan, dan target keuangan disimpan <strong>secara lokal di perangkat Anda</strong> melalui IndexedDB dan localStorage.</li>
+            <li>Foto struk disimpan sebagai blob di IndexedDB (tidak sebagai base64 di dalam data workspace).</li>
+            <li>Jika Anda mengatur PIN, data lokal di-enkripsi <strong>at-rest</strong> menggunakan AES-GCM 256-bit dengan kunci yang di-derive dari PIN (PBKDF2-SHA256, 310.000 iterasi). Kunci enkripsi hanya ada di memori aplikasi dan <strong>tidak pernah disimpan ke disk</strong>.</li>
+            <li>Sesi login disimpan di sessionStorage + metadata IndexedDB (tidak ada cookie sensitif). Token Google Drive tidak disimpan di cookie yang bisa dibaca JavaScript.</li>
+          </ul>
+
+          <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 mt-4">3. Sinkronisasi Cloud &amp; Ruang Keluarga (Opsional)</h3>
+          <ul class="list-disc list-inside text-xs text-slate-600 dark:text-slate-400 mb-3 space-y-1">
+            <li>Sinkronisasi cloud melalui <strong>Firebase Realtime Database</strong> adalah fitur opsional dan hanya aktif jika Anda mengonfigurasinya sendiri.</li>
+            <li>Data yang di-sinkronkan ke Firebase meliputi data workspace (JSON), <strong>bukan</strong> file foto struk asli.</li>
+            <li>Berbagi keluarga dilakukan melalui kode undangan. Pemetaan keanggotaan disimpan di cloud agar akun yang sama di perangkat berbeda masuk ke rumah tangga yang sama.</li>
+            <li>Anda dapat berhenti menggunakan sinkronisasi cloud kapan saja melalui Pengaturan aplikasi.</li>
+          </ul>
+
+          <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 mt-4">4. Google Drive (Opsional)</h3>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-3">Google Drive hanya digunakan untuk login dan backup manual (file JSON terenkripsi ke folder appDataFolder, maksimal 10 backup terbaru). Tidak ada sinkronisasi otomatis ke Google Drive. Token Google Drive tidak disimpan di cookie.</p>
+
+          <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 mt-4">5. Perlindungan &amp; Keamanan Data</h3>
+          <ul class="list-disc list-inside text-xs text-slate-600 dark:text-slate-400 mb-3 space-y-1">
+            <li>Kami <strong>TIDAK AKAN PERNAH</strong> menjual, menyewakan, atau membagikan informasi pribadi maupun data keuangan Anda kepada pihak ketiga untuk keperluan pemasaran.</li>
+            <li>PIN minimal 6 angka (maksimum 8) dengan hashing PBKDF2-SHA256.</li>
+            <li>Login throttling eksponensial diberlakukan setelah beberapa kali gagal berurutan.</li>
+            <li>Auto-lock benar-benar menghapus kunci enkripsi dari memori.</li>
+          </ul>
+
+          <div class="bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800 rounded-lg p-3 mb-4">
+            <p class="text-xs font-bold text-rose-800 dark:text-rose-200 mb-1">Peringatan:</p>
+            <p class="text-xs text-rose-700 dark:text-rose-300">Jika Anda lupa PIN dan tidak memiliki backup terenkripsi (.risly.enc) atau file JSON, data keuangan Anda <strong>tidak bisa dibuka kembali dan hilang permanen</strong>. Tidak ada mekanisme "lupa PIN" yang bisa membuka data terenkripsi karena kami tidak menyimpan kunci enkripsi di server.</p>
+          </div>
+
+          <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 mt-4">6. Hak &amp; Penghapusan Data</h3>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-3">Anda berhak untuk berhenti menggunakan aplikasi kapan saja. Untuk menghapus data, hapus aplikasi/PWA dari perangkat Anda dan hapus data penyimpanan browser (cache, IndexedDB, localStorage). Anda juga dapat menghubungi pengembang melalui email untuk pertanyaan privasi data.</p>
+
+          <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 mt-4">7. Perubahan Kebijakan Privasi</h3>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-3">Kami dapat memperbarui Kebijakan Privasi ini dari waktu ke waktu. Perubahan akan diberitakan melalui aplikasi atau halaman ini, serta tercantum tanggal pembaruan terbaru di atas.</p>
+
+          <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1 mt-4">8. Hubungi Kami</h3>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mb-4">Jika Anda memiliki pertanyaan mengenai Kebijakan Privasi ini, silakan hubungi pengembang aplikasi melalui email yang tercantum di aplikasi atau repositori GitHub resmi.</p>
+        </div>
+      </div>
+      <footer class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-action="close-modal">Tutup</button>
+      </footer>
+    `,
+  });
+}
+
 export {
   openTransactionModal,
   openReceiptLightbox,
@@ -625,6 +706,7 @@ export {
   openInstallHelp,
   openJoinWorkspaceModal,
   openLoanScheduleModal,
+  openPrivacyModal,
   authCloudFields,
   openAuthCloudModal,
 };
