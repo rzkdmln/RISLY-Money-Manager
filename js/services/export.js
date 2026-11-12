@@ -78,8 +78,19 @@ function typeBadgeLabel(type) {
  * Saldo dimulai dari initialBalance (biasanya total opening balance semua akun),
  * lalu ditambahkan pemasukan, dikurangi pengeluaran.
  * Transfer tidak mengubah total saldo gabungan (uang hanya pindah antar akun).
+ *
+ * @param {Array} list - Daftar transaksi yang sudah diurutkan
+ * @param {number} initialBalance - Total opening balance semua akun
+ * @param {object} openingBalancesPerAccount - Map accountId ke opening balance
+ * @returns {Array} Transaksi dengan properti runningBalance dan accountBalance
  */
-function buildRunningBalance(list, initialBalance = 0) {
+function buildRunningBalance(list, initialBalance = 0, openingBalancesPerAccount = {}) {
+  // Saldo per akun (dimulai dari opening balance masing-masing)
+  const accountBalances = new Map();
+  for (const [accountId, openingBalance] of Object.entries(openingBalancesPerAccount)) {
+    accountBalances.set(accountId, safeNumber(openingBalance));
+  }
+
   let balance = initialBalance;
   return list.map((tx) => {
     let delta = 0;
@@ -91,8 +102,33 @@ function buildRunningBalance(list, initialBalance = 0) {
       // tidak mengubah total saldo gabungan.
       delta = 0;
     }
+
+    // Update saldo per akun
+    const txAccountId = tx.accountId;
+    if (txAccountId) {
+      const currentAccountBalance = accountBalances.get(txAccountId) || 0;
+      if (tx.type === 'income') {
+        accountBalances.set(txAccountId, currentAccountBalance + safeNumber(tx.amount));
+      } else if (tx.type === 'expense') {
+        accountBalances.set(txAccountId, currentAccountBalance - safeNumber(tx.amount));
+      } else if (tx.type === 'transfer') {
+        // Kurangi dari akun asal
+        accountBalances.set(txAccountId, currentAccountBalance - safeNumber(tx.amount));
+        // Tambah ke akun tujuan
+        const toAccountId = tx.toAccountId;
+        if (toAccountId) {
+          const currentToAccountBalance = accountBalances.get(toAccountId) || 0;
+          accountBalances.set(toAccountId, currentToAccountBalance + safeNumber(tx.amount));
+        }
+      }
+    }
+
     balance += delta;
-    return { ...tx, runningBalance: balance };
+    return {
+      ...tx,
+      runningBalance: balance,
+      accountBalance: txAccountId ? accountBalances.get(txAccountId) : balance,
+    };
   });
 }
 
@@ -227,9 +263,13 @@ export function exportPdf(month = monthKey()) {
     return;
   }
   const summary = store.monthSummary(month);
-  // Saldo awal gabungan semua akun aktif (untuk saldo yang akurat)
-  const openingBalanceTotal = store.activeAccounts().reduce(
-    (sum, account) => sum + safeNumber(account.openingBalance), 0
+  // Opening balance per akun untuk saldo akun individual
+  const openingBalancesPerAccount = {};
+  store.activeAccounts().forEach((account) => {
+    openingBalancesPerAccount[account.id] = safeNumber(account.openingBalance);
+  });
+  const openingBalanceTotal = Object.values(openingBalancesPerAccount).reduce(
+    (sum, val) => sum + safeNumber(val), 0
   );
   const list = buildRunningBalance(
     [...store.transactionsForMonth(month)].sort((a, b) => {
@@ -238,7 +278,8 @@ export function exportPdf(month = monthKey()) {
       const tb = safeNumber(timeFromISO(b.time || '00:00'));
       return ta - tb;
     }),
-    openingBalanceTotal
+    openingBalanceTotal,
+    openingBalancesPerAccount
   );
   const household = store.data.settings.householdName || 'RISLY';
   const doc = new jsPDFCtor({ orientation: 'landscape', unit: 'pt', format: 'a4' });
@@ -290,7 +331,6 @@ export function exportPdf(month = monthKey()) {
       // Nominal selalu punya tanda: + untuk pemasukan, - untuk pengeluaran dan transfer
       const nominalSign = tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : '';
       const amountLabel = `${nominalSign}${pdfCurrencyCompact(tx.amount)}`;
-      // Saldo Akun dan Saldo Keluarga sama karena semua akun diperlakukan satu kesatuan
       return [
         String(i + 1),
         formatTxDate(tx.date),
@@ -298,7 +338,7 @@ export function exportPdf(month = monthKey()) {
         sanitizeText(tx.note || (tx.type === 'transfer' ? 'Transfer antar akun' : categoryLabel(tx))),
         sanitizeText(accountPair(tx)),
         amountLabel,
-        pdfCurrencyCompact(tx.runningBalance),
+        pdfCurrencyCompact(tx.accountBalance),
         pdfCurrencyCompact(tx.runningBalance),
       ];
     }),
@@ -356,8 +396,13 @@ export function exportPdfRange(start, end) {
     toast('Pilih rentang tanggal terlebih dahulu.', 'info');
     return;
   }
-  const openingBalanceTotal = store.activeAccounts().reduce(
-    (sum, account) => sum + safeNumber(account.openingBalance), 0
+  // Opening balance per akun untuk saldo akun individual
+  const openingBalancesPerAccount = {};
+  store.activeAccounts().forEach((account) => {
+    openingBalancesPerAccount[account.id] = safeNumber(account.openingBalance);
+  });
+  const openingBalanceTotal = Object.values(openingBalancesPerAccount).reduce(
+    (sum, val) => sum + safeNumber(val), 0
   );
   const list = buildRunningBalance(
     [...store.transactionsBetween(start, end)].sort((a, b) => {
@@ -366,7 +411,8 @@ export function exportPdfRange(start, end) {
       const tb = safeNumber(timeFromISO(b.time || '00:00'));
       return ta - tb;
     }),
-    openingBalanceTotal
+    openingBalanceTotal,
+    openingBalancesPerAccount
   );
   const summary = store.summaryForTransactions(list);
   const household = store.data.settings.householdName || 'RISLY';
@@ -419,7 +465,6 @@ export function exportPdfRange(start, end) {
       // Nominal selalu punya tanda: + untuk pemasukan, - untuk pengeluaran dan transfer
       const nominalSign = tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : '';
       const amountLabel = `${nominalSign}${pdfCurrencyCompact(tx.amount)}`;
-      // Saldo Akun dan Saldo Keluarga sama karena semua akun diperlakukan satu kesatuan
       return [
         String(i + 1),
         formatTxDate(tx.date),
@@ -427,7 +472,7 @@ export function exportPdfRange(start, end) {
         sanitizeText(tx.note || (tx.type === 'transfer' ? 'Transfer antar akun' : categoryLabel(tx))),
         sanitizeText(accountPair(tx)),
         amountLabel,
-        pdfCurrencyCompact(tx.runningBalance),
+        pdfCurrencyCompact(tx.accountBalance),
         pdfCurrencyCompact(tx.runningBalance),
       ];
     }),
