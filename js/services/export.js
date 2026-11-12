@@ -63,9 +63,10 @@ function buildRunningBalance(list) {
     if (tx.type === 'income') delta = safeNumber(tx.amount);
     else if (tx.type === 'expense') delta = -safeNumber(tx.amount);
     else if (tx.type === 'transfer') {
-      // Transfer: keluar dari accountId, masuk ke toAccountId.
-      // Untuk representasi per baris, kita hanya mencatat keluar dari accountId.
-      delta = -safeNumber(tx.amount);
+      // Transfer hanya memindahkan uang antar akun dalam satu kesatuan.
+      // Untuk representasi semua akun sebagai satu kesatuan, transfer
+      // tidak mengubah total saldo gabungan.
+      delta = 0;
     }
     balance += delta;
     return { ...tx, runningBalance: balance };
@@ -252,7 +253,7 @@ export function exportPdf(month = monthKey()) {
 
   /* ---------- Transaction table ---------- */
   const tableStartY = 146;
-  const colWidths = [25, 60, 80, 273, 150, 77, 77];
+  const colWidths = [25, 60, 80, 273, 150, 85, 85];
   const headers = ['No', 'Tanggal', 'Jenis', 'Keterangan', 'Akun', 'Nominal', 'Saldo'];
   const tableWidth = pageWidth - 80;
 
@@ -261,7 +262,7 @@ export function exportPdf(month = monthKey()) {
     head: [headers],
     body: list.map((tx, i) => {
       // Nominal selalu punya tanda: + untuk pemasukan, - untuk pengeluaran dan transfer
-      const nominalSign = tx.type === 'income' ? '+' : '-';
+      const nominalSign = tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : '';
       const amountLabel = `${nominalSign}${pdfCurrencyCompact(tx.amount)}`;
       // Saldo bersih: hanya angka, tanpa tanda plus di depan (minus hanya jika negatif)
       return [
@@ -378,7 +379,7 @@ export function exportPdfRange(start, end) {
 
   /* ---------- Transaction table ---------- */
   const tableStartY = 146;
-  const colWidths = [25, 60, 80, 273, 150, 77, 77];
+  const colWidths = [25, 60, 80, 273, 150, 85, 85];
   const headers = ['No', 'Tanggal', 'Jenis', 'Keterangan', 'Akun', 'Nominal', 'Saldo'];
   const tableWidth = pageWidth - 80;
 
@@ -387,7 +388,7 @@ export function exportPdfRange(start, end) {
     head: [headers],
     body: list.map((tx, i) => {
       // Nominal selalu punya tanda: + untuk pemasukan, - untuk pengeluaran dan transfer
-      const nominalSign = tx.type === 'income' ? '+' : '-';
+      const nominalSign = tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : '';
       const amountLabel = `${nominalSign}${pdfCurrencyCompact(tx.amount)}`;
       // Saldo bersih: hanya angka, tanpa tanda plus di depan (minus hanya jika negatif)
       return [
