@@ -59,10 +59,40 @@ class Repository {
   _open() {
     if (this._openPromise) return this._openPromise;
     this._openPromise = new Promise((resolve, reject) => {
+      let settled = false;
+      const fail = (error) => {
+        if (settled) return;
+        settled = true;
+        // Jangan simpan promise yang gagal: percobaan berikutnya (mis. setelah
+        // hard refresh) harus bisa membuka database lagi.
+        this._openPromise = null;
+        reject(error || new Error('Gagal membuka IndexedDB'));
+      };
       const request = indexedDB.open(DB_NAME, DB_VERSION);
-      request.onerror = () => reject(request.error);
+      request.onerror = () => fail(request.error);
+      // `onblocked` terjadi saat tab lain menahan upgrade. Jangan menggantung
+      // selamanya — biarkan pemanggil fallback/retry.
+      request.onblocked = () => fail(new Error('IndexedDB diblokir oleh tab lain'));
       request.onsuccess = () => {
+        if (settled) {
+          try {
+            request.result.close();
+          } catch {
+            /* noop */
+          }
+          return;
+        }
+        settled = true;
         this.db = request.result;
+        this.db.onversionchange = () => {
+          try {
+            this.db.close();
+          } catch {
+            /* noop */
+          }
+          this.db = null;
+          this._openPromise = null;
+        };
         resolve(this);
       };
       request.onupgradeneeded = (event) => {

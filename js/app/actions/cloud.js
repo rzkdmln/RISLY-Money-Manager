@@ -95,6 +95,20 @@ export const cloudActions = {
       else if (result.adopted) toast('Ruang keluarga dipulihkan.', 'success');
       else toast(`Masuk sebagai ${result.user.name}.`, 'success');
     } catch (error) {
+      if (error?.code === 'WORKSPACE_LOCKED') {
+        // Jangan buat ruang baru: data pengguna ada di workspace terenkripsi.
+        const snapshot = readLockSnapshot();
+        store.setLockedWorkspace(error.workspaceId);
+        store.setCurrentUser(snapshot?.id || null);
+        ui.currentUser = snapshot;
+        ui.selectedUser = snapshot?.id || null;
+        ui.locked = Boolean(snapshot);
+        ui.appMounted = false;
+        closeModal({ silent: true });
+        renderAuth();
+        toast('Ruang terkunci. Masukkan PIN untuk melanjutkan.', 'info');
+        return;
+      }
       console.error(error);
       toast(error.message || 'Gagal masuk dengan Google.', 'error');
     } finally {

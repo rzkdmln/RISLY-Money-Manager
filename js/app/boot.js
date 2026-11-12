@@ -103,6 +103,16 @@ async function tryResumeRedirectLogin() {
     }
   } catch (error) {
     if (error?.name === 'AbortError') return false;
+    if (error?.code === 'WORKSPACE_LOCKED') {
+      const snapshot = readLockSnapshot();
+      store.setLockedWorkspace(error.workspaceId);
+      store.setCurrentUser(snapshot?.id || null);
+      ui.currentUser = snapshot;
+      ui.selectedUser = snapshot?.id || null;
+      ui.locked = Boolean(snapshot);
+      ui.appMounted = false;
+      return false;
+    }
     console.warn('Gagal menangkap redirect result:', error);
   }
 

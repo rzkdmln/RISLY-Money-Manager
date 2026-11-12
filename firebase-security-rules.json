@@ -6,14 +6,14 @@
 
         ".write": "auth != null && (
           (!data.exists() && newData.child('owner').val() === auth.uid) ||
-          (data.child('owner').val() === auth.uid) ||
+          (data.exists() && data.child('owner').val() === auth.uid) ||
           (
+            data.exists() &&
             root.child('households').child($householdId).child('members').child(auth.uid).exists() &&
             root.child('households').child($householdId).child('members').child(auth.uid).child('removed').val() !== true &&
-            data.exists() &&
-            (!newData.child('owner').exists() || newData.child('owner').val() === data.child('owner').val()) &&
-            (!newData.child('settings').exists() || newData.child('settings').val() === data.child('settings').val()) &&
-            (!newData.child('inviteCode').exists() || newData.child('inviteCode').val() === data.child('inviteCode').val())
+            newData.child('owner').val() === data.child('owner').val() &&
+            newData.child('inviteCode').val() === data.child('inviteCode').val() &&
+            newData.child('settings/updatedAt').val() === data.child('settings/updatedAt').val()
           )
         )",
 
@@ -21,7 +21,10 @@
 
         "owner": {
           ".validate": "newData.isString() && newData.val().length > 0",
-          ".write": "auth != null && (!newData.exists() || !data.exists() || data.val() === auth.uid)"
+          ".write": "auth != null && (
+            (!data.exists() && newData.val() === auth.uid) ||
+            (data.exists() && data.val() === auth.uid && newData.exists() && newData.val() === auth.uid)
+          )"
         },
 
         "members": {
@@ -38,12 +41,12 @@
 
         "settings": {
           ".validate": "newData.exists()",
-          ".write": "auth != null && (!newData.exists() || root.child('households').child($householdId).child('owner').val() === auth.uid)"
+          ".write": "auth != null && root.child('households').child($householdId).child('owner').val() === auth.uid"
         },
 
         "inviteCode": {
           ".validate": "newData.isString() && newData.val().length >= 4 && newData.val().length <= 8",
-          ".write": "auth != null && (!newData.exists() || root.child('households').child($householdId).child('owner').val() === auth.uid)"
+          ".write": "auth != null && root.child('households').child($householdId).child('owner').val() === auth.uid"
         },
 
         "conflicts": {

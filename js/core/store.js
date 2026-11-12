@@ -78,7 +78,10 @@ function transactionTime(tx) {
 function pickNewest(localRecord, remoteRecord) {
   if (!localRecord) return remoteRecord;
   if (!remoteRecord) return localRecord;
-  return recordStamp(remoteRecord) > recordStamp(localRecord) ? remoteRecord : localRecord;
+  // Saat timestamp seri, utamakan remote. Ini penting agar data default lokal
+  // (mis. workspace baru "Keuangan Saya") tidak menimpa data household yang
+  // sudah ada. Dua perangkat juga akan konvergen ke pilihan yang sama.
+  return recordStamp(remoteRecord) >= recordStamp(localRecord) ? remoteRecord : localRecord;
 }
 
 function normalizedMemberName(value) {
@@ -108,7 +111,7 @@ function normalizePayments(payments) {
  * untuk mendorong perubahan lokal yang tertinggal (mis. setelah aplikasi
  * di-reload sebelum push sempat berjalan).
  */
-function mergeCollection(localItems, remoteItems) {
+function mergeCollection(localItems, remoteItems, { preferRemote = false } = {}) {
   const map = new Map();
   (remoteItems || []).forEach((item) => {
     if (item?.id) map.set(item.id, item);
@@ -117,7 +120,10 @@ function mergeCollection(localItems, remoteItems) {
   (localItems || []).forEach((item) => {
     if (!item?.id) return;
     const remoteItem = map.get(item.id);
-    const winner = pickNewest(item, remoteItem);
+    // `preferRemote` dipakai saat workspace lokal baru dibuat / baru bergabung:
+    // data remote adalah kebenaran rumah tangga, jadi jangan biarkan snapshot
+    // default lokal menimpanya.
+    const winner = preferRemote && remoteItem ? remoteItem : pickNewest(item, remoteItem);
     if (winner === item) {
       // Lokal menang: record baru (tidak ada di remote) atau versi lokal lebih
       // baru dari remote. Keduanya berarti ada perubahan yang perlu di-push.
@@ -168,6 +174,10 @@ export class Store {
     this._encryptionKey = null;
     this._encrypted = false;
     this._preferRemoteSettings = false;
+    // Satu-kali: paksa data remote menang saat workspace lokal baru dibuat atau
+    // saat bergabung ke household lain (mencegah snapshot default menimpa data
+    // rumah tangga).
+    this._preferRemoteData = false;
     // `undefined` = belum ditentukan (mis. instance yang diisi manual di test),
     // `false` = hanya placeholder layar login / workspace terkunci.
     this._dataReady = undefined;
@@ -286,36 +296,43 @@ export class Store {
       let fromLocalStorage = false;
 
       if (this._idbReady) {
-        try {
+        const readFromIdb = async () => {
           const record = await repository.getWorkspace(workspaceId);
-          if (record) {
-            let workspaceData = record.data;
-            // Jika data terenkripsi (AES-GCM), dekripsi terlebih dahulu menggunakan kunci dari memori.
-            if (workspaceData && workspaceData.encrypted) {
-              if (!this._encryptionKey) {
-                throw new Error('Data terenkripsi tetapi kunci enkripsi tidak tersedia di memori. Unlock dulu.');
-              }
-              try {
-                workspaceData = await decryptWorkspace(workspaceData, this._encryptionKey);
-              } catch (decryptError) {
-                // Migrasi 1.2.42: verifier lama adalah output PBKDF2 mentah yang
-                // (karena bug salt) dipakai sebagai kunci enkripsi sebenarnya.
-                const legacyKey = await importAesKeyFromBase64(this._legacyVerifier || '');
-                if (!legacyKey) throw decryptError;
-                try {
-                  workspaceData = await decryptWorkspace(workspaceData, legacyKey);
-                  this._legacyDecryptUsed = true;
-                } catch {
-                  throw decryptError;
-                }
-              }
+          if (!record) return null;
+          let workspaceData = record.data;
+          // Jika data terenkripsi (AES-GCM), dekripsi terlebih dahulu menggunakan kunci dari memori.
+          if (workspaceData && workspaceData.encrypted) {
+            if (!this._encryptionKey) {
+              throw new Error('Data terenkripsi tetapi kunci enkripsi tidak tersedia di memori. Unlock dulu.');
             }
-            if (workspaceData) {
-              raw = JSON.stringify(workspaceData);
+            try {
+              workspaceData = await decryptWorkspace(workspaceData, this._encryptionKey);
+            } catch (decryptError) {
+              // Migrasi 1.2.42: verifier lama adalah output PBKDF2 mentah yang
+              // (karena bug salt) dipakai sebagai kunci enkripsi sebenarnya.
+              const legacyKey = await importAesKeyFromBase64(this._legacyVerifier || '');
+              if (!legacyKey) throw decryptError;
+              try {
+                workspaceData = await decryptWorkspace(workspaceData, legacyKey);
+                this._legacyDecryptUsed = true;
+              } catch {
+                throw decryptError;
+              }
             }
           }
-        } catch {
-          // Abaikan error IDB, coba localStorage
+          return workspaceData ? JSON.stringify(workspaceData) : null;
+        };
+        try {
+          raw = await readFromIdb();
+        } catch (error) {
+          // Hard refresh / tab lain bisa membuat IndexedDB gagal sesaat.
+          // Coba sekali lagi sebelum jatuh ke localStorage.
+          try {
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            raw = await readFromIdb();
+          } catch {
+            console.warn('Baca workspace dari IndexedDB gagal:', error);
+          }
         }
       }
 
@@ -459,11 +476,25 @@ export class Store {
       /* noop */
     }
     const entry = this.registry.accounts[email];
-    if (entry?.workspaceId && this.openWorkspace(entry.workspaceId, { account })) {
-      const user = await this.attachFirebaseUid(this.ensureMember(account));
-      this.currentUserId = user.id;
-      this.persist();
-      return { user, created: false, workspaceId: this.workspaceId };
+    if (entry?.workspaceId) {
+      // Jangan pernah membuat workspace baru untuk ruang yang terenkripsi:
+      // data pengguna ada di sana dan hanya bisa dibuka dengan PIN.
+      if (!this.isUnlocked && (await this.isWorkspaceEncrypted(entry.workspaceId))) {
+        const error = new Error('Ruang terkunci. Masukkan PIN untuk membukanya.');
+        error.code = 'WORKSPACE_LOCKED';
+        error.workspaceId = entry.workspaceId;
+        throw error;
+      }
+      // Penting: openWorkspace() asinkron. Tanpa await, kode lanjut memakai
+      // data placeholder layar login dan bisa menimpa household di cloud.
+      const opened = await this.openWorkspace(entry.workspaceId, { account });
+      if (opened) {
+        const user = await this.attachFirebaseUid(this.ensureMember(account));
+        this.currentUserId = user.id;
+        await this.persist();
+        return { user, created: false, workspaceId: this.workspaceId };
+      }
+      console.warn('Workspace terdaftar tidak bisa dibuka, menyiapkan workspace baru.');
     }
 
     const legacy = this.readLegacyData();
@@ -473,10 +504,10 @@ export class Store {
       );
       if (match) {
         const workspaceId = this.adoptLegacyWorkspace(legacy, account);
-        this.openWorkspace(workspaceId, { account });
+        await this.openWorkspace(workspaceId, { account });
         const user = await this.attachFirebaseUid(this.ensureMember(account));
         this.currentUserId = user.id;
-        this.persist();
+        await this.persist();
         return { user, created: false, adopted: true, workspaceId };
       }
     }
@@ -486,12 +517,16 @@ export class Store {
     this.workspaceId = workspaceId;
     this.account = account;
     this._dataReady = true;
+    // Workspace benar-benar baru: jika ternyata akun ini sudah punya household
+    // di cloud (mis. registry lokal hilang), data cloud harus menang.
+    this._preferRemoteData = true;
+    this._preferRemoteSettings = true;
     const user = await this.attachFirebaseUid(this.data.users[0]);
     this.currentUserId = user.id;
     this.data.settings.ownerEmail = email;
     this.updateWorkspaceMeta();
     this.registerAccount(account, workspaceId);
-    this.persist();
+    await this.persist();
     return { user, created: true, workspaceId };
   }
 
@@ -574,7 +609,7 @@ export class Store {
       workspaceId && localStorage.getItem(workspaceStorageKey(workspaceId))
     );
     if (matchedLocally) {
-      matchedLocally = this.openWorkspace(workspaceId, { account });
+      matchedLocally = await this.openWorkspace(workspaceId, { account });
     }
     if (!matchedLocally) {
       // 2. Tidak ada di perangkat ini: siapkan workspace lokal untuk akun
@@ -648,6 +683,15 @@ export class Store {
     // Tandai agar mergeRemote memilih pengaturan remote (pemilik) meskipun
     // timestamp-nya seri atau lebih awal dari lokal.
     this._preferRemoteSettings = true;
+    // Anggota yang baru bergabung membawa snapshot default lokal. Data remote
+    // (pemilik) harus menang agar kategori/akun default tidak saling menimpa.
+    this._preferRemoteData = true;
+  }
+
+  /** Hentikan mode "remote menang" setelah sinkronisasi pertama selesai. */
+  clearPreferRemote() {
+    this._preferRemoteData = false;
+    this._preferRemoteSettings = false;
   }
 
   async openLastWorkspace() {
@@ -2783,7 +2827,7 @@ export class Store {
     }
   }
 
-  mergeRemote(remoteRaw) {
+  mergeRemote(remoteRaw, { isOwner = true } = {}) {
     // Tidak ada workspace lokal yang terbuka (this.data null) atau workspace
     // masih terkunci (placeholder layar login) — tidak ada yang bisa digabung.
     // Tanpa penjagaan ini, data placeholder bisa ikut ter-persist/ter-push dan
@@ -2800,10 +2844,11 @@ export class Store {
     const remote = migrateData(remoteRaw);
     this._lastRemoteData = remote;
     const draft = deepClone(this.data);
+    const preferRemote = Boolean(this._preferRemoteData);
 
     let localPending = false;
     const mergeKey = (key) => {
-      const result = mergeCollection(draft[key], remote[key]);
+      const result = mergeCollection(draft[key], remote[key], { preferRemote });
       draft[key] = result.items;
       if (result.localPending) localPending = true;
     };
@@ -2828,19 +2873,30 @@ export class Store {
     mergedClosed.sort((a, b) => String(b?.month || '').localeCompare(String(a?.month || '')));
     draft.closedMonths = mergedClosed;
 
-    if (this._preferRemoteSettings && remote.settings) {
-      draft.settings = remote.settings;
-      this._preferRemoteSettings = false;
-    } else if (recordStamp(remote.settings) > recordStamp(draft.settings)) {
-      draft.settings = remote.settings;
-    } else if (remote.settings) {
-      if (recordStamp(draft.settings) > recordStamp(remote.settings)) localPending = true;
-      draft.settings = {
-        ...remote.settings,
-        ...draft.settings,
-        updatedAt: draft.settings.updatedAt,
-      };
+    if (remote.settings) {
+      if (preferRemote || this._preferRemoteSettings) {
+        draft.settings = remote.settings;
+      } else if (recordStamp(remote.settings) >= recordStamp(draft.settings)) {
+        // Seri → remote menang agar identitas rumah tangga tidak berubah karena
+        // snapshot default lokal.
+        draft.settings = remote.settings;
+      } else {
+        localPending = true;
+        draft.settings = {
+          ...remote.settings,
+          ...draft.settings,
+          updatedAt: draft.settings.updatedAt,
+        };
+      }
+      if (!isOwner) {
+        // Anggota tidak boleh mengubah identitas milik pemilik, bahkan jika
+        // timestamp lokalnya kebetulan lebih baru (mis. kode undangan lama).
+        draft.settings.inviteCode = remote.settings.inviteCode || draft.settings.inviteCode;
+        draft.settings.ownerEmail = remote.settings.ownerEmail || draft.settings.ownerEmail;
+      }
     }
+    this._preferRemoteSettings = false;
+    this._preferRemoteData = false;
 
     draft.revision = Math.max(Number(draft.revision) || 1, Number(remote.revision) || 1);
     if (new Date(remote.updatedAt || 0) > new Date(draft.updatedAt || 0)) {
@@ -2857,7 +2913,7 @@ export class Store {
     const after = JSON.stringify(draft);
     const changed = before !== after;
     if (changed) {
-      this._recordMergeConflicts(draft);
+      this._recordMergeConflicts(draft, { preferRemote });
       this.persist(draft);
       this.data = draft;
       this.emit({ source: 'remote', reason: 'sync:merge' });
@@ -2891,9 +2947,12 @@ export class Store {
    * Bandingkan item lokal dan remote per id. Jika sama id namun konten berbeda,
    * catat sebagai konflik dengan pemenang (yang tersisa dalam draft).
    */
-  _recordMergeConflicts(draft) {
+  _recordMergeConflicts(draft, { preferRemote = false } = {}) {
     const remote = this._lastRemoteData;
     if (!remote) return;
+    // Saat mode "remote menang", tidak ada data lokal yang menimpa remote, jadi
+    // tidak ada konflik yang perlu dicatat.
+    if (preferRemote) return;
 
     const collections = [
       'users',
@@ -2935,6 +2994,11 @@ export class Store {
         const localStr = this._stripStamp(localItem);
         const remoteStr = this._stripStamp(remoteItem);
         if (localStr === remoteStr) return; // sama, tidak ada konflik
+
+        // Hanya catat saat versi lokal benar-benar menimpa remote. Jika remote
+        // lebih baru/seri, itu pull biasa — bukan konflik. Tanpa ini, setiap
+        // login dengan snapshot default membanjiri log.
+        if (recordStamp(localItem) <= recordStamp(remoteItem)) return;
 
         const winner = mergedById.get(id);
         if (!winner) return;

@@ -338,16 +338,15 @@ class FirebaseAdapter {
   async readUserHousehold(uid) {
     const clean = String(uid || '').trim();
     if (!clean) return null;
-    try {
-      const body = await requestJSON(await this.urlFor(`userHouseholds/${clean}`), {
-        method: 'GET',
-        cache: 'no-store',
-      });
-      const householdUid = body?.householdUid || body?.household || null;
-      return householdUid ? String(householdUid) : null;
-    } catch {
-      return null;
-    }
+    // Jangan menelan error: pemanggil perlu membedakan "belum punya household"
+    // (null) dari "gagal memeriksa" (throw) agar tidak salah membuat household
+    // baru saat offline.
+    const body = await requestJSON(await this.urlFor(`userHouseholds/${clean}`), {
+      method: 'GET',
+      cache: 'no-store',
+    });
+    const householdUid = body?.householdUid || body?.household || null;
+    return householdUid ? String(householdUid) : null;
   }
 
   async writeUserHousehold(uid, householdUid) {
@@ -518,18 +517,33 @@ class CloudSync {
   /**
    * Pulihkan pemetaan household dari cloud agar akun yang sama di perangkat
    * baru langsung masuk ke household yang melekat, bukan membuat ruang baru.
+   *
+   * Pemetaan lokal yang menunjuk ke UID sendiri juga diperiksa ulang: nilai itu
+   * bisa berasal dari fallback sebelum pemeriksaan cloud (mis. setelah registry
+   * lokal hilang), dan jika dibiarkan akan membuat household baru.
    */
   async syncMembershipFromCloud(uid) {
-    if (!uid || this.config.provider !== 'firebase') return;
-    if (this.rememberedHousehold(uid)) return;
+    if (!uid || this.config.provider !== 'firebase') {
+      return { checked: false, householdUid: '' };
+    }
+    const remembered = this.rememberedHousehold(uid);
+    if (remembered && remembered !== String(uid)) {
+      this.membershipChecked = true;
+      this.membershipHousehold = remembered;
+      return { checked: true, householdUid: remembered };
+    }
     try {
       const adapter =
         this.adapter ||
         new FirebaseAdapter(this.config.provider === 'firebase' ? this.config : { provider: 'firebase' });
       const householdUid = await adapter.readUserHousehold(uid);
       if (householdUid) this.rememberHousehold(uid, householdUid);
+      this.membershipChecked = true;
+      this.membershipHousehold = householdUid || remembered || '';
+      return { checked: true, householdUid: this.membershipHousehold };
     } catch {
-      /* noop */
+      this.membershipChecked = false;
+      return { checked: false, householdUid: remembered };
     }
   }
 
@@ -751,6 +765,10 @@ class CloudSync {
     // Catat UID dan path per-rumah tangga. Koneksi sebenarnya dibuat setelah
     // workspace lokal dibuka (lihat syncCloudAfterLogin di app.js), agar data
     // placeholder layar login tidak sempat terunggah ke cloud.
+    if (String(this.firebaseUid || '') !== String(uid)) this.membershipChecked = undefined;
+    // Periksa pemetaan household di cloud sebelum menentukan path. Ini
+    // mencegah akun anggota membuat household baru saat registry lokal hilang.
+    await this.syncMembershipFromCloud(uid);
     const next = this.firebaseConfigFor(uid, this.config);
     const changed =
       this.config?.provider !== 'firebase' ||
@@ -760,9 +778,12 @@ class CloudSync {
     this.config = next;
     this.firebaseUid = uid;
     // Simpan pemetaan household ke cloud agar akun yang sama di perangkat
-    // baru langsung masuk ke household ini.
+    // baru langsung masuk ke household ini. Hanya tulis jika pemeriksaan
+    // cloud berhasil — jangan menimpa pemetaan yang benar dengan UID sendiri.
     const householdUid = this.getHouseholdUid();
-    if (householdUid) this.writeMembershipToCloud(uid, householdUid);
+    if (householdUid && this.membershipChecked) {
+      this.writeMembershipToCloud(uid, householdUid);
+    }
     if (changed) {
       this.connected = false;
       this.setStatus('idle', 'Menunggu sinkronisasi…');
@@ -1009,8 +1030,11 @@ class CloudSync {
           throw error;
         }
         // 401 = token auth tidak valid; penulisan juga akan ditolak, jadi
-        // jangan menulis apa pun. 403 = node belum ada → boleh seed.
-        canSeed = !/^\s*401\b/.test(message);
+        // jangan menulis apa pun. 403 = node belum ada → boleh seed, tetapi
+        // hanya jika pemeriksaan keanggotaan cloud tidak gagal (agar akun
+        // anggota tidak membuat household baru saat offline/registry hilang).
+        canSeed =
+          !/^\s*401\b/.test(message) && this.membershipChecked !== false;
         console.warn('Baca household ditolak:', message);
       }
       let pendingLocalPush = false;
@@ -1018,6 +1042,7 @@ class CloudSync {
         if (canSeed && this.store?.isDataReady) {
           // Household baru: buat node dengan snapshot lokal.
           await this.push({ immediate: true, force: true, seed: true });
+          this.store?.clearPreferRemote?.();
         }
       } else if (remote?.data) {
         // Workspace terkunci / masih placeholder layar login: jangan gabungkan
@@ -1025,7 +1050,9 @@ class CloudSync {
         if (this.store?.isDataReady) {
           this.lastRevision = remote.revision || 0;
           this.lastSyncAt = remote.savedAt || nowISO();
-          const merged = this.store.mergeRemote(remote.data);
+          const merged = this.store.mergeRemote(remote.data, {
+            isOwner: this.isHouseholdOwner(),
+          });
           this.lastRemoteFingerprint = remoteFingerprint(remote);
           this.saveMeta({
             provider: this.config.provider,
@@ -1044,6 +1071,9 @@ class CloudSync {
         // Remote is empty: seed it with the local household snapshot.
         await this.push({ immediate: true, force: true, seed: true });
       }
+      // Mode "remote menang" hanya untuk sinkronisasi pertama. Jika pembacaan
+      // gagal, biarkan aktif agar pull berikutnya tetap mengadopsi data cloud.
+      if (!readFailed) this.store?.clearPreferRemote?.();
       this.connected = true;
       this.startEngine();
       if (pendingLocalPush) this.schedulePush(600);
@@ -1225,7 +1255,9 @@ class CloudSync {
       }
       if (remote?.data) {
         this.lastRevision = Math.max(this.lastRevision, remote.revision || 0);
-        const merged = this.store.mergeRemote(remote.data);
+        const merged = this.store.mergeRemote(remote.data, {
+          isOwner: this.isHouseholdOwner(),
+        });
         if (merged.changed) this.message = 'Perubahan dari perangkat lain digabungkan.';
       }
       const local = this.store.data;
@@ -1302,7 +1334,9 @@ class CloudSync {
     if (fingerprint && fingerprint === this.lastRemoteFingerprint) return;
     let result;
     try {
-      result = this.store.mergeRemote(remote.data);
+      result = this.store.mergeRemote(remote.data, {
+        isOwner: this.isHouseholdOwner(),
+      });
     } catch (error) {
       // Jangan tandai snapshot sebagai "sudah diterapkan" kalau merge gagal,
       // supaya percobaan berikutnya (polling/resume) masih bisa memperbaikinya.
