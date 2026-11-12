@@ -21,6 +21,8 @@ import { rememberFocus, restoreFocus } from './focus.js';
 export const root = document.getElementById('app-root');
 let renderTimer = null;
 export let lastActivityWrite = 0;
+let lastRenderTime = 0;
+const RENDER_DEBOUNCE_MS = 100;
 
 /* -------------------------------------------------------------------------- */
 /*  Splash                                                                    */
@@ -89,6 +91,12 @@ function mountShell() {
 /* -------------------------------------------------------------------------- */
 
 export function renderApplication({ focus = null } = {}) {
+  const now = Date.now();
+  // Hindari render berganda dalam waktu singkat (mis. store.commit lalu pemanggil
+  // langsung memanggil renderApplication lagi) yang menyebabkan flash layar.
+  if (now - lastRenderTime < RENDER_DEBOUNCE_MS) return;
+  lastRenderTime = now;
+
   const user = store.currentUser;
   if (!user || ui.locked) {
     renderAuth();
