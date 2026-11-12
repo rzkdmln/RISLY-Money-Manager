@@ -25,6 +25,28 @@ import {
 /*  Label helpers                                                           */
 /* ------------------------------------------------------------------------ */
 
+/**
+ * Bersihkan teks untuk ditampilkan di PDF (font helvetica bawaan jsPDF
+ * tidak mendukung emoji / karakter non-Latin-1). Ganti newline dengan
+ * spasi agar teks tidak pecah baris secara paksa.
+ */
+function sanitizeText(text) {
+  if (text == null) return '';
+  return String(text)
+    .replace(/\r\n/g, ' ')
+    .replace(/\n/g, ' ')
+    .replace(/\r/g, ' ')
+    // Hanya izinkan karakter yang aman untuk font helvetica bawaan PDF
+    // (printable ASCII + Latin-1 supplement). Hapus emoji dan simbol aneh.
+    .split('')
+    .filter((ch) => {
+      const code = ch.charCodeAt(0);
+      return (code >= 0x20 && code <= 0x7e) || (code >= 0xa0 && code <= 0xff);
+    })
+    .join('')
+    .trim();
+}
+
 function accountPair(tx) {
   if (tx.type === 'transfer') {
     return `${store.accountName(tx.accountId)} > ${store.accountName(tx.toAccountId)}`;
@@ -253,8 +275,8 @@ export function exportPdf(month = monthKey()) {
 
   /* ---------- Transaction table ---------- */
   const tableStartY = 146;
-  const colWidths = [25, 60, 80, 273, 150, 85, 85];
-  const headers = ['No', 'Tanggal', 'Jenis', 'Keterangan', 'Akun', 'Nominal', 'Saldo'];
+  const colWidths = [25, 60, 70, 253, 150, 85, 85, 85];
+  const headers = ['No', 'Tanggal', 'Jenis', 'Keterangan', 'Akun', 'Nominal', 'Saldo Akun', 'Saldo Keluarga'];
   const tableWidth = pageWidth - 80;
 
   doc.autoTable({
@@ -264,14 +286,15 @@ export function exportPdf(month = monthKey()) {
       // Nominal selalu punya tanda: + untuk pemasukan, - untuk pengeluaran dan transfer
       const nominalSign = tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : '';
       const amountLabel = `${nominalSign}${pdfCurrencyCompact(tx.amount)}`;
-      // Saldo bersih: hanya angka, tanpa tanda plus di depan (minus hanya jika negatif)
+      // Saldo Akun dan Saldo Keluarga sama karena semua akun diperlakukan satu kesatuan
       return [
         String(i + 1),
         formatTxDate(tx.date),
         typeBadgeLabel(tx.type),
-        tx.note || (tx.type === 'transfer' ? 'Transfer antar akun' : categoryLabel(tx)),
-        accountPair(tx),
+        sanitizeText(tx.note || (tx.type === 'transfer' ? 'Transfer antar akun' : categoryLabel(tx))),
+        sanitizeText(accountPair(tx)),
         amountLabel,
+        pdfCurrencyCompact(tx.runningBalance),
         pdfCurrencyCompact(tx.runningBalance),
       ];
     }),
@@ -290,12 +313,13 @@ export function exportPdf(month = monthKey()) {
     alternateRowStyles: { fillColor: [248, 250, 252] },
     columnStyles: {
       0: { cellWidth: colWidths[0], halign: 'center' },
-      1: { cellWidth: colWidths[1] },
+      1: { cellWidth: colWidths[1], halign: 'center' },
       2: { cellWidth: colWidths[2], halign: 'center' },
       3: { cellWidth: colWidths[3], overflow: 'linebreak' },
       4: { cellWidth: colWidths[4] },
       5: { cellWidth: colWidths[5], halign: 'right' },
       6: { cellWidth: colWidths[6], halign: 'right' },
+      7: { cellWidth: colWidths[7], halign: 'right' },
     },
     tableWidth,
     verticalLines: true,
@@ -379,8 +403,8 @@ export function exportPdfRange(start, end) {
 
   /* ---------- Transaction table ---------- */
   const tableStartY = 146;
-  const colWidths = [25, 60, 80, 273, 150, 85, 85];
-  const headers = ['No', 'Tanggal', 'Jenis', 'Keterangan', 'Akun', 'Nominal', 'Saldo'];
+  const colWidths = [25, 60, 70, 253, 150, 85, 85, 85];
+  const headers = ['No', 'Tanggal', 'Jenis', 'Keterangan', 'Akun', 'Nominal', 'Saldo Akun', 'Saldo Keluarga'];
   const tableWidth = pageWidth - 80;
 
   doc.autoTable({
@@ -390,14 +414,15 @@ export function exportPdfRange(start, end) {
       // Nominal selalu punya tanda: + untuk pemasukan, - untuk pengeluaran dan transfer
       const nominalSign = tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : '';
       const amountLabel = `${nominalSign}${pdfCurrencyCompact(tx.amount)}`;
-      // Saldo bersih: hanya angka, tanpa tanda plus di depan (minus hanya jika negatif)
+      // Saldo Akun dan Saldo Keluarga sama karena semua akun diperlakukan satu kesatuan
       return [
         String(i + 1),
         formatTxDate(tx.date),
         typeBadgeLabel(tx.type),
-        tx.note || (tx.type === 'transfer' ? 'Transfer antar akun' : categoryLabel(tx)),
-        accountPair(tx),
+        sanitizeText(tx.note || (tx.type === 'transfer' ? 'Transfer antar akun' : categoryLabel(tx))),
+        sanitizeText(accountPair(tx)),
         amountLabel,
+        pdfCurrencyCompact(tx.runningBalance),
         pdfCurrencyCompact(tx.runningBalance),
       ];
     }),
@@ -416,12 +441,13 @@ export function exportPdfRange(start, end) {
     alternateRowStyles: { fillColor: [248, 250, 252] },
     columnStyles: {
       0: { cellWidth: colWidths[0], halign: 'center' },
-      1: { cellWidth: colWidths[1] },
+      1: { cellWidth: colWidths[1], halign: 'center' },
       2: { cellWidth: colWidths[2], halign: 'center' },
       3: { cellWidth: colWidths[3], overflow: 'linebreak' },
       4: { cellWidth: colWidths[4] },
       5: { cellWidth: colWidths[5], halign: 'right' },
       6: { cellWidth: colWidths[6], halign: 'right' },
+      7: { cellWidth: colWidths[7], halign: 'right' },
     },
     tableWidth,
     verticalLines: true,
