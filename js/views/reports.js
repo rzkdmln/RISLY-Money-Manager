@@ -36,7 +36,7 @@ export function reportsView() {
   return `<div class="page-stack">
     ${pageHeader({
       title: 'Laporan',
-      actions: `<div class="flex flex-col items-end gap-2">
+      actions: `<div class="flex items-center gap-3">
             <div class="month-nav budget-month-nav"><button type="button" class="icon-btn" data-action="budget-prev" data-target="report" aria-label="Bulan sebelumnya"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg></button><input type="month" class="field field-compact budget-month-input" id="budget-month-picker" value="${escapeAttr(month)}" data-filter="budget-month" data-target="report" aria-label="Pilih bulan anggaran"><button type="button" class="icon-btn" data-action="budget-next" data-target="report" aria-label="Bulan berikutnya"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></button></div>
             <button type="button" class="btn btn-secondary text-blue-600 hover:text-blue-700 dark:text-blue-400 flex-none" data-action="open-export-modal">${icon('download', 'w-4 h-4')} Unduh</button>
           </div>`,
@@ -116,8 +116,8 @@ export function reportsView() {
       </div>
     </section>
 
-    <div class="grid lg:grid-cols-5 gap-4">
-      <section class="card lg:col-span-3">
+    <div class="grid lg:grid-cols-2 gap-4 items-start">
+      <section class="card">
         <div class="card-heading">
           <div>
             <p class="card-kicker">Distribusi</p>
@@ -143,7 +143,7 @@ export function reportsView() {
         ${topCategory ? `<div class="report-highlight"><span>${icon('chart-pie', 'w-4 h-4')}</span><p>Kategori terbesar: <strong>${escapeHTML(topCategory.name)}</strong> — ${money(topCategory.total)} (${formatPercent(categoriesTotal ? (topCategory.total / categoriesTotal) * 100 : 0, 1)})</p></div>` : ''}
       </section>
 
-      <section class="card lg:col-span-2">
+      <section class="card">
         <div class="card-heading">
           <div>
             <p class="card-kicker">Kontribusi</p>
@@ -176,50 +176,77 @@ export function reportsView() {
       </section>
     </div>
 
-    <section class="card">
-      <div class="card-heading">
-        <div>
-          <p class="card-kicker">Perbandingan</p>
-          <h2 class="section-title">Bulan ini vs bulan lalu</h2>
+    <div class="grid lg:grid-cols-2 gap-4 items-start">
+      <section class="card">
+        <div class="card-heading">
+          <div>
+            <p class="card-kicker">Perbandingan</p>
+            <h2 class="section-title">Bulan ini vs bulan lalu</h2>
+          </div>
+          ${icon('trending-up', 'w-5 h-5 text-blue-500')}
         </div>
-        ${icon('trending-up', 'w-5 h-5 text-blue-500')}
-      </div>
-      ${(() => {
-        const prev = shiftMonthKey(month, -1);
-        const prevSummary = store.monthSummary(prev);
-        const rows = [
-          { label: 'Pemasukan', current: summary.income, previous: prevSummary.income },
-          { label: 'Pengeluaran', current: summary.expense, previous: prevSummary.expense },
-          { label: 'Arus kas bersih', current: summary.net, previous: prevSummary.net },
-        ];
-        return `<div class="table-wrap">
+        ${(() => {
+          const prev = shiftMonthKey(month, -1);
+          const prevSummary = store.monthSummary(prev);
+          const rows = [
+            { label: 'Pemasukan', current: summary.income, previous: prevSummary.income },
+            { label: 'Pengeluaran', current: summary.expense, previous: prevSummary.expense },
+            { label: 'Arus kas bersih', current: summary.net, previous: prevSummary.net },
+          ];
+          return `<div class="table-wrap">
+            <table class="report-table">
+              <thead><tr><th>Metrik</th><th class="text-right">Bulan ini</th><th class="text-right">Bulan lalu</th></tr></thead>
+              <tbody>
+                ${rows.map((row) => {
+                  const diff = row.current - row.previous;
+                  return `<tr>
+                    <td>${escapeHTML(row.label)}</td>
+                    <td class="text-right font-semibold">${money(row.current)}</td>
+                    <td class="text-right">${money(row.previous)} <span class="${diff >= 0 ? 'text-emerald-500' : 'text-red-500'} text-[11px]">${diff >= 0 ? '+' : ''}${money(diff)}</span></td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+          <div class="report-divider"></div>
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-slate-500 dark:text-slate-400">Tingkat tabungan bulan ini</span>
+            <strong class="text-slate-900 dark:text-white">${formatPercent(summary.savingsRate)}</strong>
+          </div>
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-slate-500 dark:text-slate-400">Tingkat tabungan bulan lalu</span>
+            <strong class="text-slate-900 dark:text-white">${formatPercent(prevSummary.savingsRate)}</strong>
+          </div>`;
+        })()}
+      </section>
+      <section class="card">
+        <div class="card-heading">
+          <div>
+            <p class="card-kicker">Posisi saat ini</p>
+            <h2 class="section-title">Saldo akun</h2>
+          </div>
+          <button type="button" class="link-button" data-action="nav" data-route="accounts">Kelola</button>
+        </div>
+        ${accounts.length ? `<div class="table-wrap">
           <table class="report-table">
-            <thead><tr><th>Metrik</th><th class="text-right">Bulan ini</th><th class="text-right">Bulan lalu</th></tr></thead>
+            <thead><tr><th>Akun</th><th class="text-right">Saldo</th></tr></thead>
             <tbody>
-              ${rows.map((row) => {
-                const diff = row.current - row.previous;
-                return `<tr>
-                  <td>${escapeHTML(row.label)}</td>
-                  <td class="text-right font-semibold">${money(row.current)}</td>
-                  <td class="text-right">${money(row.previous)} <span class="${diff >= 0 ? 'text-emerald-500' : 'text-red-500'} text-[11px]">${diff >= 0 ? '+' : ''}${money(diff)}</span></td>
-                </tr>`;
-              }).join('')}
+              ${accounts.map((account) => `<tr>
+                <td><span class="flex items-center gap-2 min-w-0"><span class="legend-dot" style="--legend-color:${escapeAttr(account.color)}"></span><span class="font-medium text-slate-800 dark:text-slate-100">${escapeHTML(account.name)}</span></span></td>
+                <td class="text-right font-semibold ${store.accountBalance(account.id) < 0 ? 'amount-expense' : 'text-slate-900 dark:text-white'}">${money(store.accountBalance(account.id))}</td>
+              </tr>`).join('')}
             </tbody>
           </table>
-        </div>
+        </div>` : '<p class="text-sm text-slate-500">Belum ada akun.</p>'}
         <div class="report-divider"></div>
-        <div class="flex items-center justify-between text-sm">
-          <span class="text-slate-500 dark:text-slate-400">Tingkat tabungan bulan ini</span>
-          <strong class="text-slate-900 dark:text-white">${formatPercent(summary.savingsRate)}</strong>
+        <div class="flex items-center justify-between">
+          <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">Kekayaan bersih</span>
+          <strong class="text-lg text-slate-900 dark:text-white">${money(store.totalBalance())}</strong>
         </div>
-        <div class="flex items-center justify-between text-sm">
-          <span class="text-slate-500 dark:text-slate-400">Tingkat tabungan bulan lalu</span>
-          <strong class="text-slate-900 dark:text-white">${formatPercent(prevSummary.savingsRate)}</strong>
-        </div>`;
-      })()}
-    </section>
+      </section>
+    </div>
 
-    <div class="grid lg:grid-cols-2 gap-4">
+    <div class="grid lg:grid-cols-2 gap-4 items-start">
       <section class="card">
         <div class="card-heading">
           <div>
@@ -270,34 +297,6 @@ export function reportsView() {
               </table>
             </div>`
           : '<p class="text-sm text-slate-500">Belum ada pengeluaran pada periode ini.</p>'}
-      </section>
-    </div>
-
-    <div class="grid lg:grid-cols-5 gap-4">
-      <section class="card lg:col-span-2">
-        <div class="card-heading">
-          <div>
-            <p class="card-kicker">Posisi saat ini</p>
-            <h2 class="section-title">Saldo akun</h2>
-          </div>
-          <button type="button" class="link-button" data-action="nav" data-route="accounts">Kelola</button>
-        </div>
-        ${accounts.length ? `<div class="table-wrap">
-          <table class="report-table">
-            <thead><tr><th>Akun</th><th class="text-right">Saldo</th></tr></thead>
-            <tbody>
-              ${accounts.map((account) => `<tr>
-                <td><span class="flex items-center gap-2 min-w-0"><span class="legend-dot" style="--legend-color:${escapeAttr(account.color)}"></span><span class="font-medium text-slate-800 dark:text-slate-100">${escapeHTML(account.name)}</span></span></td>
-                <td class="text-right font-semibold ${store.accountBalance(account.id) < 0 ? 'amount-expense' : 'text-slate-900 dark:text-white'}">${money(store.accountBalance(account.id))}</td>
-              </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>` : '<p class="text-sm text-slate-500">Belum ada akun.</p>'}
-        <div class="report-divider"></div>
-        <div class="flex items-center justify-between">
-          <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">Kekayaan bersih</span>
-          <strong class="text-lg text-slate-900 dark:text-white">${money(store.totalBalance())}</strong>
-        </div>
       </section>
     </div>
 

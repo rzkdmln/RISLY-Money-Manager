@@ -15,7 +15,7 @@ import { clearSession, clearLockSnapshot } from '../../core/auth.js';
 import { resolveLockUser, showLockedWorkspace } from '../lock.js';
 import { icon } from '../../ui/icons.js';
 import { ui, openModal, closeModal, confirmDialog, toast } from '../../ui/ui.js';
-import { escapeHTML, formatDateTime } from '../../core/utils.js';
+import { escapeAttr, escapeHTML, formatDateTime } from '../../core/utils.js';
 import {
   backupNow,
   pickBackupFile,
@@ -314,6 +314,43 @@ export const cloudActions = {
               <pre class="bg-green-50 dark:bg-green-900/20 p-3 rounded text-xs overflow-auto border border-green-100 dark:border-green-800">${escapeHTML(JSON.stringify(entry.resolvedValue, null, 2))}</pre>
               <p class="text-[11px] text-slate-500 mt-2">Pemenang: ${escapeHTML(entry.resolvedBy || '-')} · ${escapeHTML(formatDateTime(entry.createdAt))}</p>
             </div>
+          </div>
+        </div>
+        <footer class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-action="close-modal">Tutup</button>
+        </footer>
+      `,
+    });
+  },
+  'open-conflict-list': () => {
+    const log = store.getConflictLog();
+    if (!log.length) {
+      toast('Belum ada konflik sinkronisasi.', 'info');
+      return;
+    }
+    openModal({
+      size: 'md',
+      className: 'form-modal',
+      html: `
+        <header class="modal-header">
+          <div>
+            <p class="modal-kicker">Sinkronisasi</p>
+            <h2 class="modal-title">Daftar Konflik</h2>
+          </div>
+          <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
+        </header>
+        <div class="modal-body p-4">
+          <div class="settings-list space-y-2">
+            ${log.map((entry) => `
+              <div class="settings-row">
+                <span class="settings-row-icon">${icon('alert-triangle', 'w-4 h-4 text-amber-500')}</span>
+                <span class="flex-1 min-w-0">
+                  <strong>${escapeHTML(entry.collection)} / ${escapeHTML(entry.recordId)}</strong>
+                  <small class="block">${escapeHTML(entry.resolvedBy || '-')} · ${escapeHTML(formatDateTime(entry.createdAt))}</small>
+                </span>
+                <button type="button" class="btn btn-ghost btn-sm" data-action="view-conflict" data-id="${escapeAttr(entry.id)}">${icon('chevron-right', 'w-3 h-3 text-slate-400')}</button>
+              </div>
+            `).join('')}
           </div>
         </div>
         <footer class="modal-footer">

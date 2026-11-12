@@ -1517,11 +1517,16 @@ export class Store {
   creatorBreakdown(month = monthKey()) {
     const map = new Map();
     this.transactionsForMonth(month).forEach((tx) => {
-      const key = tx.createdBy || 'unknown';
+      // Resolve user lewat mergedInto agar transaksi lama dari user yang sudah
+      // digabung/dihapus masuk ke entri yang sama (kanonik), mencegah nama yang
+      // sama muncul dua kali (duplikat) di laporan kontribusi.
+      const user = this.resolveUser(tx.createdBy) || null;
+      const key = user ? user.id : tx.createdBy || 'unknown';
       if (!map.has(key)) {
         map.set(key, {
           userId: key,
-          name: tx.createdByName || this.getUser(key)?.name || 'Tidak diketahui',
+          name: user ? user.name : tx.createdByName || this.getUser(key)?.name || 'Tidak diketahui',
+          color: user?.color || 'var(--muted)',
           count: 0,
           income: 0,
           expense: 0,

@@ -4,7 +4,7 @@ import { store } from '../core/store.js';
 import { Cloud } from '../services/cloud.js';
 import { icon } from '../ui/icons.js';
 import { avatar, badge, pageHeader, prefs, syncPill } from '../ui/ui.js';
-import { escapeAttr, escapeHTML, formatBytes, formatDateTime } from '../core/utils.js';
+import { escapeAttr, escapeHTML, formatBytes } from '../core/utils.js';
 
 function notificationStatus() {
   if (!('Notification' in window)) return { label: 'Tidak didukung', tone: 'slate', canAsk: false };
@@ -63,6 +63,7 @@ export function settingsView(user) {
   const noteCount = store.notes().length;
   const lockValue = Number(store.data.settings.autoLockMinutes);
   const driveConnected = GoogleDrive.isConnected();
+  const conflictLog = store.getConflictLog();
 
   return `<div class="page-stack">
     ${pageHeader({
@@ -156,7 +157,13 @@ export function settingsView(user) {
           ${icon('alert-triangle', 'w-5 h-5 text-amber-500')}
         </div>
         <div class="settings-list mt-4">
-          ${renderConflictLog()}
+          ${conflictLog.length
+            ? `<div class="flex items-center gap-2 py-4">
+                <span class="font-semibold text-slate-900 dark:text-white">${conflictLog.length} konflik tersimpan</span>
+                <span class="px-2 py-1 rounded bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold">${conflictLog.length}</span>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm w-full" data-action="open-conflict-list">Lihat daftar konflik</button>`
+            : '<div class="py-6 text-center text-sm text-slate-500 dark:text-slate-400">Belum ada konflik sinkronisasi tercatat.</div>'}
         </div>
         <div class="settings-actions mt-4">
           <button type="button" class="btn btn-secondary btn-sm" data-action="clear-conflict-log">${icon('trash', 'w-3.5 h-3.5')} Bersihkan Log</button>
@@ -167,26 +174,7 @@ export function settingsView(user) {
   </div>`;
 }
 
-function renderConflictLog() {
-  const log = store.getConflictLog();
-  if (!log.length) {
-    return '<div class="py-6 text-center text-sm text-slate-500 dark:text-slate-400">Belum ada konflik sinkronisasi tercatat.</div>';
-  }
-  return log
-    .map(
-      (entry) => `
-    <div class="settings-row">
-      <span class="settings-row-icon">${icon('alert-triangle', 'w-4 h-4 text-amber-500')}</span>
-      <span class="flex-1 min-w-0">
-        <strong>${escapeHTML(entry.collection)} / ${escapeHTML(entry.recordId)}</strong>
-        <small class="block">${escapeHTML(entry.resolvedBy || '-')} · ${escapeHTML(formatDateTime(entry.createdAt))}</small>
-      </span>
-      <button type="button" class="btn btn-ghost btn-sm" data-action="view-conflict" data-id="${escapeAttr(entry.id)}">${icon('chevron-right', 'w-3 h-3 text-slate-400')}</button>
-    </div>
-  `
-    )
-    .join('');
-}
+
 
 /* -------------------------------------------------------------------------- */
 /*  Storage quota & persistence                                               */
