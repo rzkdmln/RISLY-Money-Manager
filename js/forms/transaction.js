@@ -11,6 +11,7 @@ import {
   formatCurrency,
   formatDateDMY,
   formatMonth,
+  formatNumber,
   monthKey,
   normalizeTime,
   safeNumber,
@@ -427,7 +428,11 @@ export function recurringForm(rule = null, defaults = {}) {
       </label>
       <div class="form-grid">
         <label class="field-label">Nominal
-          <div class="input-with-prefix mt-1.5"><span>Rp</span><input class="field" type="number" name="amount" min="1" step="1" inputmode="numeric" value="${escapeAttr(amount)}" required></div>
+          <div class="input-with-prefix mt-1.5">
+            <span>Rp</span>
+            <input class="field" type="text" inputmode="numeric" name="amountDisplay" value="${amount ? formatNumber(amount) : ''}" placeholder="0" autocomplete="off" required>
+            <input type="hidden" name="amount" value="${Math.round(amount || 0)}">
+          </div>
         </label>
         <label class="field-label">Jatuh tempo berikutnya
           <input class="field mt-1.5" type="date" name="nextDate" value="${escapeAttr(rule?.nextDate || defaults.nextDate || todayISO())}" required>

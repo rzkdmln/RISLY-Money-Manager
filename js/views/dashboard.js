@@ -2,7 +2,6 @@ import { Cloud } from '../services/cloud.js';
 import { store } from '../core/store.js';
 import { icon } from '../ui/icons.js';
 import {
-  badge,
   emptyState,
   money,
   pageHeader,
@@ -21,9 +20,8 @@ import {
   greeting,
   monthKey,
   relativeDay,
-  todayISO,
 } from '../core/utils.js';
-import { accountIcon, txRow } from './common.js';
+import { accountIcon, txRow, noteCard } from './common.js';
 
 export function dashboardView(user) {
   const month = monthKey();
@@ -107,14 +105,7 @@ export function dashboardView(user) {
     : `<p class="mini-empty text-center p-4">Belum ada tagihan berulang. <button type="button" class="link-button font-semibold" data-action="add-rec">Buat jadwal</button></p>`;
 
   const tasksHtml = tasks.length
-    ? tasks.map((task) => `<button type="button" class="mini-list-row min-w-0 w-full p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl transition-colors flex items-center gap-3" data-action="edit-note" data-id="${escapeAttr(task.id)}">
-        <span class="mini-check shrink-0 ${task.done ? 'is-done text-emerald-500' : 'text-slate-300'}">${task.done ? icon('check', 'w-4 h-4') : icon('circle', 'w-4 h-4')}</span>
-        <span class="min-w-0 flex-1 text-left">
-          <span class="block text-xs font-bold text-slate-800 dark:text-slate-100 truncate ${task.done ? 'line-through text-slate-400' : ''}">${escapeHTML(task.title)}</span>
-          <span class="block text-[12px] truncate mt-0.5 ${task.dueDate < todayISO() ? 'text-red-500 font-medium' : 'text-slate-500 dark:text-slate-400'}">${escapeHTML(relativeDay(task.dueDate))}</span>
-        </span>
-        <span class="shrink-0">${badge(task.priority === 'urgent' ? 'Mendesak' : task.priority === 'high' ? 'Tinggi' : 'Tugas', task.priority === 'urgent' ? 'red' : task.priority === 'high' ? 'amber' : 'slate', 'badge-soft')}</span>
-      </button>`).join('')
+    ? tasks.map((task) => noteCard(task, { view: 'list', action: 'edit-note' })).join('')
     : `<p class="mini-empty text-center p-4">Tidak ada tugas yang mendekati tenggat. <button type="button" class="link-button font-semibold" data-action="add-todo">Tambah tugas</button></p>`;
 
   return `<div class="page-stack min-w-0 w-full overflow-hidden dashboard-view">
@@ -279,7 +270,7 @@ export function dashboardView(user) {
              <h2 class="text-sm font-bold text-slate-900 dark:text-white">Tugas Terdekat</h2>
              <button type="button" class="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400" data-action="nav" data-route="notes">Buka</button>
           </div>
-          <div class="space-y-1 min-w-0 w-full">${tasksHtml}</div>
+          <div class="space-y-3 min-w-0 w-full">${tasksHtml}</div>
         </section>
       </div>
     </div>

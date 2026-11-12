@@ -2,7 +2,7 @@ import { ACCOUNT_TYPES, DEFAULT_CATEGORY_COLORS, ICON_CHOICES } from '../core/co
 import { COLOR_HARMONY_MODES, harmonySwatchMarkup, quickSwatchMarkup } from '../ui/colors.js';
 import { icon } from '../ui/icons.js';
 import { store } from '../core/store.js';
-import { escapeAttr, escapeHTML } from '../core/utils.js';
+import { escapeAttr, escapeHTML, formatNumber } from '../core/utils.js';
 
 function colorPicker(selected, inputName = 'color') {
   const base = selected || '#3B82F6';
@@ -67,10 +67,18 @@ export function accountForm(account = null, defaultOwner = null) {
           </select>
         </label>
         ${editing ? `<label class="field-label">Saldo akun ini
-          <div class="input-with-prefix mt-1.5"><span>Rp</span><input class="field" type="number" name="balanceTarget" step="1" inputmode="numeric" value="${Math.round(balance)}"></div>
+          <div class="input-with-prefix mt-1.5">
+            <span>Rp</span>
+            <input class="field" type="text" inputmode="numeric" name="balanceTargetDisplay" value="${balance ? formatNumber(balance) : ''}" placeholder="0" autocomplete="off">
+            <input type="hidden" name="balanceTarget" value="${Math.round(balance || 0)}">
+          </div>
         </label>` : ''}
         <label class="field-label">Limit kredit (opsional, untuk kartu kredit)
-          <div class="input-with-prefix mt-1.5"><span>Rp</span><input class="field" type="number" name="creditLimit" min="0" step="1000" inputmode="numeric" value="${Math.round(account?.creditLimit || 0)}"></div>
+          <div class="input-with-prefix mt-1.5">
+            <span>Rp</span>
+            <input class="field" type="text" inputmode="numeric" name="creditLimitDisplay" value="${account?.creditLimit ? formatNumber(account.creditLimit) : ''}" placeholder="0" autocomplete="off">
+            <input type="hidden" name="creditLimit" value="${Math.round(account?.creditLimit || 0)}">
+          </div>
         </label>
         <div class="liability-fields col-span-full" data-liability-fields style="${['credit','loan'].includes(type) ? '' : 'display:none'}">
           <div class="form-grid">
@@ -78,7 +86,11 @@ export function accountForm(account = null, defaultOwner = null) {
               <input class="field mt-1.5" type="date" name="creditDueDate" value="${escapeAttr(account?.creditDueDate || '')}">
             </label>
             <label class="field-label">Pokok pinjaman (Rp)
-              <div class="input-with-prefix mt-1.5"><span>Rp</span><input class="field" type="number" name="loanPrincipal" min="0" step="1000" inputmode="numeric" value="${Math.round(account?.loanPrincipal || 0)}"></div>
+              <div class="input-with-prefix mt-1.5">
+                <span>Rp</span>
+                <input class="field" type="text" inputmode="numeric" name="loanPrincipalDisplay" value="${account?.loanPrincipal ? formatNumber(account.loanPrincipal) : ''}" placeholder="0" autocomplete="off">
+                <input type="hidden" name="loanPrincipal" value="${Math.round(account?.loanPrincipal || 0)}">
+              </div>
             </label>
             <label class="field-label">Bunga (%/tahun)
               <input class="field mt-1.5" type="number" name="loanInterestRate" min="0" step="0.01" inputmode="decimal" value="${account?.loanInterestRate || 0}">
@@ -87,7 +99,11 @@ export function accountForm(account = null, defaultOwner = null) {
               <input class="field mt-1.5" type="number" name="loanTermMonths" min="0" step="1" inputmode="numeric" value="${Math.round(account?.loanTermMonths || 0)}">
             </label>
             <label class="field-label">Cicilan per bulan (Rp, 0 = hitung anuitas)
-              <div class="input-with-prefix mt-1.5"><span>Rp</span><input class="field" type="number" name="loanMonthlyPayment" min="0" step="1000" inputmode="numeric" value="${Math.round(account?.loanMonthlyPayment || 0)}"></div>
+              <div class="input-with-prefix mt-1.5">
+                <span>Rp</span>
+                <input class="field" type="text" inputmode="numeric" name="loanMonthlyPaymentDisplay" value="${account?.loanMonthlyPayment ? formatNumber(account.loanMonthlyPayment) : ''}" placeholder="0" autocomplete="off">
+                <input type="hidden" name="loanMonthlyPayment" value="${Math.round(account?.loanMonthlyPayment || 0)}">
+              </div>
             </label>
             <label class="field-label">Tanggal mulai
               <input class="field mt-1.5" type="date" name="loanStartDate" value="${escapeAttr(account?.loanStartDate || '')}">
@@ -96,7 +112,11 @@ export function accountForm(account = null, defaultOwner = null) {
               <input class="field mt-1.5" type="date" name="loanNextDueDate" value="${escapeAttr(account?.loanNextDueDate || '')}">
             </label>
             <label class="field-label">Sisa utang (Rp)
-              <div class="input-with-prefix mt-1.5"><span>Rp</span><input class="field" type="number" name="loanRemaining" min="0" step="1000" inputmode="numeric" value="${Math.round(account?.loanRemaining ?? account?.loanPrincipal ?? 0)}"></div>
+              <div class="input-with-prefix mt-1.5">
+                <span>Rp</span>
+                <input class="field" type="text" inputmode="numeric" name="loanRemainingDisplay" value="${(account?.loanRemaining ?? account?.loanPrincipal ?? 0) ? formatNumber(account?.loanRemaining ?? account?.loanPrincipal ?? 0) : ''}" placeholder="0" autocomplete="off">
+                <input type="hidden" name="loanRemaining" value="${Math.round(account?.loanRemaining ?? account?.loanPrincipal ?? 0)}">
+              </div>
             </label>
           </div>
           <p class="text-[11px] text-slate-400 mt-2">Untuk pinjaman anuitas, isi pokok, bunga, dan tenor; cicilan per bulan akan dihitung otomatis jika dibiarkan 0.</p>

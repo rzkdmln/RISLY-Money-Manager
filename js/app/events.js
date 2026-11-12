@@ -27,6 +27,7 @@ import {
   expressionResult,
   formatCurrency,
   formatDateDMY,
+  formatNumber,
   normalizeTime,
   currentTimeHHMM,
   debounce,
@@ -119,6 +120,29 @@ export function bindEvents() {
       formatCalculatorInput(target);
       updateCalculator(target.closest('form'));
       syncPaymentSplit(target.closest('form'));
+      return;
+    }
+    if (target.matches('form[data-form="recurring"] input[name="amountDisplay"]')) {
+      const form = target.closest('form');
+      const hidden = form.querySelector('input[name="amount"]');
+      const raw = target.value.replace(/\D/g, '');
+      if (hidden) hidden.value = raw || '0';
+      target.value = formatNumber(raw);
+      try {
+        target.setSelectionRange(target.value.length, target.value.length);
+      } catch { /* noop */ }
+      return;
+    }
+    if (target.matches('form[data-form="account"] input[name$="Display"]')) {
+      const form = target.closest('form');
+      const hiddenName = target.name.replace(/Display$/, '');
+      const hidden = form.querySelector(`input[name="${hiddenName}"]`);
+      const raw = target.value.replace(/\D/g, '');
+      if (hidden) hidden.value = raw || '0';
+      target.value = formatNumber(raw);
+      try {
+        target.setSelectionRange(target.value.length, target.value.length);
+      } catch { /* noop */ }
       return;
     }
     if (target.matches('[data-payment-row] [name="paymentAmount"]')) {
