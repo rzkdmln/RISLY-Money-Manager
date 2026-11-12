@@ -3,7 +3,7 @@
 ![PWA Ready](https://img.shields.io/badge/PWA-Ready-brightgreen.svg)
 ![Offline First](https://img.shields.io/badge/Offline--First-Yes-success.svg)
 ![Vanilla JS](https://img.shields.io/badge/Architecture-Vanilla_JS_SPA-blue.svg)
-![Version](https://img.shields.io/badge/Version-1.2.43-informational.svg)
+![Version](https://img.shields.io/badge/Version-1.2.50-informational.svg)
 ![License](https://img.shields.io/badge/License-MIT-orange.svg)
 
 **RISLY Money Manager** adalah aplikasi pengelolaan keuangan pribadi dan keluarga berbasis **Progressive Web App (PWA)**. Aplikasi ini berjalan sepenuhnya di browser, menyimpan data secara lokal (_offline-first_), dan tidak memerlukan server backend khusus.
@@ -27,7 +27,7 @@ RISLY cocok untuk mencatat pemasukan, pengeluaran, transfer, anggaran, transaksi
 - [Update & Cache PWA](#-update--cache-pwa)
 - [Troubleshooting](#-troubleshooting)
 - [Kontribusi](#-kontribusi)
-- [Lisensi](#-lisensi)
+- [Lisensi & Changelog](#-lisensi--changelog)
 
 ---
 
@@ -111,6 +111,10 @@ RISLY cocok untuk mencatat pemasukan, pengeluaran, transfer, anggaran, transaksi
 - Kode undangan untuk bergabung dari perangkat lain.
 - Pencatatan siapa yang membuat transaksi.
 - Penggabungan data lokal saat bergabung ke ruang keluarga.
+- **Layar kunci (PIN):** workspace yang terenkripsi tidak bisa dibuka tanpa PIN. Saat login ulang (termasuk hard refresh), app menampilkan layar kunci agar data terenkripsi tidak dirusak.
+- **Pemulihan sesi:** pemetaan rumah tangga diulang ke cloud (`userHouseholds`) agar akun yang sama di perangkat baru langsung masuk ke rumah tangga yang benar, bukan membuat ruang baru.
+- **Mode "remote menang":** saat workspace lokal baru dibuat atau bergabung ke rumah tangga lain, data cloud (pemilik) diprioritaskan agar data default lokal tidak menimpa data keluarga yang sebenarnya.
+- **Perbaikan sinkronisasi:** dedupe berbasis fingerprint (`revision|savedAt|client`) bukan hanya `revision`, polling selalu hidup, pull-on-resume, dan push-on-connect untuk perubahan lokal yang terjerumus.
 
 ### 📥 Import, Export & Backup
 
@@ -136,7 +140,9 @@ Aturan di `firebase-security-rules.json` harus dipublikasikan ke Firebase Realti
 - **Anggota terbatas:** anggota hanya bisa menulis subtree `data` (transaksi, akun, dll.), tidak boleh mengubah kolom non-data.
 - **Validasi struktur:** `.validate` memastikan envelope (`app`, `schemaVersion`, `data`, `revision`, `savedAt`) dan sub-koleksi tetap utuh.
 - **Kode undangan dengan TTL:** `inviteCodes` hanya bisa dibaca jika belum kedaluwarsa (`expiresAt > now`), hanya bisa ditulis oleh owner.
-- **Log konflik:** catatan yang kalah dalam merge sinkronisasi dicatat di `risly.mm.conflicts.v1` dan bisa dilihat di Pengaturan › Log Konflik.
+- **Perbaikan comparisons:** perbandingan objek yang tidak andal di root `.write` dihapus (RTDB tidak bisa membandingkan objek untuk equality). Perlindungan `owner`, `settings`, dan `inviteCode` diganti dengan perbandingan primitif (string) agar aman.
+- **Cegah hapus `owner`:** node `owner` hanya bisa ditetapkan saat pembuatan atau oleh owner yang sudah ada, tidak bisa dihapus oleh anggota.
+- **Log konflik:** catatan yang kalah dalam merge sinkronisasi dicatat di `risly.mm.conflicts.v1` dan bisa dilihat di Pengaturan › Log Konflik. Log hanya mencatat saat data lokal benar-benar menimpa remote (tidak mencatat pull biasa).
 
 ### 🔐 Keamanan & Privasi
 
@@ -189,27 +195,27 @@ RISLY menggunakan pola **MVC / Pub-Sub hybrid** yang sederhana:
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │                         index.html                           │
-└─────────────────────────────┬────────────────────────────────┘
-                              │
-                     ┌────────▼────────┐
-                     │     app.js      │  Router + Controller
-                     │ handleAction()  │  Event delegation
-                     └────────┬────────┘
-                              │
-        ┌─────────────────────┼─────────────────────┐
-        │                     │                     │
-┌───────▼────────┐   ┌────────▼────────┐   ┌────────▼────────┐
-│  store.js      │   │     views/      │   │    cloud.js     │
-│ State & query  │   │ HTML templates  │   │  Sync opsional  │
-└───────┬────────┘   └────────┬────────┘   └────────┬────────┘
-        │                     │                     │
-┌───────▼────────┐   ┌────────▼────────┐   ┌────────▼────────┐
-│ IndexedDB      │   │   DOM Render    │   │  Remote DB /    │
-│ `risly-mm`     │   │                 │   │  Google Drive   │
-│ (workspaces,   │   │                 │   └─────────────────┘
-│  receipts,     │   └─────────────────┘
-│  meta)         │
-└────────────────┘
+└─────────────────────────┬────────────────────────────────────┘
+                          │
+                   ┌──────▼──────┐
+                   │   app.js    │  Router + Controller
+                   │handleAction()│  Event delegation
+                   └──────┬──────┘
+                          │
+    ┌─────────────────────┼─────────────────────┐
+    │                     │                     │
+┌───▼────────┐    ┌──────▼──────┐    ┌──────▼──────┐
+│ store.js   │    │  views/     │    │  cloud.js   │
+│State &query│    │HTML templates│    │ Sync opsional │
+└───┬────────┘    └──────┬──────┘    └──────┬──────┘
+    │                    │                    │
+┌───▼────────┐    ┌──────▼──────┐    ┌──────▼──────┐
+│ IndexedDB  │    │   DOM Render │    │ Remote DB / │
+│`risly-mm`  │    │              │    │ Google Drive │
+│(workspaces,│    │              │    └─────────────┘
+│ receipts,  │    └──────────────┘
+│ meta)      │
+└────────────┘
 ```
 
 ### Alur data
@@ -269,7 +275,13 @@ RISLY-Money-Manager/
 │   └── overrides.css           # Override utilitas
 ├── icons/                      # Ikon PWA, favicon, Apple touch icon
 ├── js/
-│   ├── app/                    # Boot, runtime, router, event wiring, actions, submissions
+│   ├── app/                    # Boot, runtime, router, event wiring, actions, submissions, lock
+│   │   ├── boot.js             # Boot & pemulihan sesi
+│   │   ├── lock.js             # Resolusi pengguna layar kunci (workspace terenkripsi)
+│   │   ├── runtime.js          # Render, root, navigate
+│   │   ├── session.js          # Enter / lock / leave application
+│   │   ├── actions/            # Aksi tombol UI (cloud, workspace, dll.)
+│   │   └── submissions/        # Submit form (login, pin, cloud, workspace)
 │   ├── core/                   # config, data, store, repository, crypto, utils, auth
 │   ├── forms/                  # Formulir transaksi, akun, catatan, cloud
 │   ├── services/               # cloud, gdrive, google-auth-relay, backup, export, import, charts
@@ -410,6 +422,8 @@ Workflow `.github/workflows/static.yml` otomatis men-deploy branch `main` ke Git
 
 > **Catatan:** GitHub Pages **tidak memproses berkas `_headers`** untuk custom header keamanan (CSP, HSTS, X-Frame-Options, dll.). Berkas `_headers` di repo disimpan sebagai dokumentasi dan akan bekerja jika Anda pindah ke Cloudflare Pages (yang mendukung `_headers`). Untuk menempatkan header keamanan pada GitHub Pages, gunakan layanan di depan GitHub Pages (mis. Cloudflare) atau terima keterbatasan header bawaan.
 
+> **CSP Firebase RTDB:** Berkas `index.html` dan `_headers` sudah menyertakan `https://*.firebasedatabase.app` di `script-src` agar script sinkronisasi Firebase RTDB tidak diblokir. Pastikan kedua file sinkron saat mengubah CSP.
+
 ### Hosting statis lain
 
 Deploy seluruh isi repo ke hosting statis apa pun (Cloudflare Pages, Vercel, dsb.). Pastikan:
@@ -479,6 +493,18 @@ Aktifkan **Google Drive API** di Google Cloud Console, tunggu ±2 menit, lalu co
 **Login Google berhasil tetapi data tidak muncul**
 Pastikan akun Google tersebut sudah tertaut ke workspace yang benar. Gunakan **Pengaturan → Gabung ruang lain** dengan kode undangan bila perlu.
 
+**Login Google gagal di browser incognito / private**
+Jika toast "Login Google tidak dapat diselesaikan" muncul, coba **popup login** (default baru di v1.2.50) bukan redirect. Jika masih gagal, pastikan akun Google terdaftar sebagai test user di OAuth consent screen.
+
+**Token akses Google kosong**
+Token sekarang di-resolve ulang dari `localStorage`/token client sebelum dipakai Firebase. Pastikan Anda sudah login Google terlebih dahulu sebelum sinkronisasi cloud diaktifkan.
+
+**Workspace terkunci / layar PIN muncul setelah hard refresh**
+Workspace terenkripsi memerlukan PIN untuk dibuka. Masukkan PIN yang sudah diatur. Jika lupa PIN dan tidak ada backup terenkripsi, data tidak bisa dibuka (by design). Lihat [Keamanan & Privasi](#-keamanan--privasi).
+
+**Script Firebase RTDB diblokir CSP**
+Jika console menampilkan error `script-src ... firebasedatabase.app ... violates Content Security Policy`, pastikan `_headers` dan `index.html` sudah menyertakan `https://*.firebasedatabase.app` di `script-src`.
+
 **Perubahan kode tidak terlihat**
 Service worker masih menyajikan cache lama. Naikkan versi `sw.js`, hard refresh, atau unregister service worker dari DevTools.
 
@@ -521,9 +547,22 @@ Mohon menjaga gaya kode yang sudah ada (Vanilla JS, template string, tanpa build
 
 ---
 
-## 📄 Lisensi
+## 📄 Lisensi & Changelog
 
 Dirilis di bawah lisensi **MIT**. Anda bebas menggunakan, memodifikasi, dan mendistribusikan ulang dengan tetap menyertakan atribusi.
+
+### 📋 Changelog Ringkas
+
+| Versi | Tanggal | Perubahan Utama |
+|-------|---------|-----------------|
+| 1.2.50 | Nov 2026 | Login pakai popup utama (incognito-safe), resolve token Google ulang sebelum Firebase sign-in, fix CSP Firebase RTDB script. |
+| 1.2.49 | Nov 2026 | Resolve token Google dari localStorage sebelum sign-in Firebase, pakai token hasil resolusi untuk credential. |
+| 1.2.48 | Nov 2026 | Lazy resolve Google access token agar incognito-safe. |
+| 1.2.47 | Nov 2026 | Layar kunci (PIN) aman saat workspace terenkripsi, resolusi pengguna layar kunci dari metadata PIN IndexedDB, harden `_open` IndexedDB. |
+| 1.2.46 | Nov 2026 | Perbaikan sinkronisasi household: preferRemote pada workspace baru/bergabung, repair pemetaan keanggotaan cloud, conflict log hanya local-win. |
+| 1.2.45 | Nov 2026 | Fingerprint dedupe, polling always-on, pull-on-resume, push-on-connect, not-ready guards, 403-only seeding. |
+
+Versi terbaru: **1.2.50**. Lihat tabel di atas untuk detail per versi.
 
 ---
 

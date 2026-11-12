@@ -1,11 +1,12 @@
 # Keamanan RISLY
 
-Terakhir diperbarui: 11 November 2026
+Terakhir diperbarui: 12 November 2026
 
 ## Status saat ini
 
 - Firebase Auth (Google) terintegrasi via `Cloud.signInWithGoogle()` (credential dari login Google).
-- Firebase Auth redirect (`startGoogleAuthRedirect` / `completeGoogleAuthLogin`) sudah menjadi jalur login utama (termasuk iOS); relay custom tidak dipakai lagi.
+- Firebase Auth login utama menggunakan **popup** (`startGoogleAuthPopup`, `preferRedirect: false`) untuk stabilitas di incognito / private browser. Redirect tetap tersedia sebagai cadangan.
+- `completeGoogleAuthLogin` / `startGoogleAuthRedirect` tetap tersedia untuk iOS / fallback redirect.
 - Token Google di relay iOS lama dienkripsi (ECDH P-256 + AES-GCM). Relay publik kini ditutup di rules.
 - Kunci master JSONBin sudah dihapus dari client dan kode legacy JSONBin sudah dihapus. Key lama harus di-rotasi di JSONBin.
 - Data lokal di IndexedDB **di-enkripsi at-rest** (AES-GCM 256-bit, kunci turunan dari PIN via PBKDF2-SHA256 ≥310.000 iterasi). Kunci hanya ada di memori, tidak pernah di disk.
@@ -13,8 +14,9 @@ Terakhir diperbarui: 11 November 2026
 - Login throttling eksponensial: 1 menit → 5 menit → 15 menit setelah 5 kali gagal berurutan.
 - Auto-lock menghapus kunci enkripsi dan data terdekripsi dari memori (bukan hanya ubah `ui.locked`).
 - Sesi disimpan di `sessionStorage` + IndexedDB meta (hanya ID pengguna); cookie sesi lama (`risly.mm.session.v1`) dihapus.
-- Token Google **tidak lagi disimpan di cookie** (non-HttpOnly). Token hanya di `localStorage` + memori.
+- Token Google **tidak lagi disimpan di cookie** (non-HttpOnly). Token hanya di `localStorage` + memori. Token di-resolve ulang dari `localStorage`/token client sebelum sign-in Firebase (incognito-safe).
 - `ensureMember` hanya mencocokkan `googleEmail` / `firebaseUid` — pencocokan berdasarkan nama dihapus untuk menghindari penggabungan orang yang salah.
+- Layar kunci (PIN) untuk workspace terenkripsi: resolusi pengguna dipindahkan ke `js/app/lock.js` (`resolveLockUser` / `showLockedWorkspace`), mencoba snapshot localStorage, metadata PIN IndexedDB per userId, lalu semua metadata PIN sebagai fallback.
 
 ## Aturan Firebase yang harus dipublikasikan
 
@@ -29,6 +31,7 @@ Aturan baru (Fase 6):
 - Household baru: pencipta otomatis menjadi owner (`newData.child('owner').val() === auth.uid`).
 - `inviteCodes/$code`: hanya bisa dibaca jika belum kedaluwarsa (`expiresAt > now`), hanya bisa ditulis oleh owner household dengan masa berlaku di masa depan.
 - `oauth_relay` dibaca/ditulisnya `false` — tidak ada path publik untuk hasil login.
+- Perbandingan objek di root `.write` dihapus (RTDB tidak bisa membandingkan objek untuk equality). Perlindungan `owner`, `settings`, dan `inviteCode` diganti perbandingan primitif.
 - Node `conflicts` untuk mencatat catatan yang kalah dalam merge sinkronisasi; hanya owner yang menulis, anggota/owner yang membaca.
 
 `oauth_relay` kini dibaca/tulisnya `false` — tidak ada lagi path publik untuk hasil login.
@@ -38,7 +41,8 @@ Aturan baru (Fase 6):
 - Publikasikan `firebase-security-rules.json` baru ke Firebase Realtime Database Rules sebelum mengaktifkan sinkronisasi keluarga.
 - Rotasi JSONBin master key lama yang pernah bocor.
 - Hapus kunci lama dari riwayat Git (opsional, disarankan).
-- Deploy ulang PWA (service worker terbump `risly-1.2.43`; sinkronkan dengan `APP.version` di `js/core/config.js`).
+- Deploy ulang PWA (service worker terbump `risly-1.2.50`; sinkronkan dengan `APP.version` di `js/core/config.js`).
+- Pastikan `index.html` dan `_headers` sinkron di `script-src` (`https://*.firebasedatabase.app`) agar script sinkronisasi Firebase RTDB tidak diblokir CSP.
 - Cadangkan data lokal sebelum mengubah rules (ada rollback path via `localStorage` fallback).
 
 ## Catatan arsitektur
@@ -46,7 +50,7 @@ Aturan baru (Fase 6):
 - Setiap akun Google dapat membuat household sendiri `households/<firebaseUid>`.
 - Berbagi keluarga via undangan: kode dipublikasikan ke `inviteCodes/<KODE>` berisi `ownerUid`, lalu anggota yang bergabung menulis `households/<ownerUid>/members/<uid>` dan memakai path household pemilik.
 - Data lokal anggota yang sudah ada tetap digabung (bukan ditimpa) saat bergabung; pengaturan ruang mengikuti pemilik.
-- Login Google memakai Firebase Auth redirect; token Google diambil dari Firebase (`user.accessToken`) lalu diadopsi ke `GoogleDrive` untuk backup Drive.
+- Login Google utama pakai popup (`signInWithPopup`) agar stabil di incognito. Token Google di-resolve dari memori → localStorage → token client sebelum dikirim ke Firebase credential. Redirect tetap cadangan untuk iOS.
 - Konflik sinkronisasi (dua perangkat mengubah record yang sama) dicatat ke `risly.mm.conflicts.v1` di localStorage dan bisa dilihat di Pengaturan › Log Konflik. Pemenang dipilih berdasarkan timestamp terbaru.
 
 ## Prasyarat teknis sebelum login pertama kali setelah perubahan ini

@@ -112,10 +112,11 @@ npx playwright test tests/e2e/sync/sync.test.js
 | Action `clear-conflict-log` + `view-conflict` | `js/app/actions/cloud.js` | ✅ Selesai |
 | `google-auth-relay.js` ditandai deprecated | `js/services/google-auth-relay.js` | ✅ Selesai |
 | `oauth-callback.html` ditandai deprecated | `oauth-callback.html` | ✅ Selesai |
-| Dokumentasi `SECURITY.md` | `SECURITY.md` | ✅ Selesai |
-| Dokumentasi `README.md` (Firebase Security Rules) | `README.md` | ✅ Selesai |
+| Dokumen layar kunci | `js/app/lock.js` | ✅ Selesai |
+| Dokumentasi `SECURITY.md` (popup login incognito, token resolve, object comparison fix) | `SECURITY.md` | ✅ Selesai |
+| Dokumentasi `README.md` (Firebase Security Rules + changelog v1.2.50) | `README.md` | ✅ Selesai |
 | Lint (ESLint) 0 error | Semua file JS | ✅ `npm run lint` |
-| Unit test 123 lolos | `tests/core/*.test.js` | ✅ `npm test` |
+| Unit test 137 lolos | `tests/core/*.test.js` | ✅ `npm test` |
 | E2E smoke 6 alur utama lolos | `tests/e2e/smoke.test.js` | ✅ Playwright + CI |
 
 ---
@@ -152,7 +153,7 @@ Jika rules baru menyebabkan masalah di produksi:
 | Perubahan dari perangkat lain terlihat di UI | ⏳ Belum | Skenario S1 & S2 |
 | E2E smoke 6 alur utama (termasuk PIN/kunci) | ✅ Selesai | `tests/e2e/smoke.test.js` + CI |
 | Tidak ada lagi pencocokan anggota berdasarkan nama | ✅ Selesai | `ensureMember` diperbaiki |
-| Lint 0 error + 123 unit test lolos | ✅ Selesai | Sudah diverifikasi |
+| Lint 0 error + 137 unit test lolos | ✅ Selesai | Sudah diverifikasi |
 
 ---
 
