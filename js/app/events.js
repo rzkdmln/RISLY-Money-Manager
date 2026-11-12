@@ -522,10 +522,12 @@ export function bindEvents() {
   const sortableContainer = () => document.querySelector('[data-accounts-sortable]');
 
   document.addEventListener('dragstart', (event) => {
-    const handle = event.target.closest('[data-drag-handle]');
-    if (!handle) return;
-    const card = handle.closest('[data-account-id]');
-    if (!card) return;
+    // Hanya boleh drag dari card akun. Tombol-tombol aksi (edit, hapus, dll)
+    // tidak boleh memulai drag agar tetap bisa diklik secara normal.
+    const isActionButton = event.target.closest('[data-action]');
+    if (isActionButton) return;
+    const card = event.target.closest('[data-account-id]');
+    if (!card || !card.draggable) return;
     draggedAccountId = card.dataset.accountId;
     card.classList.add('is-dragging');
     event.dataTransfer.effectAllowed = 'move';
