@@ -725,7 +725,19 @@ class CloudSync {
       // Validasi ketat: accessToken harus berupa string non-kosong. Jangan
       // melewatkan string kosong ke GoogleAuthProvider.credential karena
       // Firebase akan melempar auth/argument-error.
-      if (!accessToken || typeof accessToken !== 'string' || accessToken.trim().length === 0) {
+      // Pada PWA minimised / incognito, token bisa tertanam di memori JS tapi
+      // saat ini belum terisi — sengaja reload dari Google Identity Services
+      // (localStorage/token client) sebelum dipakai.
+      let token = accessToken;
+      if (!token || typeof token !== 'string' || token.trim().length === 0) {
+        try {
+          const { GoogleDrive } = await import('./gdrive.js');
+          token = await GoogleDrive.token();
+        } catch {
+          token = '';
+        }
+      }
+      if (!token || typeof token !== 'string' || token.trim().length === 0) {
         console.warn('Token akses Google kosong, melewatkan sign-in Firebase.');
         return null;
       }
