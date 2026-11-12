@@ -740,8 +740,7 @@ class CloudSync {
       if (!token || typeof token !== 'string' || token.trim().length === 0) {
         console.warn('Token akses Google kosong, melewatkan sign-in Firebase.');
         return null;
-      }
-      // Sebaliknya, tukarkan token akses Google via Firebase credential.
+      }      // Sebaliknya, tukarkan token akses Google via Firebase credential.
       const appMod = await import(FIREBASE_APP_URL);
       const authMod = await import(
         `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`
@@ -754,7 +753,7 @@ class CloudSync {
       const authApp = getAuth(app);
       let credential;
       try {
-        credential = GoogleAuthProvider.credential(null, accessToken.trim());
+        credential = GoogleAuthProvider.credential(null, String(token || '').trim());
       } catch (credError) {
         console.warn('Firebase credential gagal dibuat:', credError);
         return null;

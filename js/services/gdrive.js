@@ -367,17 +367,22 @@ class GoogleDriveClient {
    */
 
   async token() {
-    if (!this.account?.email) {
-      throw new DriveAuthError('Masuk dengan Google dulu untuk mengakses Drive.');
-    }
-
-    // Ambil token tersimpan dari LocalStorage jika memori JS ter-reset saat PWA minimised
+    // Ambil token tersimpan dari LocalStorage jika memori JS ter-reset saat PWA
+    // minimised / browser incognito.
     if (!this.accessToken) {
       this.accessToken = gdriveLoad('risly_access_token') || '';
       this.expiresAt = Number(gdriveLoad('risly_token_expires_at')) || 0;
     }
 
-    if (this.accessToken && this.expiresAt - 60_000 > Date.now()) return this.accessToken;
+    const tokenValid =
+      Boolean(this.accessToken) && (Number(this.expiresAt) || 0) - 60_000 > Date.now();
+    if (tokenValid) return this.accessToken;
+
+    // Tanpa akun yang dipilih, token tersimpan tetap boleh dipakai. Sebelumnya
+    // cek akun dulu sehingga token yang tersimpan tidak pernah dipertimbangkan.
+    if (!this.account?.email) {
+      throw new DriveAuthError('Masuk dengan Google dulu untuk mengakses Drive.');
+    }
 
     // Coba refresh diam-diam (silent) selama Google masih memiliki sesi aktif.
     // Ini mencegah 401 "Sesi Google berakhir" meskipun pengguna sudah masuk.
