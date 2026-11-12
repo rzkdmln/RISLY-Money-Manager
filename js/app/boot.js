@@ -21,6 +21,7 @@ import { bindEvents } from './events.js';
 import { setupInstallPrompt, registerServiceWorker } from './pwa.js';
 import { initPullToRefresh } from '../ui/pull-to-refresh.js';
 import { warmUpGoogleAuth } from '../services/google-auth-relay.js';
+import { driveBackupNow } from '../services/backup.js';
 import { GoogleDrive, purgeLegacyGdriveCookies } from '../services/gdrive.js';
 import { updateSyncSlots } from '../views/shell.js';
 import {
@@ -286,6 +287,11 @@ async function boot() {
           GoogleDrive.adoptSession(session);
           toast(`Google Drive terhubung sebagai ${session.account.email}.`, 'success');
           renderApplication();
+          // Lanjutkan backup yang tertunda sebelum dialihkan ke login Google.
+          if (sessionStorage.getItem('risly.pendingDriveBackup') === '1') {
+            sessionStorage.removeItem('risly.pendingDriveBackup');
+            void driveBackupNow();
+          }
         })
         .catch((error) => {
           clearGoogleAuthRedirectPending();

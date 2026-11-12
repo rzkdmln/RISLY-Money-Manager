@@ -306,6 +306,9 @@ export function refreshDriveUi() {
 /** Make sure we have a Drive token, signing in again when the old session expired. */
 export async function ensureDriveAccess() {
   if (!GoogleDrive.isConnected()) {
+    // Tandai backup yang tertunda agar dapat dilanjutkan setelah login Google
+    // selesai melalui redirect (halaman berpindah, konteks asli hilang).
+    sessionStorage.setItem('risly.pendingDriveBackup', '1');
     await appHooks.signInWithGoogleFlow();
   }
   try {
