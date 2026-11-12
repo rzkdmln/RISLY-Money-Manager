@@ -478,12 +478,15 @@ export class Store {
     const entry = this.registry.accounts[email];
     if (entry?.workspaceId) {
       // Jangan pernah membuat workspace baru untuk ruang yang terenkripsi:
-      // data pengguna ada di sana dan hanya bisa dibuka dengan PIN.
+      // data pengguna ada di sana dan hanya bisa dibuka dengan PIN. Kembalikan
+      // status `locked` agar pemanggil menampilkan layar kunci, bukan error.
       if (!this.isUnlocked && (await this.isWorkspaceEncrypted(entry.workspaceId))) {
-        const error = new Error('Ruang terkunci. Masukkan PIN untuk membukanya.');
-        error.code = 'WORKSPACE_LOCKED';
-        error.workspaceId = entry.workspaceId;
-        throw error;
+        return {
+          locked: true,
+          user: null,
+          created: false,
+          workspaceId: entry.workspaceId,
+        };
       }
       // Penting: openWorkspace() asinkron. Tanpa await, kode lanjut memakai
       // data placeholder layar login dan bisa menimpa household di cloud.
@@ -491,6 +494,9 @@ export class Store {
       if (opened) {
         const user = await this.attachFirebaseUid(this.ensureMember(account));
         this.currentUserId = user.id;
+        // Segarkan userId/workspaceId di registry agar pemulihan sesi/layar
+        // kunci berikutnya memakai identitas yang benar.
+        this.registerAccount(account, this.workspaceId);
         await this.persist();
         return { user, created: false, workspaceId: this.workspaceId };
       }
@@ -615,6 +621,12 @@ export class Store {
       // 2. Tidak ada di perangkat ini: siapkan workspace lokal untuk akun
       //    tersebut. Data lokal ini nanti digabung ke household pemilik.
       const session = await this.signInWithGoogle(account);
+      if (session.locked) {
+        const error = new Error('Ruang terkunci. Masukkan PIN untuk melanjutkan.');
+        error.code = 'WORKSPACE_LOCKED';
+        error.workspaceId = session.workspaceId;
+        throw error;
+      }
       workspaceId = session.workspaceId;
     }
 

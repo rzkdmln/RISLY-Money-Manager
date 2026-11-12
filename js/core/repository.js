@@ -260,6 +260,30 @@ class Repository {
   }
 
   /**
+   * Daftar key meta (opsional difilter prefix). Dipakai untuk menemukan
+   * metadata PIN saat snapshot layar kunci hilang / userId tidak cocok.
+   * @param {string} prefix
+   * @returns {Promise<string[]>}
+   */
+  async listMetaKeys(prefix = '') {
+    try {
+      const store = await this._store(STORE_META, 'readonly');
+      return await new Promise((resolve, reject) => {
+        const req = store.getAllKeys();
+        req.onsuccess = () =>
+          resolve(
+            (req.result || []).filter(
+              (key) => typeof key === 'string' && key.startsWith(prefix)
+            )
+          );
+        req.onerror = () => reject(req.error);
+      });
+    } catch {
+      return [];
+    }
+  }
+
+  /**
    * Simpan nilai meta.
    * @param {string} key
    * @param {any} value

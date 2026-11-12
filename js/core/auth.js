@@ -362,6 +362,38 @@ export async function loadPinMetadata(userId) {
 }
 
 /**
+ * Cari semua metadata PIN di IndexedDB. Berguna saat snapshot layar kunci
+ * hilang atau userId di registry tidak cocok (mis. setelah pemulihan sesi).
+ * @returns {Promise<Array<{userId: string, pinSalt: string, pinIterations: number, pinVerifier: string, updatedAt: string}>>}
+ */
+export async function listPinMetadata() {
+  try {
+    const keys = await repository.listMetaKeys(PIN_META_PREFIX);
+    const items = [];
+    for (const key of keys) {
+      const raw = await repository.getMeta(key);
+      if (!raw) continue;
+      try {
+        const parsed = JSON.parse(raw);
+        if (!parsed?.pinVerifier || !parsed?.pinSalt) continue;
+        items.push({
+          userId: key.slice(PIN_META_PREFIX.length),
+          pinSalt: parsed.pinSalt,
+          pinIterations: Number(parsed.pinIterations) || 0,
+          pinVerifier: parsed.pinVerifier,
+          updatedAt: parsed.updatedAt || '',
+        });
+      } catch {
+        /* skip entri rusak */
+      }
+    }
+    return items;
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Hapus metadata PIN dari IndexedDB (saat reset / hapus PIN).
  */
 export async function clearPinMetadata(userId) {
@@ -390,7 +422,9 @@ const LOCK_SNAPSHOT_KEY = 'risly.mm.lockscreen.v1';
  */
 export function saveLockSnapshot(user, workspaceId = null) {
   try {
-    if (!user?.id || !user.pinVerifier || !user.pinSalt) {
+    // Simpan juga pinHash untuk kompatibilitas pengguna PIN lama (belum punya
+    // verifier). Verifier/hash adalah hash, bukan kunci enkripsi.
+    if (!user?.id || (!user.pinVerifier && !user.pinHash) || !user.pinSalt) {
       localStorage.removeItem(LOCK_SNAPSHOT_KEY);
       return;
     }
@@ -401,7 +435,8 @@ export function saveLockSnapshot(user, workspaceId = null) {
         name: user.name || '',
         pinSalt: user.pinSalt,
         pinIterations: Number(user.pinIterations) || 0,
-        pinVerifier: user.pinVerifier,
+        pinVerifier: user.pinVerifier || '',
+        pinHash: user.pinHash || '',
         workspaceId: workspaceId || null,
         updatedAt: nowISO(),
       }),
@@ -416,7 +451,7 @@ export function readLockSnapshot() {
     const raw = localStorage.getItem(LOCK_SNAPSHOT_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (!parsed?.id || !parsed.pinVerifier || !parsed.pinSalt) return null;
+    if (!parsed?.id || (!parsed.pinVerifier && !parsed.pinHash) || !parsed.pinSalt) return null;
     return parsed;
   } catch {
     return null;

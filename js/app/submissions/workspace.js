@@ -9,6 +9,7 @@ import { enterApplication } from '../session.js';
 import { store } from '../../core/store.js';
 import { signInWithGoogleFlow } from '../auth-flow.js';
 import { ui, toast, closeModal } from '../../ui/ui.js';
+import { showLockedWorkspace } from '../lock.js';
 
 export const workspaceSubmissions = {
   'join-workspace': async (form) => {
@@ -22,6 +23,15 @@ export const workspaceSubmissions = {
     try {
       const account = await signInWithGoogleFlow();
       const result = await store.joinWorkspaceByCode(code, account);
+      if (result?.locked) {
+        closeModal({ silent: true });
+        await showLockedWorkspace(result.workspaceId, {
+          userId: account.userId || null,
+          name: account.name || '',
+        });
+        toast('Buka PIN dulu untuk melanjutkan.', 'info');
+        return;
+      }
       closeModal({ silent: true });
       toast(
         result?.localOnly
@@ -31,6 +41,15 @@ export const workspaceSubmissions = {
       );
       await enterApplication(result.user);
     } catch (error) {
+      if (error?.code === 'WORKSPACE_LOCKED') {
+        closeModal({ silent: true });
+        await showLockedWorkspace(error.workspaceId, {
+          userId: null,
+          name: '',
+        });
+        toast('Buka PIN dulu untuk melanjutkan.', 'info');
+        return;
+      }
       console.error(error);
       showFormError(form, error.message || 'Gagal bergabung ke ruang.');
     } finally {

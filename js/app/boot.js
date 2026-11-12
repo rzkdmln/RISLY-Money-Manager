@@ -28,9 +28,8 @@ import {
   isSessionExpired,
   clearSession,
   createSession,
-  readLockSnapshot,
-  loadPinMetadata,
 } from '../core/auth.js';
+import { resolveLockUser, showLockedWorkspace } from './lock.js';
 import { clearGoogleAuthRedirectPending } from '../services/google-auth-relay.js';
 import { ROUTES, APP } from '../core/config.js';
 import {
@@ -38,40 +37,6 @@ import {
   completeGoogleAuthLogin,
 } from '../services/google-auth-relay.js';
 import { isIos } from '../core/utils.js';
-
-/**
- * Cari snapshot layar kunci dari localStorage atau metadata PIN IndexedDB.
- * Dipakai saat workspace terenkripsi belum bisa didekripsi.
- */
-async function resolveLockSnapshot(userId, name = '', workspaceId = null) {
-  const saved = readLockSnapshot();
-  const savedMatches =
-    saved &&
-    (!userId || saved.id === userId) &&
-    (!workspaceId || !saved.workspaceId || saved.workspaceId === workspaceId);
-  if (userId) {
-    const meta = await loadPinMetadata(userId).catch(() => null);
-    if (meta?.pinVerifier && meta.pinSalt) {
-      // Snapshot localStorage ditulis setelah PIN berhasil diubah; jika
-      // timestamp-nya lebih baru, pakai snapshot agar tidak memakai metadata
-      // lama yang penulisannya belum selesai.
-      const savedIsNewer =
-        savedMatches &&
-        (!meta.updatedAt || !saved.updatedAt || String(saved.updatedAt) > String(meta.updatedAt));
-      if (savedIsNewer) return saved;
-      return {
-        id: userId,
-        name: name || saved?.name || 'Pengguna',
-        pinSalt: meta.pinSalt,
-        pinIterations: Number(meta.pinIterations) || 0,
-        pinVerifier: meta.pinVerifier,
-        workspaceId: workspaceId || saved?.workspaceId || null,
-        updatedAt: meta.updatedAt || '',
-      };
-    }
-  }
-  return savedMatches ? saved : null;
-}
 
 function bindStore() {
   store.subscribe((event) => {
@@ -97,6 +62,13 @@ async function tryResumeRedirectLogin() {
     if (session?.account?.email) {
       GoogleDrive.adoptSession(session);
       const result = await store.signInWithGoogle(session.account);
+      if (result.locked) {
+        await showLockedWorkspace(result.workspaceId, {
+          userId: session.account.userId || null,
+          name: session.account.name || '',
+        });
+        return true;
+      }
       await enterApplication(result.user, { fresh: result.created });
       toast(`Masuk sebagai ${result.user.name}.`, 'success');
       return true;
@@ -104,14 +76,8 @@ async function tryResumeRedirectLogin() {
   } catch (error) {
     if (error?.name === 'AbortError') return false;
     if (error?.code === 'WORKSPACE_LOCKED') {
-      const snapshot = readLockSnapshot();
-      store.setLockedWorkspace(error.workspaceId);
-      store.setCurrentUser(snapshot?.id || null);
-      ui.currentUser = snapshot;
-      ui.selectedUser = snapshot?.id || null;
-      ui.locked = Boolean(snapshot);
-      ui.appMounted = false;
-      return false;
+      await showLockedWorkspace(error.workspaceId);
+      return true;
     }
     console.warn('Gagal menangkap redirect result:', error);
   }
@@ -141,6 +107,13 @@ async function tryResumeRedirectLogin() {
           picture: user.photoURL || '',
           clientId: APP.googleClientId,
         });
+        if (result.locked) {
+          await showLockedWorkspace(result.workspaceId, {
+            userId: user.uid || null,
+            name: user.displayName || '',
+          });
+          return true;
+        }
         await enterApplication(result.user, { fresh: result.created });
         toast(`Masuk sebagai ${result.user.name}.`, 'success');
         return true;
@@ -185,7 +158,11 @@ async function boot() {
     // Workspace terenkripsi tetapi belum unlock → tampilkan layar kunci.
     if (encrypted && !store.isUnlocked) {
       const last = JSON.parse(localStorage.getItem(APP.lastAccountKey) || 'null') || {};
-      const snapshot = await resolveLockSnapshot(session.userId, last.name, session.workspaceId);
+      const snapshot = await resolveLockUser({
+        userId: session.userId,
+        name: last.name,
+        workspaceId: session.workspaceId,
+      });
       clearSession();
       store.setLockedWorkspace(session.workspaceId);
       store.setCurrentUser(snapshot?.id || null);
@@ -227,7 +204,11 @@ async function boot() {
     if (last?.workspaceId) {
       const encrypted = await store.isWorkspaceEncrypted(last.workspaceId);
       if (encrypted && !store.isUnlocked) {
-        const snapshot = await resolveLockSnapshot(last.userId, last.name, last.workspaceId);
+        const snapshot = await resolveLockUser({
+          userId: last.userId,
+          name: last.name,
+          workspaceId: last.workspaceId,
+        });
         clearSession();
         store.setLockedWorkspace(last.workspaceId);
         store.setCurrentUser(snapshot?.id || null);

@@ -11,7 +11,8 @@ import { openJoinWorkspaceModal, openAuthCloudModal } from '../modals.js';
 import { Cloud } from '../../services/cloud.js';
 import { GoogleDrive } from '../../services/gdrive.js';
 import { store } from '../../core/store.js';
-import { clearSession, readLockSnapshot, clearLockSnapshot } from '../../core/auth.js';
+import { clearSession, clearLockSnapshot } from '../../core/auth.js';
+import { resolveLockUser, showLockedWorkspace } from '../lock.js';
 import { icon } from '../../ui/icons.js';
 import { ui, openModal, closeModal, confirmDialog, toast } from '../../ui/ui.js';
 import { escapeHTML, formatDateTime } from '../../core/utils.js';
@@ -89,6 +90,15 @@ export const cloudActions = {
         return;
       }
       const result = await store.signInWithGoogle(account);
+      if (result.locked) {
+        closeModal({ silent: true });
+        await showLockedWorkspace(result.workspaceId, {
+          userId: account.userId || null,
+          name: account.name || '',
+        });
+        toast('Ruang terkunci. Masukkan PIN untuk melanjutkan.', 'info');
+        return;
+      }
       closeModal({ silent: true });
       await enterApplication(result.user);
       if (result.created) toast('Ruang baru dibuat.', 'success');
@@ -97,15 +107,8 @@ export const cloudActions = {
     } catch (error) {
       if (error?.code === 'WORKSPACE_LOCKED') {
         // Jangan buat ruang baru: data pengguna ada di workspace terenkripsi.
-        const snapshot = readLockSnapshot();
-        store.setLockedWorkspace(error.workspaceId);
-        store.setCurrentUser(snapshot?.id || null);
-        ui.currentUser = snapshot;
-        ui.selectedUser = snapshot?.id || null;
-        ui.locked = Boolean(snapshot);
-        ui.appMounted = false;
         closeModal({ silent: true });
-        renderAuth();
+        await showLockedWorkspace(error.workspaceId);
         toast('Ruang terkunci. Masukkan PIN untuk melanjutkan.', 'info');
         return;
       }
@@ -175,12 +178,14 @@ export const cloudActions = {
     if (!opened) {
       // Workspace terenkripsi tidak bisa dibuka tanpa PIN. Tampilkan layar
       // kunci dari snapshot yang tersimpan, bukan pesan "data tidak ditemukan".
-      const snapshot = readLockSnapshot();
       const last = JSON.parse(localStorage.getItem(APP.lastAccountKey) || 'null');
-      const matches =
-        snapshot &&
-        (!snapshot.workspaceId || !last?.workspaceId || snapshot.workspaceId === last.workspaceId);
-      if (matches) {
+      const snapshot = await resolveLockUser({
+        userId: last?.userId || null,
+        workspaceId: last?.workspaceId || null,
+        name: last?.name || '',
+      });
+      if (snapshot) {
+        store.setLockedWorkspace(last.workspaceId);
         store.setCurrentUser(snapshot.id);
         ui.currentUser = snapshot;
         ui.selectedUser = snapshot.id;
