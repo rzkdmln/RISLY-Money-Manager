@@ -512,6 +512,98 @@ export function bindEvents() {
     if (store.currentUser) toast('Kembali online. Sinkronisasi akan dilanjutkan.', 'info');
   });
 
+  /* -------------------------------------------------------------------------- */
+  /*  Drag & drop urutan akun                                                   */
+  /* -------------------------------------------------------------------------- */
+
+  let draggedAccountId = null;
+  let dropTargetId = null;
+
+  const sortableContainer = () => document.querySelector('[data-accounts-sortable]');
+
+  document.addEventListener('dragstart', (event) => {
+    const handle = event.target.closest('[data-drag-handle]');
+    if (!handle) return;
+    const card = handle.closest('[data-account-id]');
+    if (!card) return;
+    draggedAccountId = card.dataset.accountId;
+    card.classList.add('is-dragging');
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', draggedAccountId);
+  });
+
+  document.addEventListener('dragend', (event) => {
+    const card = event.target.closest('[data-account-id]');
+    if (card) card.classList.remove('is-dragging');
+    draggedAccountId = null;
+    dropTargetId = null;
+    document.querySelectorAll('[data-account-id].is-drop-over').forEach((el) => {
+      el.classList.remove('is-drop-over');
+    });
+  });
+
+  document.addEventListener('dragover', (event) => {
+    if (!draggedAccountId) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+
+    const container = sortableContainer();
+    if (!container) return;
+
+    const card = event.target.closest('[data-account-id]');
+    if (!card || !container.contains(card)) return;
+    if (card.dataset.accountId === draggedAccountId) return;
+
+    // Hapus highlight pada card sebelumnya
+    document.querySelectorAll('[data-account-id].is-drop-over').forEach((el) => {
+      el.classList.remove('is-drop-over');
+    });
+
+    // Tentukan posisi jatuh berdasarkan posisi mouse dalam card
+    const cardRect = card.getBoundingClientRect();
+    const afterY = event.clientY > cardRect.top + cardRect.height / 2;
+    card.classList.add('is-drop-over');
+    dropTargetId = afterY ? `after:${card.dataset.accountId}` : `before:${card.dataset.accountId}`;
+  });
+
+  document.addEventListener('drop', (event) => {
+    event.preventDefault();
+    if (!draggedAccountId) return;
+
+    const container = sortableContainer();
+    if (!container) return;
+
+    // Bangun daftar id akun saat ini, hapus yang sedang di-drag, lalu sisipkan pada posisi drop
+    const cards = Array.from(container.querySelectorAll('[data-account-id]'));
+    const currentIds = cards.map((el) => el.dataset.accountId);
+    const nextIds = currentIds.filter((id) => id !== draggedAccountId);
+
+    let insertIndex = nextIds.length; // default: akhir
+    if (dropTargetId) {
+      const [position, targetId] = dropTargetId.split(':');
+      const targetIndex = nextIds.indexOf(targetId);
+      if (targetIndex !== -1) {
+        insertIndex = position === 'after' ? targetIndex + 1 : targetIndex;
+      }
+    }
+
+    nextIds.splice(insertIndex, 0, draggedAccountId);
+
+    document.dispatchEvent(new window.CustomEvent('accounts:reorder', { detail: { ids: nextIds } }));
+  });
+
+  document.addEventListener('accounts:reorder', async (event) => {
+    const { ids } = event.detail || {};
+    if (!ids || !ids.length) return;
+    try {
+      store.reorderAccounts(ids);
+      toast('Urutan akun diperbarui.', 'success');
+      renderApplication();
+    } catch (error) {
+      toast('Gagal menyimpan urutan akun.', 'error');
+    }
+  });
+
   window.addEventListener(
     'resize',
     debounce(() => resizeCharts(), 180)

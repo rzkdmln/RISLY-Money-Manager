@@ -7,13 +7,19 @@ import { accountIcon } from './common.js';
 
 const UNASSIGNED = '__unassigned__';
 
-function accountCard(account, archived = false) {
+function accountCard(account, { archived = false, draggable = false } = {}) {
   const balance = store.accountBalance(account.id);
   const txCount = store.accountTransactions(account.id).length;
   const type = ACCOUNT_TYPES[account.type] || ACCOUNT_TYPES.cash;
   const percent = store.totalBalance() !== 0 ? Math.abs(balance / store.totalBalance()) * 100 : 0;
-  return `<article class="account-card ${archived ? 'is-archived' : ''} min-w-0 w-full overflow-hidden" style="--account-color:${escapeAttr(account.color || type.color)}">
+  const dragHandle = draggable
+    ? `<button type="button" class="account-drag-handle shrink-0" data-drag-handle aria-label="Geser akun" style="cursor:grab;">
+        <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="6" r="1"/><circle cx="14" cy="6" r="1"/><circle cx="10" cy="12" r="1"/><circle cx="14" cy="12" r="1"/><circle cx="10" cy="18" r="1"/><circle cx="14" cy="18" r="1"/></svg>
+      </button>`
+    : '';
+  return `<article class="account-card ${archived ? 'is-archived' : ''} ${draggable ? 'is-draggable' : ''} min-w-0 w-full overflow-hidden" data-account-id="${escapeAttr(account.id)}" ${draggable ? 'draggable="true"' : ''} style="--account-color:${escapeAttr(account.color || type.color)}">
     <div class="account-card-top min-w-0 flex items-center gap-2">
+      ${dragHandle}
       <span class="account-icon shrink-0">${icon(accountIcon(account), 'w-5 h-5')}</span>
       <div class="min-w-0 flex-1">
         <h3 class="account-name truncate">${escapeHTML(account.name)}</h3>
@@ -211,7 +217,7 @@ function memberDetail(bucket) {
     </section>
 
     ${accounts.length
-      ? `<div class="${gridClass}">${accounts.map((account) => accountCard(account)).join('')}</div>`
+      ? `<div class="${gridClass}" data-accounts-sortable>${accounts.map((account) => accountCard(account, { draggable: true })).join('')}</div>`
       : emptyState('wallet', `Belum ada akun untuk ${name}`, 'Tambahkan dompet, rekening, atau dompet digital milik anggota ini.', `<button type="button" class="btn btn-primary btn-sm" data-action="add-account" data-owner="${ownerAttr}">${icon('plus', 'w-3.5 h-3.5')} Tambah akun</button>`)}
 
     ${distribution}

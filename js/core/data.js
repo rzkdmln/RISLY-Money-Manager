@@ -453,12 +453,13 @@ export function migrateData(raw) {
 
   const defaultOwner = data.users?.[0]?.id || 'owner';
   data.accounts = Array.isArray(data.accounts) ? data.accounts : defaultAccounts();
-  data.accounts = data.accounts.map((account) => ({
+  data.accounts = data.accounts.map((account, index) => ({
     id: account.id || uid('acc'),
     name: String(account.name || 'Akun'),
     type: account.type || 'cash',
     color: account.color || '#3B82F6',
     openingBalance: Number(account.openingBalance) || 0,
+    order: account.order ?? index,
     owner: account.owner || defaultOwner,
     sharedWith: Array.isArray(account.sharedWith) ? account.sharedWith : [],
     creditLimit: Number(account.creditLimit) || 0,

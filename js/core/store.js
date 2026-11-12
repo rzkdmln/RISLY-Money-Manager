@@ -1638,7 +1638,26 @@ export class Store {
   }
 
   activeAccounts() {
-    return this.data.accounts.filter((account) => !account.archived && !account.deletedAt);
+    return this.data.accounts
+      .filter((account) => !account.archived && !account.deletedAt)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || String(a.name || '').localeCompare(String(b.name || '')));
+  }
+
+  /**
+   * Simpan urutan baru akun (drag & drop). `accountIds` adalah daftar id
+   * akun dalam urutan yang diinginkan pengguna. Hanya akun aktif yang di-urutkan;
+   * akun diarsipkan diabaikan dan tetap di akhir.
+   */
+  reorderAccounts(accountIds) {
+    return this.commit('account:reorder', (data, now) => {
+      const orderMap = new Map(accountIds.map((id, index) => [id, index]));
+      data.accounts.forEach((account) => {
+        if (orderMap.has(account.id)) {
+          account.order = orderMap.get(account.id);
+          account.updatedAt = now;
+        }
+      });
+    });
   }
 
   archivedAccounts() {
@@ -1861,6 +1880,7 @@ export class Store {
             ? safeNumber(payload.loanPrincipal)
             : safeNumber(payload.loanRemaining),
         archived: false,
+        order: payload.order ?? data.accounts.filter((a) => !a.archived && !a.deletedAt).length,
         createdAt: now,
         updatedAt: now,
       };

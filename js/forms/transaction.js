@@ -23,7 +23,8 @@ export function accountOptions(selectedId, includeId = null, ownerId = null, pla
   const accounts = store.data.accounts
     .filter((account) => !account.deletedAt)
     .filter((account) => !account.archived || account.id === selectedId || account.id === includeId)
-    .filter((account) => !ownerId || ownerId === 'all' || account.owner === ownerId);
+    .filter((account) => !ownerId || ownerId === 'all' || account.owner === ownerId)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   const hasSelected = Boolean(selectedId) && accounts.some((account) => account.id === selectedId);
   return `<option value="" ${!hasSelected ? 'selected' : ''}>${escapeHTML(placeholder)}</option>` +
     accounts
@@ -51,12 +52,15 @@ export function paymentAccountOptions(selectedId = '') {
     }
     groups.get(key).accounts.push(account);
   });
-  const options = [...groups.values()].map((group) => `<optgroup label="${escapeAttr(group.label)}">${group.accounts
-    .map((account) => {
-      const balance = formatCurrency(store.accountBalance(account.id), { compact: true, hide: false });
-      return `<option value="${escapeAttr(account.id)}" ${selectedId === account.id ? 'selected' : ''}>${escapeHTML(account.name)} · ${balance}${account.archived ? ' (arsip)' : ''}</option>`;
-    })
-    .join('')}</optgroup>`).join('');
+  const options = [...groups.values()].map((group) => {
+    group.accounts.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    return `<optgroup label="${escapeAttr(group.label)}">${group.accounts
+      .map((account) => {
+        const balance = formatCurrency(store.accountBalance(account.id), { compact: true, hide: false });
+        return `<option value="${escapeAttr(account.id)}" ${selectedId === account.id ? 'selected' : ''}>${escapeHTML(account.name)} · ${balance}${account.archived ? ' (arsip)' : ''}</option>`;
+      })
+      .join('')}</optgroup>`;
+  }).join('');
   return `<option value="" ${selectedId ? '' : 'selected'}>Pilih akun</option>${options}`;
 }
 

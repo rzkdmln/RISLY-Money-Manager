@@ -23,6 +23,21 @@ export const accountActions = {
     closeModal({ silent: true });
     openAccountModal(null, element.dataset.owner || null);
   },
+  'reorder-accounts': async (element) => {
+    const container = element.closest('[data-accounts-sortable]');
+    if (!container) return;
+    const ids = Array.from(container.querySelectorAll('[data-account-id]')).map(
+      (el) => el.dataset.accountId
+    );
+    if (!ids.length) return;
+    try {
+      store.reorderAccounts(ids);
+      toast('Urutan akun diperbarui.', 'success');
+      renderApplication();
+    } catch (error) {
+      toast('Gagal menyimpan urutan akun.', 'error');
+    }
+  },
   'edit-account': (element) => {
     const id = element.dataset.id;
     const account = store.accountById(id);

@@ -146,32 +146,26 @@ export function reportsView() {
       <section class="card">
         <div class="card-heading">
           <div>
-            <p class="card-kicker">Kontribusi</p>
-            <h2 class="section-title">Siapa mencatat?</h2>
+            <p class="card-kicker">Posisi saat ini</p>
+            <h2 class="section-title">Saldo akun</h2>
           </div>
-          ${icon('users', 'w-5 h-5 text-violet-500')}
+          <button type="button" class="link-button" data-action="nav" data-route="accounts">Kelola</button>
         </div>
-        ${creators.length ? `<div class="table-wrap">
+        ${accounts.length ? `<div class="table-wrap">
           <table class="report-table">
-            <thead><tr><th>Pencatat</th><th class="text-right">Transaksi</th><th class="text-right">Masuk</th><th class="text-right">Keluar</th></tr></thead>
+            <thead><tr><th>Akun</th><th class="text-right">Saldo</th></tr></thead>
             <tbody>
-              ${creators.map((creator) => `<tr>
-                <td><span class="flex items-center gap-2"><span class="creator-avatar" style="--creator-color:${escapeAttr(store.getUser(creator.userId)?.color || 'var(--muted)')}">${escapeHTML(creator.name.slice(0, 1))}</span><span class="font-medium text-slate-800 dark:text-slate-100">${escapeHTML(creator.name)}</span></span></td>
-                <td class="text-right">${creator.count}</td>
-                <td class="text-right amount-income">+${money(creator.income)}</td>
-                <td class="text-right amount-expense">-${money(creator.expense)}</td>
+              ${accounts.map((account) => `<tr>
+                <td><span class="flex items-center gap-2 min-w-0"><span class="legend-dot" style="--legend-color:${escapeAttr(account.color)}"></span><span class="font-medium text-slate-800 dark:text-slate-100">${escapeHTML(account.name)}</span></span></td>
+                <td class="text-right font-semibold ${store.accountBalance(account.id) < 0 ? 'amount-expense' : 'text-slate-900 dark:text-white'}">${money(store.accountBalance(account.id))}</td>
               </tr>`).join('')}
             </tbody>
           </table>
-        </div>` : '<p class="text-sm text-slate-500">Belum ada data pencatat.</p>'}
+        </div>` : '<p class="text-sm text-slate-500">Belum ada akun.</p>'}
         <div class="report-divider"></div>
-        <div class="flex items-center justify-between text-sm">
-          <span class="text-slate-500 dark:text-slate-400">Rata-rata pengeluaran</span>
-          <strong class="text-slate-900 dark:text-white">${money(average)}</strong>
-        </div>
-        <div class="flex items-center justify-between text-sm mt-2">
-          <span class="text-slate-500 dark:text-slate-400">Transfer</span>
-          <strong class="text-slate-900 dark:text-white">${money(summary.transfers)}</strong>
+        <div class="flex items-center justify-between">
+          <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">Kekayaan bersih</span>
+          <strong class="text-lg text-slate-900 dark:text-white">${money(store.totalBalance())}</strong>
         </div>
       </section>
     </div>
@@ -222,26 +216,32 @@ export function reportsView() {
       <section class="card">
         <div class="card-heading">
           <div>
-            <p class="card-kicker">Posisi saat ini</p>
-            <h2 class="section-title">Saldo akun</h2>
+            <p class="card-kicker">Kontribusi</p>
+            <h2 class="section-title">Siapa mencatat?</h2>
           </div>
-          <button type="button" class="link-button" data-action="nav" data-route="accounts">Kelola</button>
+          ${icon('users', 'w-5 h-5 text-violet-500')}
         </div>
-        ${accounts.length ? `<div class="table-wrap">
+        ${creators.length ? `<div class="table-wrap">
           <table class="report-table">
-            <thead><tr><th>Akun</th><th class="text-right">Saldo</th></tr></thead>
+            <thead><tr><th>Pencatat</th><th class="text-right">Transaksi</th><th class="text-right">Masuk</th><th class="text-right">Keluar</th></tr></thead>
             <tbody>
-              ${accounts.map((account) => `<tr>
-                <td><span class="flex items-center gap-2 min-w-0"><span class="legend-dot" style="--legend-color:${escapeAttr(account.color)}"></span><span class="font-medium text-slate-800 dark:text-slate-100">${escapeHTML(account.name)}</span></span></td>
-                <td class="text-right font-semibold ${store.accountBalance(account.id) < 0 ? 'amount-expense' : 'text-slate-900 dark:text-white'}">${money(store.accountBalance(account.id))}</td>
+              ${creators.map((creator) => `<tr>
+                <td><span class="flex items-center gap-2"><span class="creator-avatar" style="--creator-color:${escapeAttr(store.getUser(creator.userId)?.color || 'var(--muted)')}">${escapeHTML(creator.name.slice(0, 1))}</span><span class="font-medium text-slate-800 dark:text-slate-100">${escapeHTML(creator.name)}</span></span></td>
+                <td class="text-right">${creator.count}</td>
+                <td class="text-right amount-income">+${money(creator.income)}</td>
+                <td class="text-right amount-expense">-${money(creator.expense)}</td>
               </tr>`).join('')}
             </tbody>
           </table>
-        </div>` : '<p class="text-sm text-slate-500">Belum ada akun.</p>'}
+        </div>` : '<p class="text-sm text-slate-500">Belum ada data pencatat.</p>'}
         <div class="report-divider"></div>
-        <div class="flex items-center justify-between">
-          <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">Kekayaan bersih</span>
-          <strong class="text-lg text-slate-900 dark:text-white">${money(store.totalBalance())}</strong>
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-slate-500 dark:text-slate-400">Rata-rata pengeluaran</span>
+          <strong class="text-slate-900 dark:text-white">${money(average)}</strong>
+        </div>
+        <div class="flex items-center justify-between text-sm mt-2">
+          <span class="text-slate-500 dark:text-slate-400">Transfer</span>
+          <strong class="text-slate-900 dark:text-white">${money(summary.transfers)}</strong>
         </div>
       </section>
     </div>

@@ -466,6 +466,11 @@ body.is-auth { background: var(--bg); }
   border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-sm);
 }
 .account-card.is-archived { opacity: .72; }
+.account-card.is-draggable { cursor: grab; }
+.account-card.is-dragging { opacity: .5; cursor: grabbing; border: 2px dashed var(--brand); }
+.account-card.is-drop-over { outline: 2px solid var(--brand); outline-offset: -2px; border-radius: var(--radius); }
+.account-drag-handle { padding: 4px; border: 0; background: transparent; color: inherit; display: inline-flex; align-items: center; justify-content: center; opacity: .6; }
+.account-drag-handle:hover { opacity: 1; }
 .account-card-top { display: flex; align-items: center; gap: 9px; }
 .account-icon { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; flex: 0 0 auto; border-radius: 11px; color: var(--account-color, var(--brand)); background: color-mix(in srgb, var(--account-color, var(--brand)) 11%, transparent); }
 .account-name { margin: 0; font-size: 12px; font-weight: 750; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
