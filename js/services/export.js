@@ -27,7 +27,7 @@ import {
 
 function accountPair(tx) {
   if (tx.type === 'transfer') {
-    return `${store.accountName(tx.accountId)} → ${store.accountName(tx.toAccountId)}`;
+    return `${store.accountName(tx.accountId)} -> ${store.accountName(tx.toAccountId)}`;
   }
   if (Array.isArray(tx.payments) && tx.payments.length) {
     return tx.payments.map((payment) => store.accountName(payment.accountId)).join(' + ');
@@ -280,12 +280,13 @@ export function exportPdf(month = monthKey()) {
       0: { cellWidth: colWidths[0], halign: 'center' },
       1: { cellWidth: colWidths[1] },
       2: { cellWidth: colWidths[2], halign: 'center' },
-      3: { cellWidth: colWidths[3] },
+      3: { cellWidth: colWidths[3], overflow: 'linebreak' },
       4: { cellWidth: colWidths[4] },
       5: { cellWidth: colWidths[5], halign: 'right' },
       6: { cellWidth: colWidths[6], halign: 'right' },
     },
     tableWidth,
+    verticalLines: true,
     margin: { left: 40, right: 40, bottom: 40 },
     didDrawPage: (data) => {
       const h = doc.internal.pageSize.getHeight();
@@ -402,12 +403,13 @@ export function exportPdfRange(start, end) {
       0: { cellWidth: colWidths[0], halign: 'center' },
       1: { cellWidth: colWidths[1] },
       2: { cellWidth: colWidths[2], halign: 'center' },
-      3: { cellWidth: colWidths[3] },
+      3: { cellWidth: colWidths[3], overflow: 'linebreak' },
       4: { cellWidth: colWidths[4] },
       5: { cellWidth: colWidths[5], halign: 'right' },
       6: { cellWidth: colWidths[6], halign: 'right' },
     },
     tableWidth,
+    verticalLines: true,
     margin: { left: 40, right: 40, bottom: 40 },
     didDrawPage: (data) => {
       const h = doc.internal.pageSize.getHeight();
