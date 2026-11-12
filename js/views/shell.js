@@ -49,6 +49,7 @@ export function shellView(user, dueCount = 0) {
 
       <div class="sidebar-bottom">
         <p class="sidebar-version">${APP.name} v${APP.version} · ${appContextLabel()}</p>
+        <a class="sidebar-privacy" href="./privacy.html">Kebijakan Privasi</a>
       </div>
     </aside>
 

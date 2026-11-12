@@ -186,6 +186,16 @@
   color: var(--muted-2);
   transition: opacity .28s ease, height .28s ease, margin .28s ease;
 }
+.sidebar-privacy {
+  display: block;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: .02em;
+  color: var(--muted-2);
+  text-decoration: underline;
+  transition: color .18s ease;
+}
+.sidebar-privacy:hover { color: inherit; }
 
 .app-main { min-height: 100dvh; padding-left: 252px; display: flex; flex-direction: column; transition: padding-left .3s cubic-bezier(.4, 0, .2, 1); }
 
