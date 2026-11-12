@@ -27,7 +27,7 @@ import {
 
 function accountPair(tx) {
   if (tx.type === 'transfer') {
-    return `${store.accountName(tx.accountId)} -> ${store.accountName(tx.toAccountId)}`;
+    return `${store.accountName(tx.accountId)} → ${store.accountName(tx.toAccountId)}`;
   }
   if (Array.isArray(tx.payments) && tx.payments.length) {
     return tx.payments.map((payment) => store.accountName(payment.accountId)).join(' + ');
@@ -178,6 +178,14 @@ function pdfCurrency(value) {
   return formatCurrency(value, { hide: false }).replace('Rp', 'Rp ');
 }
 
+function pdfCurrencyCompact(value) {
+  const n = safeNumber(value);
+  const abs = Math.abs(n);
+  const formatted = abs.toLocaleString('id-ID');
+  const sign = n < 0 ? '-' : '';
+  return `${sign}Rp${formatted},-`;
+}
+
 function formatTxDate(dateISO) {
   const d = new Date(`${dateISO}T00:00:00`);
   const options = { day: '2-digit', month: 'short', year: 'numeric' };
@@ -244,7 +252,7 @@ export function exportPdf(month = monthKey()) {
 
   /* ---------- Transaction table ---------- */
   const tableStartY = 146;
-  const colWidths = [25, 60, 40, 210, 150, 100, 100];
+  const colWidths = [25, 60, 80, 273, 150, 70, 70];
   const headers = ['No', 'Tanggal', 'Jenis', 'Keterangan', 'Akun', 'Nominal', 'Saldo'];
   const tableWidth = pageWidth - 80;
 
@@ -254,7 +262,7 @@ export function exportPdf(month = monthKey()) {
     body: list.map((tx, i) => {
       // Nominal selalu punya tanda: + untuk pemasukan, - untuk pengeluaran dan transfer
       const nominalSign = tx.type === 'income' ? '+' : '-';
-      const amountLabel = `${nominalSign}${pdfCurrency(tx.amount)}`;
+      const amountLabel = `${nominalSign}${pdfCurrencyCompact(tx.amount)}`;
       // Saldo bersih: hanya angka, tanpa tanda plus di depan (minus hanya jika negatif)
       return [
         String(i + 1),
@@ -263,7 +271,7 @@ export function exportPdf(month = monthKey()) {
         tx.note || (tx.type === 'transfer' ? 'Transfer antar akun' : categoryLabel(tx)),
         accountPair(tx),
         amountLabel,
-        pdfCurrency(tx.runningBalance),
+        pdfCurrencyCompact(tx.runningBalance),
       ];
     }),
     theme: 'striped',
@@ -370,7 +378,7 @@ export function exportPdfRange(start, end) {
 
   /* ---------- Transaction table ---------- */
   const tableStartY = 146;
-  const colWidths = [25, 60, 40, 210, 150, 100, 100];
+  const colWidths = [25, 60, 80, 273, 150, 70, 70];
   const headers = ['No', 'Tanggal', 'Jenis', 'Keterangan', 'Akun', 'Nominal', 'Saldo'];
   const tableWidth = pageWidth - 80;
 
@@ -380,7 +388,7 @@ export function exportPdfRange(start, end) {
     body: list.map((tx, i) => {
       // Nominal selalu punya tanda: + untuk pemasukan, - untuk pengeluaran dan transfer
       const nominalSign = tx.type === 'income' ? '+' : '-';
-      const amountLabel = `${nominalSign}${pdfCurrency(tx.amount)}`;
+      const amountLabel = `${nominalSign}${pdfCurrencyCompact(tx.amount)}`;
       // Saldo bersih: hanya angka, tanpa tanda plus di depan (minus hanya jika negatif)
       return [
         String(i + 1),
@@ -389,7 +397,7 @@ export function exportPdfRange(start, end) {
         tx.note || (tx.type === 'transfer' ? 'Transfer antar akun' : categoryLabel(tx)),
         accountPair(tx),
         amountLabel,
-        pdfCurrency(tx.runningBalance),
+        pdfCurrencyCompact(tx.runningBalance),
       ];
     }),
     theme: 'striped',
