@@ -305,19 +305,18 @@ export function refreshDriveUi() {
 
 /** Make sure we have a Drive token, signing in again when the old session expired. */
 export async function ensureDriveAccess() {
-  if (!GoogleDrive.isConnected()) {
-    // Tandai backup yang tertunda agar dapat dilanjutkan setelah login Google
-    // selesai melalui redirect (halaman berpindah, konteks asli hilang).
-    sessionStorage.setItem('risly.pendingDriveBackup', '1');
-    await appHooks.signInWithGoogleFlow();
-  }
   try {
     await GoogleDrive.token();
+    return;
   } catch {
+    // Token kadaluarsa atau refresh diam-diam gagal; tandai dan masuk ulang
+    // agar backup dapat dilanjutkan setelah sesi Google diperbarui.
+    sessionStorage.setItem('risly.pendingDriveBackup', '1');
     await appHooks.signInWithGoogleFlow();
     // Coba ambil token sekali lagi setelah masuk ulang.
     try {
       await GoogleDrive.token();
+      return;
     } catch {
       /* biarkan pemanggil menangani error */
     }

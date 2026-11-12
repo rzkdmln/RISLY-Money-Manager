@@ -279,7 +279,7 @@ async function boot() {
     }
     if (hasPendingGoogleAuthRedirect()) {
       completeGoogleAuthLogin()
-        .then((session) => {
+        .then(async (session) => {
           if (!session?.account?.email) {
             clearGoogleAuthRedirectPending();
             return;
@@ -290,7 +290,15 @@ async function boot() {
           // Lanjutkan backup yang tertunda sebelum dialihkan ke login Google.
           if (sessionStorage.getItem('risly.pendingDriveBackup') === '1') {
             sessionStorage.removeItem('risly.pendingDriveBackup');
-            void driveBackupNow();
+            // Pastikan token benar-benar valid sebelum melanjutkan backup,
+            // agar tidak terjadinya loop redirect tak terbatas.
+            try {
+              await GoogleDrive.token();
+              void driveBackupNow();
+            } catch {
+              // Token masih belum valid; biarkan pengguna klik "Backup sekarang"
+              // lagi untuk memulai alur masuk Google secara interaktif.
+            }
           }
         })
         .catch((error) => {
