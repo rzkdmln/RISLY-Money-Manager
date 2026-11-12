@@ -82,8 +82,8 @@ export const cloudActions = {
     element.disabled = true;
     element.textContent = 'Menghubungkan…';
     try {
-      // Gunakan redirect sebagai utama untuk menghindari peringatan COOP popup.
-      const account = await signInWithGoogleFlow({ preferRedirect: true });
+      // Popup utama (lebih stabil di incognito / private), redirect sebagai cadangan.
+      const account = await signInWithGoogleFlow({ preferRedirect: false });
       if (!account) {
         // Redirect sedang berjalan — halaman akan navigasi ke Google.
         // Penyelesaian login ditangani oleh tryResumeRedirectLogin() di boot.
