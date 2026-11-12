@@ -10,10 +10,11 @@ import {
 import { store } from '../../core/store.js';
 import { toggleCalculator } from '../calculator.js';
 import { openNativeDatePicker } from '../calculator.js';
-import { renderApplication } from '../runtime.js';
+import { navigate, renderApplication } from '../runtime.js';
 import {
   expressionResult,
   formatMonth,
+  monthKey,
   parseDateDMY,
   todayISO,
   currentTimeHHMM,
@@ -44,6 +45,16 @@ export const transactionActions = {
       return;
     }
     openTransactionModal(tx);
+  },
+  'filter-tx-category': (element) => {
+    const categoryId = element.dataset.categoryId;
+    const [year, month] = monthKey().split('-');
+    ui.txYear = year;
+    ui.txMonth = month;
+    ui.txCategory = categoryId;
+    ui.txType = 'expense';
+    ui.txPage = 1;
+    navigate('transactions');
   },
   'toggle-calc': (element) => {
     toggleCalculator(element);

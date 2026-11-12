@@ -309,16 +309,18 @@ export async function ensureDriveAccess() {
     await GoogleDrive.token();
     return;
   } catch {
-    // Token kadaluarsa atau refresh diam-diam gagal; tandai dan masuk ulang
-    // agar backup dapat dilanjutkan setelah sesi Google diperbarui.
+    // Token kadaluarsa atau refresh diam-diam gagal (biasanya popup diblokir
+    // browser). Tandai backup yang tertunda dan coba masuk secara interaktif
+    // agar pengguna dapat memberikan izin akses Drive.
     sessionStorage.setItem('risly.pendingDriveBackup', '1');
-    await appHooks.signInWithGoogleFlow();
-    // Coba ambil token sekali lagi setelah masuk ulang.
     try {
-      await GoogleDrive.token();
+      // GoogleDrive.signIn() meminta OAuth2 token Drive secara interaktif
+      // (bukan hanya identitas Firebase Auth).
+      await GoogleDrive.signIn('select_account');
       return;
     } catch {
-      /* biarkan pemanggil menangani error */
+      // Popup diblokir atau pengguna batal; biarkan pemanggil menangani error
+      // dengan pesan yang jelas.
     }
   }
 }

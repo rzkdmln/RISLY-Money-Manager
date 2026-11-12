@@ -82,7 +82,7 @@ export function dashboardView(user) {
 
   const topCategories = spending.slice(0, 5).map((item) => {
     const percent = spendingTotal > 0 ? (item.total / spendingTotal) * 100 : 0;
-    return `<button type="button" class="legend-row min-w-0 w-full hover:bg-slate-50 dark:hover:bg-slate-800/50 p-1.5 rounded-lg transition-colors" data-action="nav" data-route="reports">
+    return `<button type="button" class="legend-row min-w-0 w-full hover:bg-slate-50 dark:hover:bg-slate-800/50 p-1.5 rounded-lg transition-colors" data-action="filter-tx-category" data-category-id="${escapeAttr(item.categoryId)}">
       <span class="legend-dot" style="--legend-color:${escapeAttr(item.color)}"></span>
       <span class="legend-name truncate">${escapeHTML(item.name)}</span>
       <span class="legend-value shrink-0 font-medium">${money(item.total, { compact: item.total >= 10_000_000 })}</span>
