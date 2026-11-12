@@ -244,8 +244,9 @@ export function exportPdf(month = monthKey()) {
 
   /* ---------- Transaction table ---------- */
   const tableStartY = 146;
-  const colWidths = [24, 56, 36, 95, 70, 64, 56];
+  const colWidths = [30, 70, 45, 180, 120, 140, 140];
   const headers = ['No', 'Tanggal', 'Jenis', 'Keterangan', 'Akun', 'Nominal', 'Saldo'];
+  const tableWidth = pageWidth - 80;
 
   doc.autoTable({
     startY: tableStartY,
@@ -266,12 +267,12 @@ export function exportPdf(month = monthKey()) {
     headStyles: {
       fillColor: [15, 23, 42],
       textColor: [255, 255, 255],
-      fontSize: 8.5,
+      fontSize: 9,
       font: 'helvetica',
     },
     bodyStyles: {
-      fontSize: 8,
-      cellPadding: 4,
+      fontSize: 8.5,
+      cellPadding: 5,
       font: 'helvetica',
     },
     alternateRowStyles: { fillColor: [248, 250, 252] },
@@ -284,6 +285,7 @@ export function exportPdf(month = monthKey()) {
       5: { cellWidth: colWidths[5], halign: 'right' },
       6: { cellWidth: colWidths[6], halign: 'right' },
     },
+    tableWidth,
     margin: { left: 40, right: 40, bottom: 40 },
     didDrawPage: (data) => {
       const h = doc.internal.pageSize.getHeight();
@@ -364,8 +366,9 @@ export function exportPdfRange(start, end) {
 
   /* ---------- Transaction table ---------- */
   const tableStartY = 146;
-  const colWidths = [24, 56, 36, 95, 70, 64, 56];
+  const colWidths = [30, 70, 45, 180, 120, 140, 140];
   const headers = ['No', 'Tanggal', 'Jenis', 'Keterangan', 'Akun', 'Nominal', 'Saldo'];
+  const tableWidth = pageWidth - 80;
 
   doc.autoTable({
     startY: tableStartY,
@@ -386,12 +389,12 @@ export function exportPdfRange(start, end) {
     headStyles: {
       fillColor: [15, 23, 42],
       textColor: [255, 255, 255],
-      fontSize: 8.5,
+      fontSize: 9,
       font: 'helvetica',
     },
     bodyStyles: {
-      fontSize: 8,
-      cellPadding: 4,
+      fontSize: 8.5,
+      cellPadding: 5,
       font: 'helvetica',
     },
     alternateRowStyles: { fillColor: [248, 250, 252] },
@@ -404,6 +407,7 @@ export function exportPdfRange(start, end) {
       5: { cellWidth: colWidths[5], halign: 'right' },
       6: { cellWidth: colWidths[6], halign: 'right' },
     },
+    tableWidth,
     margin: { left: 40, right: 40, bottom: 40 },
     didDrawPage: (data) => {
       const h = doc.internal.pageSize.getHeight();
