@@ -21,8 +21,17 @@ import { rememberFocus, restoreFocus } from './focus.js';
 export const root = document.getElementById('app-root');
 let renderTimer = null;
 export let lastActivityWrite = 0;
-let lastRenderTime = 0;
-const RENDER_DEBOUNCE_MS = 100;
+// Emit terakhir yang datanya sudah tampil di layar. Dipakai untuk membuang
+// render susulan yang tidak membawa perubahan apa pun.
+let lastRenderedEmitSeq = -1;
+// Opsi render yang tertunda (mis. fokus input) saat menunggu commit selesai.
+let queuedRenderOptions = null;
+// True bila render ditunda karena ada permintaan eksplisit (bukan hanya emit
+// store). Render seperti ini tetap dijalankan walau data tidak berubah.
+let renderRequested = false;
+// Saat proses transisi (mis. login + sinkronisasi awal) berlangsung, render
+// ditahan dulu agar aplikasi hanya digambar sekali setelah data siap.
+let renderHoldCount = 0;
 
 /* -------------------------------------------------------------------------- */
 /*  Splash                                                                    */
@@ -48,9 +57,40 @@ export function scheduleRender(delay = 60) {
   clearTimeout(renderTimer);
   renderTimer = setTimeout(() => {
     renderTimer = null;
-    if (store.currentUser && !ui.locked) renderApplication();
+    // Jangan render saat masih ada commit yang menyimpan data atau proses
+    // transisi berjalan: tunggu sebentar lalu coba lagi agar hanya terjadi
+    // satu render dengan data final.
+    if (store.hasPendingWrites || renderHoldCount > 0) {
+      scheduleRender(20);
+      return;
+    }
+    // Render untuk emit ini sudah dilakukan (mis. pemanggil langsung
+    // renderApplication setelah await commit) → tidak perlu render ulang.
+    if (!renderRequested && lastRenderedEmitSeq === store.emitSeq) {
+      queuedRenderOptions = null;
+      return;
+    }
+    const options = queuedRenderOptions || {};
+    queuedRenderOptions = null;
+    renderRequested = false;
+    if (store.currentUser && !ui.locked) renderApplicationNow(options);
     else renderAuth();
   }, delay);
+}
+
+/**
+ * Tahan render sementara (mis. selama login + sinkronisasi awal).
+ * Mengembalikan fungsi untuk melepas tahanan. Aman dipanggil berkali-kali.
+ */
+export function holdRenders() {
+  renderHoldCount += 1;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    renderHoldCount = Math.max(0, renderHoldCount - 1);
+    if (renderHoldCount === 0 && renderRequested) scheduleRender(0);
+  };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -90,13 +130,22 @@ function mountShell() {
 /*  Main render                                                               */
 /* -------------------------------------------------------------------------- */
 
-export function renderApplication({ focus = null } = {}) {
-  const now = Date.now();
-  // Hindari render berganda dalam waktu singkat (mis. store.commit lalu pemanggil
-  // langsung memanggil renderApplication lagi) yang menyebabkan flash layar.
-  if (now - lastRenderTime < RENDER_DEBOUNCE_MS) return;
-  lastRenderTime = now;
+export function renderApplication(options = {}) {
+  // Ada commit yang belum selesai: tunda render. Bila dipaksa render sekarang,
+  // UI akan menampilkan data lama lalu di-render ulang setelah commit selesai
+  // (inilah yang terlihat sebagai "load/refresh dua kali").
+  if (store.hasPendingWrites || renderHoldCount > 0) {
+    if (options?.focus) queuedRenderOptions = options;
+    renderRequested = true;
+    scheduleRender(0);
+    return;
+  }
+  renderRequested = false;
+  queuedRenderOptions = null;
+  renderApplicationNow(options);
+}
 
+function renderApplicationNow({ focus = null } = {}) {
   const user = store.currentUser;
   if (!user || ui.locked) {
     renderAuth();
@@ -128,6 +177,7 @@ export function renderApplication({ focus = null } = {}) {
       '<button type="button" class="btn btn-primary btn-sm" data-action="reload-app">Muat ulang</button>',
     )}</div>`;
   }
+  lastRenderedEmitSeq = store.emitSeq;
 
   page.classList.remove('page-enter');
   requestAnimationFrame(() => page.classList.add('page-enter'));
@@ -173,5 +223,6 @@ export function renderAuth() {
   root.innerHTML = loginView();
   document.title = `${APP.name} · Masuk`;
   updateSyncSlots(Cloud.getStatus());
+  lastRenderedEmitSeq = store.emitSeq;
   hideSplash();
 }

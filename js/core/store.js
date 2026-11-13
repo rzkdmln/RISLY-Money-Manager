@@ -173,6 +173,13 @@ export class Store {
     this._conflictLog = [];
     this._encryptionKey = null;
     this._encrypted = false;
+    // Jumlah commit (tulis lokal) yang masih berjalan. Dipakai runtime untuk
+    // menunda render sampai data benar-benar tersimpan, sehingga UI tidak
+    // sempat merender data lama lalu dirender ulang (efek "load dua kali").
+    this._pendingWrites = 0;
+    // Nomor urut emit. Runtime memakainya untuk melewati render yang datanya
+    // sudah tampil (mis. render langsung sesudah await commit).
+    this.emitSeq = 0;
     this._preferRemoteSettings = false;
     // Satu-kali: paksa data remote menang saat workspace lokal baru dibuat atau
     // saat bergabung ke household lain (mencegah snapshot default menimpa data
@@ -787,12 +794,18 @@ export class Store {
     return () => this.listeners.delete(listener);
   }
 
+  get hasPendingWrites() {
+    return this._pendingWrites > 0;
+  }
+
   emit(detail = {}) {
+    this.emitSeq += 1;
     const event = {
       source: detail.source || 'local',
       reason: detail.reason || 'update',
       silent: Boolean(detail.silent),
       timestamp: Date.now(),
+      seq: this.emitSeq,
     };
     this.listeners.forEach((listener) => {
       try {
@@ -946,15 +959,22 @@ export class Store {
     }
     // Tunggu penyimpanan ke IndexedDB selesai agar komit benar-benar transaksional:
     // jika persist gagal, this.data tidak diubah dan data tidak terjadi ketidakkonsistenan.
-    await this.persist(draft);
-    // Hapus base64 receipt dari data di memori jika receiptId tersedia,
-    // agar tidak menumpuk string besar di RAM.
-    if (Array.isArray(draft.transactions)) {
-      draft.transactions.forEach((tx) => {
-        if (tx.receiptId) delete tx.receipt;
-      });
+    // Selama persist berjalan, runtime menunda render agar tidak menampilkan
+    // data lama lebih dulu (penyebab tampilan ter-render dua kali).
+    this._pendingWrites += 1;
+    try {
+      await this.persist(draft);
+      // Hapus base64 receipt dari data di memori jika receiptId tersedia,
+      // agar tidak menumpuk string besar di RAM.
+      if (Array.isArray(draft.transactions)) {
+        draft.transactions.forEach((tx) => {
+          if (tx.receiptId) delete tx.receipt;
+        });
+      }
+      this.data = draft;
+    } finally {
+      this._pendingWrites -= 1;
     }
-    this.data = draft;
     if (emit) this.emit({ source, reason, silent });
     return result;
   }

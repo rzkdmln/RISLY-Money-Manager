@@ -20,7 +20,7 @@ import {
 import { ui, toast, closeModal, savePrefs } from '../ui/ui.js';
 import { GoogleDrive } from '../services/gdrive.js';
 import { clearPendingGoogleLogin } from '../services/google-auth-relay.js';
-import { renderApplication, renderAuth } from './runtime.js';
+import { renderApplication, renderAuth, holdRenders } from './runtime.js';
 import { openNoteEditor } from './modals.js';
 
 let lastReminderCheck = 0;
@@ -70,9 +70,15 @@ export async function enterApplication(user, { fresh = false } = {}) {
   }
   // Sinkronisasi cloud harus selesai sebelum render agar status sinkronisasi
   // (mis. "Tersinkronisasi") sudah benar saat shell pertama kali ditampilkan,
-  // bukan hanya setelah refresh halaman.
+  // bukan hanya setelah refresh halaman. Tahan render selama proses ini agar
+  // emit `sync:merge` tidak sempat menggambar aplikasi lalu digambar ulang.
   if (store.workspaceId) {
-    await syncCloudAfterLogin();
+    const releaseRenderHold = holdRenders();
+    try {
+      await syncCloudAfterLogin();
+    } finally {
+      releaseRenderHold();
+    }
   }
   renderApplication();
   if (fresh) toast(`Selamat datang, ${user.name}.`, 'success');

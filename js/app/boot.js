@@ -322,9 +322,6 @@ async function boot() {
   };
   if (store.hasWorkspace) {
     Cloud.bootstrap({ waitForAuth: true })
-      .then(() => {
-        if (store.currentUser && !ui.locked) renderApplication();
-      })
       .catch((error) => console.warn('Cloud bootstrap skipped:', error))
       .finally(finishSplash);
   } else {
