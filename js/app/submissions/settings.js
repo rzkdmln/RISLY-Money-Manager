@@ -12,6 +12,12 @@ import { store } from '../../core/store.js';
 
 export const settingsSubmissions = {
   'auto-lock': (form) => {
+    const user = store.currentUser;
+    if (!user?.pinHash && !user?.pinVerifier) {
+      closeModal();
+      toast('Atur PIN dulu untuk mengaktifkan kunci otomatis.', 'info');
+      return;
+    }
     const value = Number(form.querySelector('[name="autoLockMinutes"]')?.value || 0);
     store.updateSettings({ autoLockMinutes: Number.isFinite(value) ? value : 0 });
     closeModal();

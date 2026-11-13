@@ -21,7 +21,7 @@ import {
   openAuthCloudModal,
   openPrivacyModal,
 } from '../modals.js';
-import { navigate, renderApplication } from '../runtime.js';
+import { navigate, renderApplication, holdRenders } from '../runtime.js';
 import { lockApplication, leaveApplication } from '../session.js';
 import { requestNotifications, checkForUpdate } from '../pwa.js';
 import { store } from '../../core/store.js';
@@ -71,7 +71,27 @@ export const navigationActions = {
     }
   },
   'open-auto-lock': () => {
+    const user = store.currentUser;
+    if (!user) return;
+    if (!user.pinHash && !user.pinVerifier) {
+      toast('Atur PIN dulu untuk mengaktifkan kunci otomatis.', 'info');
+      closeModal({ silent: true });
+      openModal({
+        size: 'md',
+        className: 'form-modal',
+        html: changePinForm(user),
+      });
+      return;
+    }
     openAutoLockModal();
+  },
+  'toggle-developer-mode': () => {
+    savePrefs({ developerMode: !prefs.developerMode });
+    renderApplication();
+    toast(
+      prefs.developerMode ? 'Mode Pengembang aktif.' : 'Mode Pengembang nonaktif.',
+      'success'
+    );
   },
   'open-theme-modal': () => {
     openThemeModal();
@@ -111,7 +131,7 @@ export const navigationActions = {
   },
   'remove-pin': async () => {
     const user = store.currentUser;
-    if (!user?.pinHash) return;
+    if (!user?.pinHash && !user?.pinVerifier) return;
     const ok = await confirmDialog({
       title: 'Hapus PIN?',
       message:
@@ -119,21 +139,31 @@ export const navigationActions = {
       confirmLabel: 'Hapus',
     });
     if (!ok) return;
-    store.updateUser(user.id, {
-      pinHash: '',
-      pinSalt: '',
-      pinIterations: 0,
-      pinVerifier: '',
-    });
-    // Tanpa PIN, data harus kembali plaintext (bukan tetap terenkripsi tanpa
-    // kunci yang bisa diturunkan saat reload).
-    store.setEncryptionKey(null, '');
-    await store.persist();
-    await clearPinMetadata(user.id).catch(() => {});
-    clearLockSnapshot();
-    ui.appMounted = false;
+    const releaseRenderHold = holdRenders();
+    let removed = false;
+    try {
+      await store.updateUser(user.id, {
+        pinHash: '',
+        pinSalt: '',
+        pinIterations: 0,
+        pinVerifier: '',
+      });
+      // Tanpa PIN, kunci otomatis tidak relevan dan data harus kembali plaintext
+      // (bukan tetap terenkripsi tanpa kunci yang bisa diturunkan saat reload).
+      await store.updateSettings({ autoLockMinutes: 0 });
+      store.setEncryptionKey(null, '');
+      await store.persist();
+      await clearPinMetadata(user.id).catch(() => {});
+      clearLockSnapshot();
+      ui.appMounted = false;
+      removed = true;
+    } catch (error) {
+      toast(error.message || 'Gagal menghapus PIN.', 'error');
+    } finally {
+      releaseRenderHold();
+    }
     renderApplication();
-    toast('PIN dihapus.', 'success');
+    if (removed) toast('PIN dihapus. Kunci otomatis dinonaktifkan.', 'success');
   },
   'remove-member': async (element) => {
     const id = element.dataset.id;
@@ -194,10 +224,13 @@ export const navigationActions = {
     toast(`Kode baru: ${code}`, 'success');
   },
   logout: async () => {
+    const user = store.currentUser;
+    const hasPin = Boolean(user?.pinHash || user?.pinVerifier);
     const ok = await confirmDialog({
       title: 'Keluar dari sesi?',
-      message:
-        'Data tetap tersimpan. Anda perlu memasukkan PIN untuk masuk kembali.',
+      message: hasPin
+        ? 'Data tetap tersimpan. Anda perlu memasukkan PIN untuk masuk kembali.'
+        : 'Data tetap tersimpan. Anda perlu masuk dengan Google untuk membuka kembali.',
       confirmLabel: 'Keluar',
       danger: false,
       iconName: 'log-out',

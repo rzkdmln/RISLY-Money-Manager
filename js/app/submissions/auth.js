@@ -5,7 +5,7 @@
 
 import { showFormError } from '../../ui/ui.js';
 import { formValue, stringValue } from '../../core/utils.js';
-import { renderAuth } from '../runtime.js';
+import { renderAuth, renderApplication, holdRenders } from '../runtime.js';
 import { enterApplication } from '../session.js';
 import { store } from '../../core/store.js';
 import {
@@ -14,7 +14,6 @@ import {
   resetFailedAttempts,
   registerFailedAttempt,
   getLockRemaining,
-  createPinAndEncryption,
   changePin,
   saveLockSnapshot,
 } from '../../core/auth.js';
@@ -103,6 +102,7 @@ export const authSubmissions = {
   'change-pin': async (form) => {
     const user = store.getUser(form.dataset.user) || store.currentUser;
     if (!user) return;
+    const hadPin = Boolean(user.pinHash || user.pinVerifier);
     const currentPin = String(formValue(form, 'currentPin') || '');
     const newPin = String(formValue(form, 'newPin') || '');
     const confirmPin = String(formValue(form, 'confirmPin') || '');
@@ -116,6 +116,8 @@ export const authSubmissions = {
     }
     const submit = form.querySelector('[type="submit"]');
     if (submit) submit.disabled = true;
+    const releaseRenderHold = holdRenders();
+    let saved = false;
     try {
       const credentials = await changePin(user, currentPin, newPin);
       // Simpan kredensial PIN + verifier (salt yang sama) ke profil pengguna.
@@ -131,49 +133,27 @@ export const authSubmissions = {
         store.setEncryptionKey(credentials.encryption.key, credentials.pinSalt);
         await store.persist();
       }
+      // PIN pertama kali dibuat: jangan aktifkan kunci otomatis bawaan lama.
+      // Pengguna memilih sendiri setelah PIN ada.
+      if (!hadPin) {
+        await store.updateSettings({ autoLockMinutes: 0 });
+      }
       saveLockSnapshot(store.currentUser || user, store.workspaceId);
-      closeModal({ silent: true });
-      toast('PIN berhasil diubah. Data telah di-re-enkripsi dengan PIN baru.', 'success');
+      saved = true;
     } catch (error) {
-      showFormError(form, error.message || 'Gagal mengubah PIN.');
+      showFormError(form, error.message || 'Gagal menyimpan PIN.');
     } finally {
+      releaseRenderHold();
       if (submit) submit.disabled = false;
     }
-  },
-
-  'setup-pin': async (form) => {
-    const userId = String(formValue(form, 'user') || '');
-    const pin = String(formValue(form, 'pin') || '');
-    const confirmPin = String(formValue(form, 'confirmPin') || '');
-    const user = store.getUser(userId) || store.currentUser;
-    if (!user) return;
-    if (pin !== confirmPin) {
-      showFormError(form, 'PIN dan konfirmasi tidak sama.');
-      return;
-    }
-    if (!/^\d{6,8}$/.test(pin)) {
-      showFormError(form, 'PIN harus 6–8 angka.');
-      return;
-    }
-    const submit = form.querySelector('[type="submit"]');
-    if (submit) submit.disabled = true;
-    try {
-      const { pinCredentials, encryption } = await createPinAndEncryption(pin, user.id);
-      await store.updateUser(user.id, {
-        pinHash: pinCredentials.pinHash,
-        pinSalt: pinCredentials.pinSalt,
-        pinIterations: pinCredentials.pinIterations,
-        pinVerifier: encryption.verifier,
-      });
-      // Set kunci enkripsi di memori lalu tulis ulang data agar terenkripsi.
-      store.setEncryptionKey(encryption.key, pinCredentials.pinSalt);
-      await store.persist();
-      toast('PIN dibuat. Data lokal sekarang di-enkripsi at-rest.', 'success');
-      await enterApplication(store.currentUser || user);
-    } catch (error) {
-      showFormError(form, error.message || 'Gagal membuat PIN.');
-    } finally {
-      if (submit) submit.disabled = false;
-    }
+    if (!saved) return;
+    closeModal({ silent: true });
+    renderApplication();
+    toast(
+      hadPin
+        ? 'PIN berhasil diubah. Data telah di-re-enkripsi dengan PIN baru.'
+        : 'PIN berhasil dibuat. Data lokal sekarang dienkripsi.',
+      'success'
+    );
   },
 };

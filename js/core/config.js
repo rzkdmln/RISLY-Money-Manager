@@ -25,7 +25,7 @@ export const APP = Object.freeze({
   householdId: 'risly-family',
   locale: 'id-ID',
   currency: 'IDR',
-  defaultAutoLockMinutes: 60,
+  defaultAutoLockMinutes: 0,
   syncPollMs: 20_000,
   driveBackupPrefix: 'risly-backup-',
   driveBackupLimit: 10,

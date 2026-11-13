@@ -155,6 +155,27 @@ describe('createDefaultData', () => {
     expect(data.settings.locale).toBe('id-ID');
   });
 
+  it('tidak mengaktifkan kunci otomatis secara default', () => {
+    const data = createDefaultData();
+    expect(data.settings.autoLockMinutes).toBe(0);
+  });
+
+  it('membuat pengguna default tanpa PIN', () => {
+    const data = createDefaultData();
+    expect(data.users[0].pinHash).toBe('');
+    expect(data.users[0].pinVerifier || '').toBe('');
+  });
+
+  it('mempertahankan kunci otomatis yang sudah diatur pengguna', () => {
+    const result = migrateData({
+      transactions: [],
+      accounts: [],
+      users: [],
+      settings: { autoLockMinutes: 15 },
+    });
+    expect(result.settings.autoLockMinutes).toBe(15);
+  });
+
   it('membuat 4 akun default', () => {
     const data = createDefaultData();
     expect(data.accounts).toHaveLength(4);

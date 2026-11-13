@@ -726,7 +726,7 @@ export class Store {
       if (!user) return null;
       this.currentUserId = user.id;
       this.account = last;
-      return { user, hasPin: Boolean(user.pinHash) };
+      return { user, hasPin: Boolean(user.pinHash || user.pinVerifier) };
     } catch {
       return null;
     }

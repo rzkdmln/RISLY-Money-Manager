@@ -61,9 +61,11 @@ export function settingsView(user) {
   const dataSize = new Blob([JSON.stringify(store.data)]).size;
   const txCount = store.transactions().length;
   const noteCount = store.notes().length;
-  const lockValue = Number(store.data.settings.autoLockMinutes);
+  const hasPin = Boolean(user?.pinHash || user?.pinVerifier);
+  const lockValue = Number(store.data.settings.autoLockMinutes) || 0;
   const driveConnected = GoogleDrive.isConnected();
   const conflictLog = store.getConflictLog();
+  const developerMode = Boolean(prefs.developerMode);
 
   return `<div class="page-stack">
     ${pageHeader({
@@ -79,7 +81,7 @@ export function settingsView(user) {
       </div>
       <div class="flex gap-2">
         <button type="button" class="btn btn-secondary btn-sm" data-action="edit-profile">${icon('user', 'w-3.5 h-3.5')} Profil</button>
-        <button type="button" class="btn btn-secondary btn-sm" data-action="lock-app">${icon('lock', 'w-3.5 h-3.5')} Kunci</button>
+        ${hasPin ? `<button type="button" class="btn btn-secondary btn-sm" data-action="lock-app">${icon('lock', 'w-3.5 h-3.5')} Kunci</button>` : ''}
       </div>
     </div>
 
@@ -89,9 +91,8 @@ export function settingsView(user) {
           <div><p class="card-kicker">Keamanan</p><h2 class="section-title">PIN & sesi</h2></div>
           ${icon('shield', 'w-5 h-5 text-emerald-500')}
         </div>
-          <button type="button" class="settings-row" data-action="change-pin"><span class="settings-row-icon">${icon('lock', 'w-4 h-4')}</span><span class="flex-1"><strong>${user?.pinHash ? 'Ubah PIN' : 'Buat PIN'}</strong><small>${user?.pinHash ? '6-8 angka' : 'Opsional - untuk kunci aplikasi'}</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>
-          <button type="button" class="settings-row" data-action="encryption-status"><span class="settings-row-icon">${icon('shield-check', 'w-4 h-4')}</span><span class="flex-1"><strong>Enkripsi Data</strong><small>${store.encryptionEnabled ? 'Aktif (AES-GCM 256-bit)' : 'Nonaktif - data lokal tidak terenkripsi'}</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>
-          <button type="button" class="settings-row" data-action="open-auto-lock"><span class="settings-row-icon">${icon('clock', 'w-4 h-4')}</span><span class="flex-1"><strong>Kunci otomatis</strong><small>${escapeHTML(LOCK_OPTIONS.find((o) => o.value === lockValue)?.label || 'Tidak pernah')}</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>
+          <button type="button" class="settings-row" data-action="change-pin"><span class="settings-row-icon">${icon('lock', 'w-4 h-4')}</span><span class="flex-1"><strong>${hasPin ? 'Ubah PIN' : 'Atur PIN'}</strong><small>${hasPin ? '6–8 angka' : 'Belum diatur · opsional'}</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>
+          <button type="button" class="settings-row" data-action="open-auto-lock"><span class="settings-row-icon">${icon('clock', 'w-4 h-4')}</span><span class="flex-1"><strong>Kunci otomatis</strong><small>${hasPin ? escapeHTML(LOCK_OPTIONS.find((o) => o.value === lockValue)?.label || 'Tidak pernah') : 'Atur PIN dulu untuk mengaktifkan'}</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>
           <button type="button" class="settings-row" data-action="notifications"><span class="settings-row-icon">${icon('bell', 'w-4 h-4')}</span><span class="flex-1"><strong>Notifikasi</strong><small>Pengingat tugas dan catatan</small></span>${badge(notification.label, notification.tone, 'badge-soft')}</button>
           <button type="button" class="settings-row" data-action="open-theme-modal"><span class="settings-row-icon">${icon('palette', 'w-4 h-4')}</span><span class="flex-1"><strong>Tema</strong><small>${escapeHTML(THEME_OPTIONS.find((o) => o.id === prefs.theme)?.label || 'Sistem')}</small></span>${icon('chevron-right', 'w-4 h-4 text-slate-400')}</button>
           <button type="button" class="settings-row" data-action="toggle-privacy"><span class="settings-row-icon">${icon(prefs.hideAmounts ? 'eye-off' : 'eye', 'w-4 h-4')}</span><span class="flex-1"><strong>Sembunyikan nominal</strong><small>Samarkan angka saat dilihat orang</small></span><span class="switch ${prefs.hideAmounts ? 'is-on' : ''}"></span></button>
@@ -151,7 +152,20 @@ export function settingsView(user) {
         </div>
       </section>
 
-      <section class="card" id="conflict-log-card">
+      <section class="card" id="developer-card">
+        <div class="card-heading">
+          <div><p class="card-kicker">Lanjutan</p><h2 class="section-title">Mode Pengembang</h2></div>
+          ${icon('settings', 'w-5 h-5 text-slate-400')}
+        </div>
+        <button type="button" class="settings-row" data-action="toggle-developer-mode">
+          <span class="settings-row-icon">${icon('settings', 'w-4 h-4')}</span>
+          <span class="flex-1"><strong>Mode Pengembang</strong><small>Tampilkan alat diagnostik internal seperti log konflik sinkronisasi</small></span>
+          <span class="switch ${developerMode ? 'is-on' : ''}"></span>
+        </button>
+      </section>
+
+      ${developerMode
+        ? `<section class="card" id="conflict-log-card">
         <div class="card-heading">
           <div><p class="card-kicker">Sinkronisasi</p><h2 class="section-title">Log Konflik</h2></div>
           ${icon('alert-triangle', 'w-5 h-5 text-amber-500')}
@@ -168,7 +182,8 @@ export function settingsView(user) {
         <div class="settings-actions mt-4">
           <button type="button" class="btn btn-secondary btn-sm" data-action="clear-conflict-log">${icon('trash', 'w-3.5 h-3.5')} Bersihkan Log</button>
         </div>
-      </section>
+      </section>`
+        : ''}
     </div>
 
   </div>`;

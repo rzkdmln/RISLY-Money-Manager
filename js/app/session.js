@@ -88,17 +88,25 @@ export async function enterApplication(user, { fresh = false } = {}) {
 }
 
 export function lockApplication({ expired = false } = {}) {
+  const lockedUser = store.currentUser || ui.currentUser;
+  if (!lockedUser) return;
+  const hasPin = Boolean(lockedUser.pinHash || lockedUser.pinVerifier);
+  // Tanpa PIN tidak ada cara membuka layar kunci. Jangan pernah mengunci
+  // aplikasi dalam kondisi ini; biarkan sesi tetap berjalan.
+  if (!hasPin) {
+    if (expired) updateSessionActivity();
+    else toast('Atur PIN dulu untuk mengunci aplikasi.', 'info');
+    return;
+  }
   // Simpan snapshot non-sensitif sebelum data terdekripsi dibuang, agar layar
   // kunci tetap bisa ditampilkan setelah store.lock().
-  const lockedUser = store.currentUser || ui.currentUser;
-  if (lockedUser) saveLockSnapshot(lockedUser, store.workspaceId);
+  saveLockSnapshot(lockedUser, store.workspaceId);
   // Hapus kunci enkripsi dan data terdekripsi dari memori (bukan hanya ubah UI).
   store.lock();
   clearSession();
-  const hasPin = Boolean(lockedUser?.pinHash || lockedUser?.pinVerifier);
-  ui.currentUser = hasPin ? lockedUser : null;
-  ui.selectedUser = hasPin ? lockedUser.id : null;
-  ui.locked = hasPin;
+  ui.currentUser = lockedUser;
+  ui.selectedUser = lockedUser.id;
+  ui.locked = true;
   ui.appMounted = false;
   closeModal({ silent: true });
   renderAuth();
@@ -126,7 +134,11 @@ export async function leaveApplication() {
 
 export function checkAutoLock() {
   const session = getSession();
-  if (!session || !store.currentUser) return;
+  const user = store.currentUser;
+  if (!session || !user) return;
+  // PIN opsional. Tanpa PIN, kunci otomatis tidak boleh berjalan karena
+  // pengguna tidak punya cara untuk membuka aplikasi kembali.
+  if (!user.pinHash && !user.pinVerifier) return;
   if (isSessionExpired(session, store.data.settings.autoLockMinutes)) {
     lockApplication({ expired: true });
   }

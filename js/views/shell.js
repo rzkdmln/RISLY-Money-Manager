@@ -128,6 +128,7 @@ export function updateSyncSlots(status) {
 
 export function profileSheet(user) {
   const status = Cloud.getStatus();
+  const hasPin = Boolean(user?.pinHash || user?.pinVerifier);
   return `<div class="p-5 sm:p-6">
       <div class="flex items-center gap-4">
         ${avatar(user, 'xl')}
@@ -140,7 +141,7 @@ export function profileSheet(user) {
       </div>
       <div class="profile-menu mt-6">
         <a href="#/settings" class="profile-menu-item" data-action="nav" data-route="settings">${icon('settings', 'w-4.5 h-4.5')} Pengaturan akun</a>
-        <button type="button" class="profile-menu-item" data-action="change-pin">${icon('lock', 'w-4.5 h-4.5')} Ubah PIN</button>
+        <button type="button" class="profile-menu-item" data-action="change-pin">${icon('lock', 'w-4.5 h-4.5')} ${hasPin ? 'Ubah PIN' : 'Atur PIN'}</button>
         <button type="button" class="profile-menu-item" data-action="notifications">${icon('bell', 'w-4.5 h-4.5')} Izin notifikasi</button>
         <button type="button" class="profile-menu-item" data-action="toggle-privacy">${icon('eye-off', 'w-4.5 h-4.5')} ${prefs.hideAmounts ? 'Tampilkan nominal' : 'Sembunyikan nominal'}</button>
       </div>
@@ -150,7 +151,7 @@ export function profileSheet(user) {
           <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate">${escapeHTML(status.error || status.message || 'Data lokal di perangkat ini')}</p>
         </div>
       </div>` : ''}
-      ${user?.pinHash ? `<div class="mt-4">
+      ${hasPin ? `<div class="mt-4">
         <button type="button" class="btn btn-secondary w-full" data-action="lock-app">${icon('lock', 'w-4 h-4')} Kunci aplikasi</button>
       </div>` : ''}
     </div>`;

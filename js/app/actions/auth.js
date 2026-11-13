@@ -7,7 +7,6 @@ import { openForgotPinModal, openAuthCloudModal } from '../modals.js';
 import { Cloud } from '../../services/cloud.js';
 import { store } from '../../core/store.js';
 import { clearSession, clearLockSnapshot } from '../../core/auth.js';
-import { enterApplication } from '../session.js';
 import {
   ui,
   closeModal,
@@ -69,17 +68,5 @@ export const authActions = {
     ui.selectedUser = null;
     closeModal({ silent: true });
     renderAuth();
-  },
-  'encryption-status': () => {
-    toast(
-      store.encryptionEnabled
-        ? 'Enkripsi data aktif (AES-GCM 256-bit). Kunci hanya ada di memori dan dihapus saat auto-lock.'
-        : 'Enkripsi data nonaktif. Setel PIN untuk mengaktifkan enkripsi at-rest.',
-      'info'
-    );
-  },
-  'skip-pin': async () => {
-    const user = store.currentUser;
-    if (user) await enterApplication(user);
   },
 };

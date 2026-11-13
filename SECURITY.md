@@ -51,7 +51,7 @@ Aturan baru (Fase 6):
 - Berbagi keluarga via undangan: kode dipublikasikan ke `inviteCodes/<KODE>` berisi `ownerUid`, lalu anggota yang bergabung menulis `households/<ownerUid>/members/<uid>` dan memakai path household pemilik.
 - Data lokal anggota yang sudah ada tetap digabung (bukan ditimpa) saat bergabung; pengaturan ruang mengikuti pemilik.
 - Login Google utama pakai popup (`signInWithPopup`) agar stabil di incognito. Token Google di-resolve dari memori → localStorage → token client sebelum dikirim ke Firebase credential. Redirect tetap cadangan untuk iOS.
-- Konflik sinkronisasi (dua perangkat mengubah record yang sama) dicatat ke `risly.mm.conflicts.v1` di localStorage dan bisa dilihat di Pengaturan › Log Konflik. Pemenang dipilih berdasarkan timestamp terbaru.
+- Konflik sinkronisasi (dua perangkat mengubah record yang sama) dicatat ke `risly.mm.conflicts.v1` di localStorage dan bisa dilihat di Pengaturan › Mode Pengembang › Log Konflik. Pemenang dipilih berdasarkan timestamp terbaru.
 
 ## Prasyarat teknis sebelum login pertama kali setelah perubahan ini
 
@@ -68,7 +68,7 @@ Verifikasi PIN (untuk layar kunci) menggunakan verifier terpisah (hash PBKDF2) y
 
 ### Auto-lock
 
-Saat auto-lock terpicu, `store.lock()` menghapus kunci enkripsi dari memori dan membersihkan `this.data`. Data terdekripsi tidak tersisa di RAM. Untuk membuka kembali, pengguna harus memasukkan PIN yang benar.
+Auto-lock bersifat opsional, default **tidak pernah**, dan hanya berjalan setelah pengguna membuat PIN. Tanpa PIN, aplikasi tidak pernah mengunci karena tidak ada layar kunci yang bisa dipakai untuk membuka kembali. Saat auto-lock terpicu, `store.lock()` menghapus kunci enkripsi dari memori dan membersihkan `this.data`. Data terdekripsi tidak tersisa di RAM. Untuk membuka kembali, pengguna harus memasukkan PIN yang benar.
 
 ### Sesi & Token
 

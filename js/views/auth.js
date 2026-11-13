@@ -126,61 +126,9 @@ export function loginView() {
     // pengguna diambil dari snapshot layar kunci (ui.currentUser).
     const user = store.getUser(store.currentUserId) || ui.currentUser;
     if (user?.pinHash || user?.pinVerifier) return lockView(user);
-    // User sudah login tapi belum punya PIN → tampilkan setup PIN.
-    if (user) return setupPinView(user);
   }
+  // PIN opsional. Pengguna yang belum pernah mengatur PIN tidak boleh dipaksa
+  // membuat PIN atau diminta memasukkannya saat kembali ke aplikasi.
   return welcomeView();
-}
-
-/**
- * Tampilkan layar setup PIN pertama kali dengan kalimat pemulihan.
- * Pengguna harus menyimpan kalimat pemulihan — tanpa PIN, data tidak bisa dibuka.
- */
-export function setupPinView(user) {
-  return `<div class="auth-screen">
-    <div class="auth-orb auth-orb-one"></div>
-    <div class="auth-orb auth-orb-two"></div>
-    <div class="auth-orb auth-orb-three"></div>
-    <main class="auth-shell">
-      ${brandBlock()}
-
-      <section class="auth-card">
-        <div class="auth-heading">
-          <span class="auth-kicker">Atur PIN Aplikasi</span>
-          <h1>Buat PIN untuk ${escapeHTML(user?.name || 'Anda')}</h1>
-          <p>PIN melindungi data Anda dengan enkripsi. Tanpa PIN yang benar, data lokal tidak bisa dibuka.</p>
-        </div>
-
-        <div class="auth-alert warning">
-          ${icon('alert-triangle', 'w-4 h-4')}
-          <strong>Penting:</strong> Jika lupa PIN, semua data akan hilang permanen. Simpan cadangan terenkripsi di bawah.
-        </div>
-
-        <form id="setup-pin-form" data-form="setup-pin" class="auth-form" novalidate>
-          <input type="hidden" name="user" value="${escapeAttr(user?.id || '')}">
-          <label class="field-label" for="setup-pin-input">PIN (6–8 angka)</label>
-          <input id="setup-pin-input" name="pin" type="password" inputmode="numeric" pattern="[0-9]{6,8}" maxlength="8" autocomplete="new-password" autofocus placeholder="••••••">
-          <label class="field-label mt-3" for="setup-confirm-input">Ulangi PIN</label>
-          <input id="setup-confirm-input" name="confirmPin" type="password" inputmode="numeric" pattern="[0-9]{6,8}" maxlength="8" autocomplete="new-password" placeholder="••••••">
-          <p id="setup-pin-error" class="auth-error hidden" data-form-error role="alert"></p>
-          <button type="submit" class="btn btn-primary auth-submit" id="setup-pin-submit">
-            Buat PIN ${icon('arrow-right', 'w-4 h-4')}
-          </button>
-        </form>
-
-        <div class="auth-links mt-4">
-          <button type="button" data-action="skip-pin">Lewat untuk sekarang (data tidak terenkripsi)</button>
-        </div>
-      </section>
-
-      <footer class="auth-footer">
-        <span>${APP.name} v${APP.version}</span>
-      </footer>
-    </main>
-  </div>`;
-}
-
-export function setupView() {
-  return loginView();
 }
 

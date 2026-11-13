@@ -179,7 +179,10 @@ async function boot() {
         if (account?.email) user = store.ensureMember(account);
         else user = store.activeUsers()[0] || null;
       }
-      const expired = isSessionExpired(session, store.data.settings.autoLockMinutes);
+      const hasPin = Boolean(user?.pinHash || user?.pinVerifier);
+      // Tanpa PIN, sesi tidak pernah dianggap kedaluwarsa karena tidak ada
+      // layar kunci yang bisa dipakai untuk membuka kembali aplikasi.
+      const expired = hasPin && isSessionExpired(session, store.data.settings.autoLockMinutes);
       if (!expired && user) {
         store.setCurrentUser(user.id);
         ui.currentUser = user;
@@ -189,7 +192,7 @@ async function boot() {
         clearSession();
         store.setCurrentUser(user.id);
         ui.currentUser = user;
-        ui.locked = Boolean(user.pinHash);
+        ui.locked = hasPin;
       } else {
         clearSession();
         ui.locked = false;

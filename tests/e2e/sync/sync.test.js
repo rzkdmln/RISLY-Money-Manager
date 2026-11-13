@@ -216,7 +216,7 @@ test('S3: Anggota tidak boleh mengubah settings', async ({ page }) => {
   await expect(page.locator('#app-root')).toContainText(/dashboard|beranda/i);
 
   // Buka Settings
-  await page.click('[data-action="settings"]').catch(() => null);
+  await page.goto('/#/settings');
   await page.waitForTimeout(800);
 
   // Coba ubah nama ruang (settings)
@@ -238,11 +238,16 @@ test('S4: Log konflik tersedia di Pengaturan', async ({ page }) => {
   await page.goto('/?nosw');
   await page.waitForTimeout(1000);
 
-  await page.click('[data-action="settings"]').catch(() => null);
+  await page.goto('/#/settings');
   await page.waitForTimeout(800);
 
-  // Section Log Konflik harus ada
+  // Log konflik adalah alat diagnostik dan harus tersembunyi secara default.
+  await expect(page.locator('#conflict-log-card')).toHaveCount(0);
+
+  // Aktifkan Mode Pengembang untuk menampilkan Log Konflik.
+  await page.click('[data-action="toggle-developer-mode"]');
+  await page.waitForTimeout(500);
   await expect(page.locator('#conflict-log-card')).toBeVisible({ timeout: 5000 });
-  await expect(page.locator('text=Log Konflik')).toBeVisible();
+  await expect(page.locator('#conflict-log-card .section-title')).toHaveText('Log Konflik');
   await expect(page.locator('[data-action="clear-conflict-log"]')).toBeVisible();
 });

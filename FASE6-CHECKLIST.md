@@ -91,7 +91,7 @@ npx playwright test tests/e2e/sync/sync.test.js
 | S1 | Perangkat A tambah transaksi → sync → perangkat B lihat | ✅ Transaksi muncul di B |
 | S2 | Dua perangkat tambah transaksi berbeda → sync keduanya | ✅ Kedua transaksi muncul di kedua perangkat |
 | S3 | Anggota coba ubah `settings` | ✅ Ditolak oleh rules (tidak crash) |
-| S4 | Log Konflik tersedia di Pengaturan | ✅ Section `#conflict-log-card` terlihat |
+| S4 | Log Konflik tersedia di Pengaturan | ✅ Section `#conflict-log-card` terlihat setelah Mode Pengembang diaktifkan |
 
 > **Catatan:** Untuk conflict sebenarnya (dua perangkat edit record ID yang sama), perlu manipulasi data yang lebih dalam. Test S2 saat ini mencakup sinkronisasi dasar tanpa conflict record-level. Conflict log (`risly.mm.conflicts.v1`) sudah diimplementasikan di `store.js` dan akan terpicu saat `mergeRemote` mendeteksi record dengan id yang sama namun konten berbeda.
 
@@ -108,7 +108,7 @@ npx playwright test tests/e2e/sync/sync.test.js
 | `inviteCodes` TTL (`expiresAt > now`) | `firebase-security-rules.json` | ✅ Selesai |
 | `oauth_relay` ditutup (`.read/.write: false`) | `firebase-security-rules.json` | ✅ Selesai |
 | Event `sync:conflict` di `cloud.js` | `js/services/cloud.js` | ✅ Selesai |
-| UI Log Konflik di Pengaturan | `js/views/settings.js` | ✅ Selesai |
+| UI Log Konflik di Pengaturan (di balik Mode Pengembang) | `js/views/settings.js` | ✅ Selesai |
 | Action `clear-conflict-log` + `view-conflict` | `js/app/actions/cloud.js` | ✅ Selesai |
 | `google-auth-relay.js` ditandai deprecated | `js/services/google-auth-relay.js` | ✅ Selesai |
 | `oauth-callback.html` ditandai deprecated | `oauth-callback.html` | ✅ Selesai |

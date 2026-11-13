@@ -19,6 +19,7 @@ const DEFAULT_PREFS = {
   calendarMode: 'month',
   lastUser: null,
   installDismissed: false,
+  developerMode: false,
 };
 
 function loadPrefs() {

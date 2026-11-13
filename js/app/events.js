@@ -419,7 +419,7 @@ export function bindEvents() {
       const key = target.dataset.setting;
       const value = Number(target.value);
       if (key === 'autoLockMinutes') {
-        store.updateSettings({ autoLockMinutes: Number.isFinite(value) ? value : 15 });
+        store.updateSettings({ autoLockMinutes: Number.isFinite(value) ? value : 0 });
         toast('Kunci otomatis diperbarui.', 'success');
       } else if (key === 'weekStartsOn') {
         store.updateSettings({ weekStartsOn: value === 0 ? 0 : 1 });

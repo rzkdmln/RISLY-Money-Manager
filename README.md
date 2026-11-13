@@ -142,14 +142,14 @@ Aturan di `firebase-security-rules.json` harus dipublikasikan ke Firebase Realti
 - **Kode undangan dengan TTL:** `inviteCodes` hanya bisa dibaca jika belum kedaluwarsa (`expiresAt > now`), hanya bisa ditulis oleh owner.
 - **Perbaikan comparisons:** perbandingan objek yang tidak andal di root `.write` dihapus (RTDB tidak bisa membandingkan objek untuk equality). Perlindungan `owner`, `settings`, dan `inviteCode` diganti dengan perbandingan primitif (string) agar aman.
 - **Cegah hapus `owner`:** node `owner` hanya bisa ditetapkan saat pembuatan atau oleh owner yang sudah ada, tidak bisa dihapus oleh anggota.
-- **Log konflik:** catatan yang kalah dalam merge sinkronisasi dicatat di `risly.mm.conflicts.v1` dan bisa dilihat di Pengaturan › Log Konflik. Log hanya mencatat saat data lokal benar-benar menimpa remote (tidak mencatat pull biasa).
+- **Log konflik:** catatan yang kalah dalam merge sinkronisasi dicatat di `risly.mm.conflicts.v1` dan bisa dilihat di Pengaturan › Mode Pengembang › Log Konflik. Log hanya mencatat saat data lokal benar-benar menimpa remote (tidak mencatat pull biasa).
 
 ### 🔐 Keamanan & Privasi
 
-- PIN 6–8 angka dengan hashing **PBKDF2-SHA256** (310.000 iterasi).
+- PIN 6–8 angka **opsional** dengan hashing **PBKDF2-SHA256** (310.000 iterasi).
 - Login throttling eksponensial (1 → 5 → 15 menit setelah 5 kali gagal berurutan).
-- Data lokal di IndexedDB **di-enkripsi at-rest** (AES-GCM 256-bit, kunci turunan dari PIN). Kunci hanya di memori, tidak pernah di disk.
-- Auto-lock benar-benar menghapus kunci enkripsi dari memori.
+- Data lokal di IndexedDB **di-enkripsi at-rest** (AES-GCM 256-bit, kunci turunan dari PIN) setelah PIN dibuat. Kunci hanya di memori, tidak pernah di disk.
+- Auto-lock **opsional** dan default **tidak pernah**; hanya berjalan setelah PIN dibuat dan pengguna memilih durasinya. Auto-lock benar-benar menghapus kunci enkripsi dari memori.
 - Sesi di `sessionStorage` + IndexedDB meta (tidak ada cookie sensitif).
 - Token Google Drive tidak lagi disimpan di cookie yang bisa dibaca JavaScript.
 - Backup terenkripsi (`.risly.enc`) dengan passphrase terpisah untuk pemulihan di perangkat lain.
@@ -177,7 +177,7 @@ Aturan di `firebase-security-rules.json` harus dipublikasikan ke Firebase Realti
 | Excel                   | SheetJS (`xlsx`)                                                                                                                                                                                |
 | PDF                     | jsPDF + jsPDF AutoTable                                                                                                                                                                         |
 | PWA                     | Service Worker + Web App Manifest                                                                                                                                                               |
-| Autentikasi             | PIN lokal (PBKDF2) + Firebase Auth (Google)                                                                                                                                                     |
+| Autentikasi             | PIN lokal opsional (PBKDF2) + Firebase Auth (Google)                                                                                                                                            |
 | Cloud opsional          | JSONBin, Supabase REST, Firebase Realtime Database                                                                                                                                              |
 | Backup                  | File JSON lokal + Google Drive REST v3                                                                                                                                                          |
 | Penyimpanan lokal utama | IndexedDB (DB `risly-mm`, object store `workspaces`, `receipts`, `meta`)                                                                                                                        |
@@ -352,7 +352,7 @@ http://127.0.0.1:8080
 
 ### Pertama kali membuka
 
-1. Masuk dengan Google, atau buat PIN saat diminta.
+1. Masuk dengan Google. PIN bersifat opsional dan bisa diatur nanti dari **Pengaturan → Atur PIN**.
 2. Tambahkan akun (rekening/dompet) terlebih dahulu.
 3. Mulai catat transaksi dari halaman **Transaksi** atau tombol tambah.
 4. Atur anggaran, kategori, dan target sesuai kebutuhan.

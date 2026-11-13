@@ -21,7 +21,7 @@ async function setupPinViaSettings(page) {
   await page.click('[data-action="settings"], a:has-text("Pengaturan"), button:has-text("Pengaturan")').catch(() => null);
   await page.waitForTimeout(800);
 
-  // Klik "Buat PIN" / "Ubah PIN"
+  // Klik "Atur PIN" / "Ubah PIN"
   await page.click('[data-action="change-pin"]');
   await page.waitForTimeout(800);
 
@@ -39,6 +39,9 @@ async function setupPinViaSettings(page) {
   await expect(page.locator('form[data-form="change-pin"]')).toHaveCount(0, {
     timeout: 10_000,
   });
+
+  // PIN pertama tidak boleh langsung mengaktifkan kunci otomatis bawaan lama.
+  await expect(page.locator('[data-action="open-auto-lock"]')).toContainText('Tidak pernah');
 
   // Kunci aplikasi
   await page.click('[data-action="lock-app"], button:has-text("Kunci")').catch(() => null);
@@ -252,16 +255,16 @@ test('Impor backup JSON → preview → impor', async ({ page }) => {
 });
 
 /* -------------------------------------------------------------------------- */
-/*  Test 6: Buat PIN → kunci → buka lagi → reload tetap terkunci              */
+/*  Test 6: Atur PIN → kunci → buka lagi → reload tetap terkunci              */
 /* -------------------------------------------------------------------------- */
 
-test('Buat PIN → kunci → buka lagi → reload tetap terkunci', async ({ page }) => {
+test('Atur PIN → kunci → buka lagi → reload tetap terkunci', async ({ page }) => {
   await page.addInitScript({ content: SETUP_STORAGE_CONTENT });
   await page.goto('/?nosw');
   await page.waitForTimeout(1000);
   await expect(page.locator('#app-root')).toContainText(/dashboard|beranda/i, { timeout: 10_000 });
 
-  // Buat PIN lewat Settings, kunci, lalu buka kembali (helper berakhir setelah unlock).
+  // Atur PIN lewat Settings, kunci, lalu buka kembali (helper berakhir setelah unlock).
   await setupPinViaSettings(page);
   await expect(page.locator('#app-root')).toContainText(/dashboard|beranda/i, { timeout: 10_000 });
 
@@ -273,4 +276,35 @@ test('Buat PIN → kunci → buka lagi → reload tetap terkunci', async ({ page
   await page.click('#login-form button[type="submit"]');
   await page.waitForTimeout(1200);
   await expect(page.locator('#app-root')).toContainText(/dashboard|beranda/i, { timeout: 10_000 });
+});
+
+/* -------------------------------------------------------------------------- */
+/*  Test 7: Tanpa PIN → tidak ada aksi kunci, label "Atur PIN"                */
+/* -------------------------------------------------------------------------- */
+
+test('Tanpa PIN: tidak ada tombol kunci dan label memakai "Atur PIN"', async ({ page }) => {
+  await page.addInitScript({ content: SETUP_STORAGE_CONTENT });
+  await page.goto('/?nosw');
+  await page.waitForTimeout(1000);
+  await page.goto('/#/settings');
+  await page.waitForTimeout(800);
+
+  // Tanpa PIN tidak boleh ada aksi mengunci aplikasi.
+  await expect(page.locator('[data-action="lock-app"]')).toHaveCount(0);
+
+  // Menu PIN harus memakai istilah "Atur PIN", bukan "Ubah PIN"/"Buat PIN".
+  await expect(page.locator('[data-action="change-pin"]')).toContainText('Atur PIN');
+
+  // Kunci otomatis tidak aktif sebelum PIN diatur.
+  await expect(page.locator('[data-action="open-auto-lock"]')).toContainText(
+    'Atur PIN dulu untuk mengaktifkan'
+  );
+
+  // Menekan kunci otomatis mengarahkan pengguna untuk mengatur PIN dulu.
+  await page.click('[data-action="open-auto-lock"]');
+  await expect(page.locator('form[data-form="change-pin"]')).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator('form[data-form="change-pin"] .modal-title')).toContainText('Atur PIN');
+
+  // Log konflik adalah alat diagnostik, bukan bagian pengaturan biasa.
+  await expect(page.locator('#conflict-log-card')).toHaveCount(0);
 });

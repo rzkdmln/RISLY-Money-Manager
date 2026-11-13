@@ -310,8 +310,10 @@ export function clearEncryptionKey() {
 /* -------------------------------------------------------------------------- */
 
 export async function changePin(user, currentPin, newPin) {
-  if (user?.pinHash) {
-    const valid = await verifyPin(user, currentPin);
+  if (user?.pinHash || user?.pinVerifier) {
+    let valid = false;
+    if (user.pinHash) valid = await verifyPin(user, currentPin);
+    if (!valid && user.pinVerifier) valid = await verifyPinByVerifier(user, currentPin);
     if (!valid) throw new Error('PIN saat ini tidak cocok.');
   }
   const { pinCredentials, encryption } = await createPinAndEncryption(newPin);

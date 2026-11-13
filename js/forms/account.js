@@ -236,36 +236,37 @@ export function subcategoryForm(category) {
 }
 
 export function changePinForm(user) {
+  const hasPin = Boolean(user?.pinHash || user?.pinVerifier);
   return `<form data-form="change-pin" data-user="${escapeAttr(user.id)}" class="modal-form" novalidate>
     <header class="modal-header">
       <div>
         <p class="modal-kicker">Keamanan akun</p>
-        <h2 class="modal-title">Ubah PIN ${escapeHTML(user.name)}</h2>
+        <h2 class="modal-title">${hasPin ? 'Ubah PIN' : 'Atur PIN'} ${escapeHTML(user.name)}</h2>
       </div>
       <button type="button" class="icon-btn" data-action="close-modal" aria-label="Tutup">${icon('x')}</button>
     </header>
     <div class="modal-body">
-      ${user?.pinHash ? `<label class="field-label">PIN saat ini
+      ${hasPin ? `<label class="field-label">PIN saat ini
         <input class="field mt-1.5" type="password" name="currentPin" inputmode="numeric" maxlength="8" autocomplete="current-password" required>
       </label>` : ''}
       <div class="form-grid">
-        <label class="field-label">PIN baru
+        <label class="field-label">${hasPin ? 'PIN baru' : 'PIN'}
           <input class="field mt-1.5" type="password" name="newPin" inputmode="numeric" minlength="6" maxlength="8" pattern="[0-9]{6,8}" autocomplete="new-password" required>
         </label>
-        <label class="field-label">Ulangi PIN baru
+        <label class="field-label">${hasPin ? 'Ulangi PIN baru' : 'Ulangi PIN'}
           <input class="field mt-1.5" type="password" name="confirmPin" inputmode="numeric" minlength="6" maxlength="8" pattern="[0-9]{6,8}" autocomplete="new-password" required>
         </label>
       </div>
-      <p class="text-[11px] leading-5 text-slate-500 dark:text-slate-400">PIN disimpan sebagai hash PBKDF2-SHA256 dengan salt unik. Setelah diubah, perangkat lain akan menerima hash baru saat sinkronisasi.</p>
+      <p class="text-[11px] leading-5 text-slate-500 dark:text-slate-400">PIN disimpan sebagai hash PBKDF2-SHA256 dengan salt unik. ${hasPin ? 'Setelah diubah, perangkat lain akan menerima hash baru saat sinkronisasi.' : 'Setelah dibuat, data lokal akan dienkripsi. Jika lupa PIN, data hanya bisa dipulihkan dari backup terenkripsi.'}</p>
       <p class="form-error hidden" data-form-error role="alert"></p>
     </div>
     <footer class="modal-footer">
       <div class="flex gap-2">
-        ${user?.pinHash ? `<button type="button" class="btn btn-danger-soft" data-action="remove-pin" data-id="${escapeAttr(user.id)}">${icon('x', 'w-4 h-4')} Hapus PIN</button>` : ''}
+        ${hasPin ? `<button type="button" class="btn btn-danger-soft" data-action="remove-pin" data-id="${escapeAttr(user.id)}">${icon('x', 'w-4 h-4')} Hapus PIN</button>` : ''}
       </div>
       <div class="flex gap-2 ml-auto">
         <button type="button" class="btn btn-secondary" data-action="close-modal">Batal</button>
-        <button type="submit" class="btn btn-primary">${icon('lock', 'w-4 h-4')} ${user?.pinHash ? 'Ubah PIN' : 'Buat PIN'}</button>
+        <button type="submit" class="btn btn-primary">${icon('lock', 'w-4 h-4')} ${hasPin ? 'Ubah PIN' : 'Atur PIN'}</button>
       </div>
     </footer>
   </form>`;
