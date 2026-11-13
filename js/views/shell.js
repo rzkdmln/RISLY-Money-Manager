@@ -2,6 +2,7 @@ import { APP, BOTTOM_NAV, DESKTOP_NAV_KELOLA, DESKTOP_NAV_KEUANGAN, MORE_NAV, RO
 import { Cloud } from '../services/cloud.js';
 import { icon } from '../ui/icons.js';
 import { avatar, prefs, syncPill } from '../ui/ui.js';
+import { syncWarning } from '../ui/sync-warning.js';
 import { escapeAttr, escapeHTML, formatDate, parseLocalDate, todayISO, appContextLabel } from '../core/utils.js';
 
 function cloudColorClass(status) {
@@ -119,6 +120,9 @@ export function updateSyncSlots(status) {
   document.querySelectorAll('.js-sync-slot').forEach((slot) => {
     slot.innerHTML = status?.provider !== 'local' ? syncPill(status) : '';
   });
+  // Update banner dashboard tanpa perlu me-render ulang seluruh halaman.
+  const warning = document.getElementById('dashboard-sync-warning');
+  if (warning) warning.innerHTML = syncWarning(status);
   const color = cloudColorClass(status);
   document.querySelectorAll('.topbar-cloud').forEach((button) => {
     button.classList.remove('text-slate-400', 'text-amber-500', 'text-emerald-500', 'text-red-500');

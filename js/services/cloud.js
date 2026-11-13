@@ -455,6 +455,10 @@ class CloudSync {
     this.lastRemoteFingerprint = null;
     this.lastError = null;
     this.connected = false;
+    // True sampai percobaan koneksi pertama selesai (berhasil, gagal, atau
+    // dilewati). Dipakai UI agar tidak menampilkan "Sinkronisasi belum aktif"
+    // saat handshake awal masih berjalan.
+    this.initializing = this.config.provider !== 'local';
     this.destroyed = false;
     this.reconnectTimer = null;
     this.lastRefreshAt = 0;
@@ -834,6 +838,7 @@ class CloudSync {
       revision: this.lastRevision,
       online: navigator.onLine !== false,
       connected: this.connected,
+      initializing: this.initializing,
       hasConfig: this.config.provider !== 'local',
     };
   }
@@ -880,6 +885,7 @@ class CloudSync {
 
   async bootstrap({ waitForAuth = false } = {}) {
     if (this.config.provider === 'local') {
+      this.initializing = false;
       this.state = 'local';
       this.emitStatus();
       return { ok: true, local: true };
@@ -898,6 +904,7 @@ class CloudSync {
         // Belum ada pengguna Firebase yang terkonfirmasi. Jangan sentuh RTDB
         // sebelum onAuthStateChanged mengonfirmasi user, karena aturan keamanan
         // saat ini mensyaratkan auth != null.
+        this.initializing = false;
         this.connected = false;
         this.firebaseUid = null;
         this.adapter = null;
@@ -945,6 +952,13 @@ class CloudSync {
     if (this.connectPromise) return this.connectPromise;
     this.connectPromise = this._connect(config, options).finally(() => {
       this.connectPromise = null;
+      // `bootstrap()` punya timeout 8 detik, tetapi koneksi sebenarnya bisa
+      // masih berjalan setelah timeout itu. Jangan tandai selesai sebelum
+      // percobaan koneksi ini benar-benar berakhir.
+      if (this.initializing) {
+        this.initializing = false;
+        this.emitStatus();
+      }
     });
     return this.connectPromise;
   }
