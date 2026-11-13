@@ -120,6 +120,7 @@ function memberOverview() {
   const archived = store.archivedAccounts();
   const total = store.totalBalance();
   const totalTx = store.transactions().length;
+  const memberCols = Math.max(1, Math.ceil(Math.sqrt(buckets.length)));
 
   const cards = buckets.map((bucket) => memberCard(bucket)).join('');
 
@@ -154,7 +155,7 @@ function memberOverview() {
         </div>
         ${badge(`${buckets.length} anggota`, 'slate', 'badge-soft')}
       </div>
-      <div class="members-grid">
+      <div class="members-grid" style="--members-cols:${memberCols};">
         ${cards || '<p class="text-sm text-slate-500">Belum ada anggota.</p>'}
       </div>
     </section>
@@ -166,6 +167,8 @@ function memberDetail(bucket) {
   const view = prefs.accountsView === 'list' ? 'list' : 'grid';
   const gridClass = `accounts-grid ${view === 'list' ? 'accounts-list-view' : ''}`;
   const ownerAttr = bucket.id === UNASSIGNED ? '' : escapeAttr(bucket.id);
+  const gridColumns = Math.max(1, Math.ceil(Math.sqrt(accounts.length)));
+  const mobileGridColumns = Math.min(2, gridColumns);
 
   const distribution = accounts.length && netWorth > 0
     ? `<section class="card min-w-0 w-full overflow-hidden">
@@ -217,7 +220,7 @@ function memberDetail(bucket) {
     </section>
 
     ${accounts.length
-      ? `<div class="${gridClass}" data-accounts-sortable style="grid-template-columns: repeat(${Math.ceil(Math.sqrt(accounts.length))}, 1fr);">${accounts.map((account) => accountCard(account, { draggable: true })).join('')}</div>`
+      ? `<div class="${gridClass}" data-accounts-sortable style="--accounts-cols:${gridColumns};--accounts-cols-mobile:${mobileGridColumns};">${accounts.map((account) => accountCard(account, { draggable: true })).join('')}</div>`
       : emptyState('wallet', `Belum ada akun untuk ${name}`, 'Tambahkan dompet, rekening, atau dompet digital milik anggota ini.', `<button type="button" class="btn btn-primary btn-sm" data-action="add-account" data-owner="${ownerAttr}">${icon('plus', 'w-3.5 h-3.5')} Tambah akun</button>`)}
 
     ${distribution}

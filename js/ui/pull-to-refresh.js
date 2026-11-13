@@ -34,7 +34,9 @@ function isAtTop() {
 }
 
 function isBlocked() {
-  return refreshing || document.body.classList.contains('modal-open');
+  return refreshing
+    || document.body.classList.contains('modal-open')
+    || document.body.classList.contains('account-drag-active');
 }
 
 function ensureIndicator() {

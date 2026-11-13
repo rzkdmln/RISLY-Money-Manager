@@ -519,6 +519,15 @@ export function bindEvents() {
   let draggedAccountId = null;
   let dropTargetId = null;
 
+  /* Touch drag & drop state (ponsel) */
+  let touchDragId = null;
+  let touchDragCard = null;
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchGhost = null;
+  let touchSourceIndex = -1;
+  let touchCurrentIndex = -1;
+
   const sortableContainer = () => document.querySelector('[data-accounts-sortable]');
 
   document.addEventListener('dragstart', (event) => {
@@ -593,6 +602,173 @@ export function bindEvents() {
 
     document.dispatchEvent(new window.CustomEvent('accounts:reorder', { detail: { ids: nextIds } }));
   });
+
+  /* ---------- Touch drag & drop (ponsel) ---------- */
+
+  function touchCardFromEvent(event) {
+    const touch = event.touches?.[0] || event.changedTouches?.[0];
+    if (!touch) return null;
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!target) return null;
+    const card = target.closest('[data-account-id]');
+    if (!card || !card.draggable) return null;
+    const handle = target.closest('[data-drag-handle]');
+    // Hanya mulai drag dari card atau drag handle; tombol aksi diabaikan.
+    if (!handle && target.closest('[data-action]')) return null;
+    return card;
+  }
+
+  function touchCreateGhost(card) {
+    const rect = card.getBoundingClientRect();
+    const ghost = card.cloneNode(true);
+    ghost.classList.add('is-dragging');
+    ghost.style.position = 'fixed';
+    ghost.style.top = `${rect.top}px`;
+    ghost.style.left = `${rect.left}px`;
+    ghost.style.width = `${rect.width}px`;
+    ghost.style.height = `${rect.height}px`;
+    ghost.style.opacity = '0.85';
+    ghost.style.zIndex = '9999';
+    ghost.style.pointerEvents = 'none';
+    ghost.style.boxShadow = '0 8px 24px rgba(0,0,0,0.18)';
+    ghost.style.borderRadius = 'var(--radius, 12px)';
+    ghost.style.boxSizing = 'border-box';
+    // Matikan interaksi elemen dalam ghost
+    ghost.querySelectorAll('button, a, input').forEach((el) => {
+      el.disabled = true;
+      el.style.pointerEvents = 'none';
+    });
+    document.body.appendChild(ghost);
+    return ghost;
+  }
+
+  function touchRemoveGhost() {
+    if (touchGhost) {
+      touchGhost.remove();
+      touchGhost = null;
+    }
+  }
+
+  function touchFindDropIndex(container, clientY) {
+    const cards = Array.from(container.querySelectorAll('[data-account-id]'));
+    // Cari kartu terdekat (kecuali yang sedang di-drag) berdasarkan titik tengah vertikal.
+    let nearestCard = null;
+    let nearestDist = Infinity;
+    cards.forEach((card) => {
+      if (card.dataset.accountId === touchDragId) return;
+      const r = card.getBoundingClientRect();
+      const centerY = r.top + r.height / 2;
+      const dist = Math.abs(clientY - centerY);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestCard = card;
+      }
+    });
+    if (!nearestCard) return 0;
+
+    const r = nearestCard.getBoundingClientRect();
+    const centerY = r.top + r.height / 2;
+    const isAfter = clientY > centerY;
+
+    // Konversi ke index dalam daftar yang sudah difilter (tanpa kartu yang di-drag).
+    let filteredIndex = 0;
+    for (let i = 0; i < cards.length; i++) {
+      if (cards[i].dataset.accountId === touchDragId) continue;
+      if (cards[i] === nearestCard) {
+        return isAfter ? filteredIndex + 1 : filteredIndex;
+      }
+      filteredIndex++;
+    }
+    return filteredIndex;
+  }
+
+  document.addEventListener('touchstart', (event) => {
+    const card = touchCardFromEvent(event);
+    if (!card) return;
+    touchDragId = card.dataset.accountId;
+    touchDragCard = card;
+    touchSourceIndex = Array.from(card.parentElement.querySelectorAll('[data-account-id]')).findIndex(
+      (c) => c.dataset.accountId === touchDragId
+    );
+    const touch = event.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    touchGhost = touchCreateGhost(card);
+    card.classList.add('is-drag-source');
+    document.body.classList.add('account-drag-active');
+    // Cegah pull-to-refresh dan scroll vertical saat mulai drag akun.
+    event.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener('touchmove', (event) => {
+    if (!touchDragId || !touchGhost) return;
+    const touch = event.touches[0];
+
+    // Gerakkan ghost sesuai jari
+    touchGhost.style.left = `${touch.clientX - touchGhost.offsetWidth / 2}px`;
+    touchGhost.style.top = `${touch.clientY - touchGhost.offsetHeight / 2}px`;
+
+    const container = sortableContainer();
+    if (!container) return;
+
+    const dropIndex = touchFindDropIndex(container, touch.clientY);
+    if (dropIndex !== touchCurrentIndex) {
+      touchCurrentIndex = dropIndex;
+      const cards = Array.from(container.querySelectorAll('[data-account-id]'));
+      // Hapus highlight lama
+      container.querySelectorAll('[data-account-id].is-drop-over').forEach((el) => {
+        el.classList.remove('is-drop-over');
+      });
+      // Sisipkan ghost visual di posisi drop di dalam container (tidak di fixed layer)
+      // Untuk UI yang mulus, geser card target dengan highlight.
+      if (dropIndex < cards.length) {
+        cards[dropIndex].classList.add('is-drop-over');
+      }
+    }
+
+    event.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener('touchend', (event) => {
+    if (!touchDragId) return;
+    touchRemoveGhost();
+    if (touchDragCard) {
+      touchDragCard.classList.remove('is-drag-source');
+    }
+    document.body.classList.remove('account-drag-active');
+
+    const container = sortableContainer();
+    if (container && touchCurrentIndex >= 0) {
+      const cards = Array.from(container.querySelectorAll('[data-account-id]'));
+      const currentIds = cards.map((el) => el.dataset.accountId);
+      const nextIds = currentIds.filter((id) => id !== touchDragId);
+      const insertIndex = Math.min(touchCurrentIndex, nextIds.length);
+      nextIds.splice(insertIndex, 0, touchDragId);
+      document.dispatchEvent(new window.CustomEvent('accounts:reorder', { detail: { ids: nextIds } }));
+    }
+
+    container?.querySelectorAll('[data-account-id].is-drop-over').forEach((el) => {
+      el.classList.remove('is-drop-over');
+    });
+
+    touchDragId = null;
+    touchGhost = null;
+    touchSourceIndex = -1;
+    touchCurrentIndex = -1;
+  }, { passive: true });
+
+  document.addEventListener('touchcancel', () => {
+    touchRemoveGhost();
+    touchDragId = null;
+    touchDragCard = null;
+    touchGhost = null;
+    touchSourceIndex = -1;
+    touchCurrentIndex = -1;
+    document.body.classList.remove('account-drag-active');
+    document.querySelectorAll('[data-account-id]').forEach((el) => {
+      el.classList.remove('is-drag-source', 'is-drop-over');
+    });
+  }, { passive: true });
 
   document.addEventListener('accounts:reorder', async (event) => {
     const { ids } = event.detail || {};

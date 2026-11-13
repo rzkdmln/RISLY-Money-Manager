@@ -437,7 +437,11 @@ body.is-auth { background: var(--bg); }
 .accounts-hero-meta span { display: inline-flex; align-items: center; gap: 4px; }
 .accounts-hero-ring { position: absolute; width: 230px; height: 230px; right: -90px; bottom: -120px; border: 1px solid rgba(255, 255, 255, .13); border-radius: 50%; }
 .accounts-hero-ring-two { width: 340px; height: 340px; right: -150px; bottom: -170px; }
-.members-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+.members-grid { display: grid; grid-template-columns: repeat(var(--members-cols, 2), minmax(0, 1fr)); gap: 10px; }
+/* Anggota: kartu horizontal, jadi di ponsel tampil satu kolom penuh agar tidak berdesakan. */
+@media (max-width: 767px) {
+  .members-grid { grid-template-columns: 1fr; }
+}
 .member-card {
   display: flex; align-items: center; gap: 11px; width: 100%;
   padding: 12px; text-align: left;
@@ -461,6 +465,11 @@ body.is-auth { background: var(--bg); }
 .back-link { display: inline-flex; align-items: center; gap: 5px; align-self: flex-start; padding: 0; border: 0; background: none; font-size: 10px; font-weight: 650; color: var(--muted); cursor: pointer; }
 .back-link:hover { color: var(--brand); }
 .accounts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+/* Grid akun anggota: jumlah kolom mengikuti jumlah akun, maksimal 2 kolom di layar ponsel. */
+.accounts-grid[data-accounts-sortable] { grid-template-columns: repeat(var(--accounts-cols, 3), minmax(0, 1fr)); }
+@media (max-width: 767px) {
+  .accounts-grid[data-accounts-sortable] { grid-template-columns: repeat(var(--accounts-cols-mobile, 2), minmax(0, 1fr)); }
+}
 .account-card {
   padding: 15px; border: 1px solid var(--border); border-left: 3px solid var(--account-color, var(--brand));
   border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-sm);
@@ -469,8 +478,12 @@ body.is-auth { background: var(--bg); }
 .account-card.is-draggable { cursor: grab; }
 .account-card.is-dragging { opacity: .5; cursor: grabbing; border: 2px dashed var(--brand); }
 .account-card.is-drop-over { outline: 2px solid var(--brand); outline-offset: -2px; border-radius: var(--radius); }
+.account-card.is-drag-source { opacity: .35; pointer-events: none; }
 .account-drag-handle { padding: 4px; border: 0; background: transparent; color: inherit; display: inline-flex; align-items: center; justify-content: center; opacity: .6; }
 .account-drag-handle:hover { opacity: 1; }
+/* Izinkan gestur geser pada kartu akun (termasuk layar sentuh) tanpa menangkap scroll body. */
+.account-card { touch-action: none; }
+.account-drag-handle { touch-action: none; }
 .account-card-top { display: flex; align-items: center; gap: 9px; }
 .account-icon { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; flex: 0 0 auto; border-radius: 11px; color: var(--account-color, var(--brand)); background: color-mix(in srgb, var(--account-color, var(--brand)) 11%, transparent); }
 .account-name { margin: 0; font-size: 12px; font-weight: 750; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
